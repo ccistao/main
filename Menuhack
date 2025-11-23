@@ -1,0 +1,705 @@
+-- ROBLOX HACK MENU - Full Features với Thu gọn Icon
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local camera = Workspace.CurrentCamera
+
+-- Biến cấu hình
+local config = {
+    speed = 16,
+    jumpPower = 50,
+    fullbright = false,
+    speedEnabled = false,
+    jumpEnabled = false,
+    aimbot = false,
+    esp = false,
+    shiftlock = false,
+    menuOpen = true
+}
+
+local connections = {}
+local espBoxes = {}
+local fullbrightConnection = nil
+
+-- Tạo ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "HackMenuGUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Khai báo biến global trước
+local miniIcon
+local mainFrame
+
+-- ===== ICON NHỎ (Khi thu gọn) =====
+miniIcon = Instance.new("ImageButton")
+miniIcon.Name = "MiniIcon"
+miniIcon.Size = UDim2.new(0, 60, 0, 60)
+miniIcon.Position = UDim2.new(0, 10, 0.5, -30)
+miniIcon.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+miniIcon.BorderSizePixel = 0
+miniIcon.Visible = false
+miniIcon.Active = true
+miniIcon.Parent = screenGui
+
+local iconCorner = Instance.new("UICorner")
+iconCorner.CornerRadius = UDim.new(0, 15)
+iconCorner.Parent = miniIcon
+
+local iconLabel = Instance.new("TextLabel")
+iconLabel.Size = UDim2.new(1, 0, 1, 0)
+iconLabel.BackgroundTransparency = 1
+iconLabel.Text = "🎮"
+iconLabel.TextSize = 30
+iconLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+iconLabel.Font = Enum.Font.GothamBold
+iconLabel.Parent = miniIcon
+
+-- Hệ thống kéo cho Icon (Chỉ cho Mobile Touch - Fixed)
+local iconDragging = false
+local iconDragInput = nil
+local iconStartPos = nil
+local iconStartInputPos = nil
+local iconMoved = false
+
+miniIcon.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        iconDragging = true
+        iconMoved = false
+        iconDragInput = input
+        iconStartPos = miniIcon.Position
+        iconStartInputPos = input.Position
+    end
+end)
+
+miniIcon.InputChanged:Connect(function(input)
+    if iconDragging and input == iconDragInput then
+        local delta = input.Position - iconStartInputPos
+        
+        if delta.Magnitude > 5 then
+            iconMoved = true
+            miniIcon.Position = UDim2.new(
+                iconStartPos.X.Scale,
+                iconStartPos.X.Offset + delta.X,
+                iconStartPos.Y.Scale,
+                iconStartPos.Y.Offset + delta.Y
+            )
+        end
+    end
+end)
+
+miniIcon.InputEnded:Connect(function(input)
+    if input == iconDragInput then
+        if not iconMoved then
+            -- Tap vào icon -> Mở menu
+            miniIcon.Visible = false
+            mainFrame.Visible = true
+            config.menuOpen = true
+        end
+        
+        iconDragging = false
+        iconMoved = false
+        iconDragInput = nil
+        iconStartPos = nil
+        iconStartInputPos = nil
+    end
+end)
+
+-- ===== MAIN FRAME =====
+mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 350, 0, 500)
+mainFrame.Position = UDim2.new(0.5, -175, 0.5, -250)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+-- Header
+local header = Instance.new("Frame")
+header.Name = "Header"
+header.Size = UDim2.new(1, 0, 0, 50)
+header.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+header.BorderSizePixel = 0
+header.Parent = mainFrame
+
+local headerCorner = Instance.new("UICorner")
+headerCorner.CornerRadius = UDim.new(0, 12)
+headerCorner.Parent = header
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -120, 1, 0)
+title.Position = UDim2.new(0, 15, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "🎮 HACK MENU"
+title.TextColor3 = Color3.fromRGB(100, 200, 255)
+title.TextSize = 20
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = header
+
+-- Minimize Button
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 35, 0, 35)
+minimizeBtn.Position = UDim2.new(1, -80, 0.5, -17.5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+minimizeBtn.Text = "−"
+minimizeBtn.TextSize = 25
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.BorderSizePixel = 0
+minimizeBtn.Parent = header
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 8)
+minCorner.Parent = minimizeBtn
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    config.menuOpen = false
+    mainFrame.Visible = false
+    miniIcon.Visible = true
+end)
+
+-- Close Button
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 35, 0, 35)
+closeBtn.Position = UDim2.new(1, -40, 0.5, -17.5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+closeBtn.Text = "×"
+closeBtn.TextSize = 25
+closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.BorderSizePixel = 0
+closeBtn.Parent = header
+
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 8)
+closeCorner.Parent = closeBtn
+
+-- Content Frame với ScrollingFrame
+local contentFrame = Instance.new("ScrollingFrame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, -20, 1, -60)
+contentFrame.Position = UDim2.new(0, 10, 0, 55)
+contentFrame.BackgroundTransparency = 1
+contentFrame.BorderSizePixel = 0
+contentFrame.ScrollBarThickness = 6
+contentFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+contentFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 200, 255)
+contentFrame.Parent = mainFrame
+
+local contentLayout = Instance.new("UIListLayout")
+contentLayout.Padding = UDim.new(0, 10)
+contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+contentLayout.Parent = contentFrame
+
+-- Hệ thống kéo cho Main Frame (Chỉ Touch)
+local frameDragging = false
+local frameDragStart = nil
+local frameStartPos = nil
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        frameDragging = true
+        frameDragStart = input.Position
+        frameStartPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                frameDragging = false
+            end
+        end)
+    end
+end)
+
+header.InputChanged:Connect(function(input)
+    if frameDragging and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - frameDragStart
+        mainFrame.Position = UDim2.new(
+            frameStartPos.X.Scale,
+            frameStartPos.X.Offset + delta.X,
+            frameStartPos.Y.Scale,
+            frameStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- ===== HÀM TẠO BUTTON TOGGLE =====
+local function createToggle(name, emoji, layoutOrder)
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Name = name .. "Toggle"
+    toggleFrame.Size = UDim2.new(1, 0, 0, 50)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    toggleFrame.BorderSizePixel = 0
+    toggleFrame.LayoutOrder = layoutOrder
+    toggleFrame.Parent = contentFrame
+    
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 8)
+    toggleCorner.Parent = toggleFrame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -100, 1, 0)
+    label.Position = UDim2.new(0, 15, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = emoji .. " " .. name
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 16
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = toggleFrame
+    
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Name = "ToggleButton"
+    toggleBtn.Size = UDim2.new(0, 70, 0, 35)
+    toggleBtn.Position = UDim2.new(1, -80, 0.5, -17.5)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+    toggleBtn.Text = "TẮT"
+    toggleBtn.TextSize = 14
+    toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.BorderSizePixel = 0
+    toggleBtn.Parent = toggleFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = toggleBtn
+    
+    return toggleBtn, label
+end
+
+-- ===== HÀM TẠO SLIDER =====
+local function createSlider(name, emoji, min, max, default, layoutOrder)
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Name = name .. "Slider"
+    sliderFrame.Size = UDim2.new(1, 0, 0, 80)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    sliderFrame.BorderSizePixel = 0
+    sliderFrame.LayoutOrder = layoutOrder
+    sliderFrame.Parent = contentFrame
+    
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0, 8)
+    sliderCorner.Parent = sliderFrame
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 0, 25)
+    label.Position = UDim2.new(0, 10, 0, 10)
+    label.BackgroundTransparency = 1
+    label.Text = emoji .. " " .. name .. ": " .. default
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 16
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = sliderFrame
+    
+    local sliderBg = Instance.new("Frame")
+    sliderBg.Size = UDim2.new(1, -40, 0, 8)
+    sliderBg.Position = UDim2.new(0, 20, 0, 45)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 75)
+    sliderBg.BorderSizePixel = 0
+    sliderBg.Parent = sliderFrame
+    
+    local sliderBgCorner = Instance.new("UICorner")
+    sliderBgCorner.CornerRadius = UDim.new(0, 4)
+    sliderBgCorner.Parent = sliderBg
+    
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderBg
+    
+    local sliderFillCorner = Instance.new("UICorner")
+    sliderFillCorner.CornerRadius = UDim.new(0, 4)
+    sliderFillCorner.Parent = sliderFill
+    
+    local sliderBtn = Instance.new("TextButton")
+    sliderBtn.Size = UDim2.new(0, 20, 0, 20)
+    sliderBtn.Position = UDim2.new((default - min) / (max - min), -10, 0.5, -10)
+    sliderBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sliderBtn.Text = ""
+    sliderBtn.BorderSizePixel = 0
+    sliderBtn.Parent = sliderBg
+    
+    local sliderBtnCorner = Instance.new("UICorner")
+    sliderBtnCorner.CornerRadius = UDim.new(1, 0)
+    sliderBtnCorner.Parent = sliderBtn
+    
+    -- Xử lý kéo slider (Mobile-friendly - Cải thiện)
+    local sliderDragging = false
+    local touchConnection = nil
+    
+    local function updateSlider(inputPos)
+        local pos = inputPos.X
+        local sliderPos = sliderBg.AbsolutePosition.X
+        local sliderSize = sliderBg.AbsoluteSize.X
+        local relativePos = math.clamp(pos - sliderPos, 0, sliderSize)
+        local percent = relativePos / sliderSize
+        local value = math.floor(min + (percent * (max - min)))
+        
+        label.Text = emoji .. " " .. name .. ": " .. value
+        sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+        sliderBtn.Position = UDim2.new(percent, -10, 0.5, -10)
+        
+        return value
+    end
+    
+    sliderBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = true
+            
+            -- Tạo connection để theo dõi chuyển động
+            touchConnection = RunService.RenderStepped:Connect(function()
+                if sliderDragging then
+                    local currentInput = UserInputService:GetMouseLocation()
+                    updateSlider(currentInput)
+                end
+            end)
+        end
+    end)
+    
+    sliderBtn.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = false
+            if touchConnection then
+                touchConnection:Disconnect()
+                touchConnection = nil
+            end
+        end
+    end)
+    
+    sliderBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            updateSlider(input.Position)
+        end
+    end)
+    
+    return {
+        getValue = function()
+            local percent = sliderFill.Size.X.Scale
+            return math.floor(min + (percent * (max - min)))
+        end,
+        label = label
+    }
+end
+
+-- ===== TẠO CÁC NÚT ĐIỀU KHIỂN =====
+
+-- Fullbright
+local fullbrightBtn, fullbrightLabel = createToggle("Fullbright", "💡", 1)
+fullbrightBtn.MouseButton1Click:Connect(function()
+    config.fullbright = not config.fullbright
+    if config.fullbright then
+        fullbrightBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        fullbrightBtn.Text = "BẬT"
+        
+        local function dofullbright()
+            Lighting.Ambient = Color3.new(1, 1, 1)
+            Lighting.ColorShift_Bottom = Color3.new(1, 1, 1)
+            Lighting.ColorShift_Top = Color3.new(1, 1, 1)
+        end
+        
+        dofullbright()
+        fullbrightConnection = Lighting.LightingChanged:Connect(dofullbright)
+    else
+        fullbrightBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        fullbrightBtn.Text = "TẮT"
+        
+        if fullbrightConnection then
+            fullbrightConnection:Disconnect()
+            fullbrightConnection = nil
+        end
+        
+        Lighting.Ambient = Color3.new(0, 0, 0)
+        Lighting.ColorShift_Bottom = Color3.new(0, 0, 0)
+        Lighting.ColorShift_Top = Color3.new(0, 0, 0)
+    end
+end)
+
+-- Speed Slider
+local speedSlider = createSlider("Speed", "⚡", 0, 500, 16, 2)
+
+-- Speed Toggle
+local speedBtn, speedLabel = createToggle("Lock Speed", "🔒", 3)
+speedBtn.MouseButton1Click:Connect(function()
+    config.speedEnabled = not config.speedEnabled
+    if config.speedEnabled then
+        speedBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        speedBtn.Text = "BẬT"
+    else
+        speedBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        speedBtn.Text = "TẮT"
+    end
+end)
+
+-- JumpPower Slider
+local jumpSlider = createSlider("Jump Power", "🦘", 0, 500, 50, 4)
+
+-- JumpPower Toggle
+local jumpBtn, jumpLabel = createToggle("Lock Jump", "🔒", 5)
+jumpBtn.MouseButton1Click:Connect(function()
+    config.jumpEnabled = not config.jumpEnabled
+    if config.jumpEnabled then
+        jumpBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        jumpBtn.Text = "BẬT"
+    else
+        jumpBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        jumpBtn.Text = "TẮT"
+    end
+end)
+
+-- ESP
+local espBtn, espLabel = createToggle("ESP (Người chơi)", "👁️", 6)
+espBtn.MouseButton1Click:Connect(function()
+    config.esp = not config.esp
+    if config.esp then
+        espBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        espBtn.Text = "BẬT"
+    else
+        espBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        espBtn.Text = "TẮT"
+        for _, box in pairs(espBoxes) do
+            if box and box.Parent then
+                pcall(function() box:Destroy() end)
+            end
+        end
+        espBoxes = {}
+    end
+end)
+
+-- Aimbot
+local aimbotBtn, aimbotLabel = createToggle("Aimbot", "🎯", 7)
+aimbotBtn.MouseButton1Click:Connect(function()
+    config.aimbot = not config.aimbot
+    if config.aimbot then
+        aimbotBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        aimbotBtn.Text = "BẬT"
+    else
+        aimbotBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        aimbotBtn.Text = "TẮT"
+    end
+end)
+
+-- Shiftlock
+local shiftlockBtn, shiftlockLabel = createToggle("Shiftlock", "🔐", 8)
+local shiftLockConnection = nil
+local originalCameraOffset = nil
+
+shiftlockBtn.MouseButton1Click:Connect(function()
+    config.shiftlock = not config.shiftlock
+    if config.shiftlock then
+        shiftlockBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        shiftlockBtn.Text = "BẬT"
+        
+        -- Lưu camera offset gốc
+        pcall(function()
+            if humanoid then
+                originalCameraOffset = humanoid.CameraOffset
+                -- Đẩy camera sang phải 1.5 studs
+                humanoid.CameraOffset = Vector3.new(1.5, 0, 0)
+            end
+        end)
+        
+        -- Custom Shiftlock
+        shiftLockConnection = RunService.RenderStepped:Connect(function()
+            if humanoid and humanoid.Parent then
+                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    -- Xoay character theo hướng camera
+                    local cameraDirection = camera.CFrame.LookVector
+                    local targetCFrame = CFrame.new(rootPart.Position, rootPart.Position + Vector3.new(cameraDirection.X, 0, cameraDirection.Z))
+                    rootPart.CFrame = CFrame.new(rootPart.Position, targetCFrame.Position + targetCFrame.LookVector)
+                end
+            end
+        end)
+        
+        -- Bật Mouse Lock mặc định của Roblox (nếu game hỗ trợ)
+        pcall(function()
+            player.DevEnableMouseLock = true
+            local StarterPlayer = game:GetService("StarterPlayer")
+            StarterPlayer.EnableMouseLockOption = true
+        end)
+        
+    else
+        shiftlockBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+        shiftlockBtn.Text = "TẮT"
+        
+        -- Khôi phục camera offset gốc
+        pcall(function()
+            if humanoid and originalCameraOffset then
+                humanoid.CameraOffset = originalCameraOffset
+            end
+        end)
+        
+        -- Tắt Custom Shiftlock
+        if shiftLockConnection then
+            shiftLockConnection:Disconnect()
+            shiftLockConnection = nil
+        end
+        
+        pcall(function()
+            player.DevEnableMouseLock = false
+        end)
+    end
+end)
+
+-- ===== CHỨC NĂNG CHÍNH =====
+
+-- Speed & Jump Loop
+connections.maintainStats = RunService.Heartbeat:Connect(function()
+    if humanoid then
+        if config.speedEnabled then
+            config.speed = speedSlider.getValue()
+            humanoid.WalkSpeed = config.speed
+        end
+        if config.jumpEnabled then
+            config.jumpPower = jumpSlider.getValue()
+            if humanoid.UseJumpPower then
+                humanoid.JumpPower = config.jumpPower
+            else
+                humanoid.JumpHeight = config.jumpPower / 4
+            end
+        end
+    end
+end)
+
+-- ESP Function
+local function createESP(targetPlayer)
+    if targetPlayer == player then return end
+    if espBoxes[targetPlayer] then return end
+    
+    local targetChar = targetPlayer.Character
+    if not targetChar then return end
+    
+    local box = Instance.new("BoxHandleAdornment")
+    box.Size = Vector3.new(4, 6, 4)
+    box.Color3 = Color3.fromRGB(255, 0, 0)
+    box.Transparency = 0.7
+    box.AlwaysOnTop = true
+    box.ZIndex = 10
+    box.Adornee = targetChar:FindFirstChild("HumanoidRootPart")
+    box.Parent = targetChar:FindFirstChild("HumanoidRootPart")
+    
+    espBoxes[targetPlayer] = box
+    
+    targetPlayer.CharacterRemoving:Connect(function()
+        if espBoxes[targetPlayer] then
+            espBoxes[targetPlayer]:Destroy()
+            espBoxes[targetPlayer] = nil
+        end
+    end)
+end
+
+-- ESP Loop
+connections.espLoop = RunService.RenderStepped:Connect(function()
+    if config.esp then
+        for _, targetPlayer in pairs(Players:GetPlayers()) do
+            if targetPlayer ~= player and targetPlayer.Character then
+                if not espBoxes[targetPlayer] then
+                    createESP(targetPlayer)
+                end
+            end
+        end
+    end
+end)
+
+-- Aimbot Function
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= player and targetPlayer.Character then
+            local targetChar = targetPlayer.Character
+            local targetHead = targetChar:FindFirstChild("Head")
+            if targetHead then
+                local screenPos, onScreen = camera:WorldToViewportPoint(targetHead.Position)
+                if onScreen then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestPlayer = targetPlayer
+                    end
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+-- Aimbot Loop
+connections.aimbotLoop = RunService.RenderStepped:Connect(function()
+    if config.aimbot then
+        local target = getClosestPlayer()
+        if target and target.Character then
+            local targetHead = target.Character:FindFirstChild("Head")
+            if targetHead then
+                camera.CFrame = CFrame.new(camera.CFrame.Position, targetHead.Position)
+            end
+        end
+    end
+end)
+
+-- Close Button
+closeBtn.MouseButton1Click:Connect(function()
+    -- Ngắt tất cả connections
+    for _, conn in pairs(connections) do
+        if conn then 
+            pcall(function() conn:Disconnect() end)
+        end
+    end
+    if fullbrightConnection then
+        pcall(function() fullbrightConnection:Disconnect() end)
+    end
+    if iconDragConnection then
+        pcall(function() iconDragConnection:Disconnect() end)
+    end
+    
+    -- Xóa ESP boxes
+    for _, box in pairs(espBoxes) do
+        if box then 
+            pcall(function() box:Destroy() end)
+        end
+    end
+    
+    -- Xóa GUI
+    if screenGui and screenGui.Parent then
+        pcall(function() screenGui:Destroy() end)
+    end
+end)
+
+-- Character Respawn
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = character:WaitForChild("Humanoid")
+    wait(0.1)
+    if config.speedEnabled then
+        humanoid.WalkSpeed = config.speed
+    end
+    if config.jumpEnabled then
+        if humanoid.UseJumpPower then
+            humanoid.JumpPower = config.jumpPower
+        else
+            humanoid.JumpHeight = config.jumpPower / 4
+        end
+    end
+end)
+
+print("✅ Hack Menu loaded!")
+print("📱 Tap icon để mở/đóng menu")
+print("✋ Kéo icon hoặc header để di chuyển")
+print("thk chó quy ngu")
