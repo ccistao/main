@@ -184,7 +184,7 @@ local function findAllPCTriggers()
         if obj:IsA("BasePart") and 
            (obj.Name == "ComputerTrigger1"
             or obj.Name == "ComputerTrigger2"
-            or obj.Name == ComputerTrigger3") then
+            or obj.Name == "ComputerTrigger3") then
       
              local computer = obj.Parent
              if computer then
