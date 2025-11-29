@@ -196,17 +196,17 @@ local function findAllPCTriggers()
          end
      end
 
-    for comp, data in pairs(pcGroups) do
-        if isValidPC(comp) then
-            table.insert(allPCs, {
-                trigger = data.triggers[1],
-                computer = comp,
-                id = comp -- dùng instance làm ID
-            })
-        end
-    end
+     for comp, data in pairs(pcGroups) do
+         if isValidPC(comp) then
+             table.insert(allPCs, {
+                 trigger = data.triggers[1],
+                 computer = comp,
+                 id = comp -- dùng instance làm ID
+             })
+         end
+     end
 
-    return allPCs
+     return allPCs
 end
 
 -- Hàm kiểm tra PC done (tối ưu, check nhanh)
