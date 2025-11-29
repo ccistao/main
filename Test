@@ -181,16 +181,20 @@ local function findAllPCTriggers()
     local allPCs = {}
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger1") or obj.Name == "ComputerTrigger2") then
-            local computer = obj.Parent
-            if computer then
-                if not pcGroups[computer] then
-                    pcGroups[computer] = { computer = computer, triggers = {} }
-                end
-                table.insert(pcGroups[computer].triggers, obj)
-            end
-        end
-    end
+        if obj:IsA("BasePart") and 
+           (obj.Name == "ComputerTrigger1"
+            or obj.Name == "ComputerTrigger2"
+            or obj.Name == ComputerTrigger3") then
+      
+             local computer = obj.Parent
+             if computer then
+                 if not pcGroups[computer] then
+                     pcGroups[computer] = { computer = computer, triggers = {} }
+                 end
+                 table.insert(pcGroups[computer].triggers, obj)
+             end
+         end
+     end
 
     for comp, data in pairs(pcGroups) do
         if isValidPC(comp) then
