@@ -181,7 +181,7 @@ local function findAllPCTriggers()
     local allPCs = {}
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger") then
+        if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger1") or obj.Name == "ComputerTrigger2") or obj.Name == "ComputerTrigger3") then
             local computer = obj.Parent
             if computer then
                 if not pcGroups[computer] then
