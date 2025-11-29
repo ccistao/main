@@ -143,7 +143,7 @@ local function getProgressValue(computerTable)
     return nil
 end
 
-local function isValid(pc)
+local function isValidPC(pc)
     if not pc then return false end
 
     -- 1️⃣ Loại PC dev theo tên
