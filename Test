@@ -143,29 +143,37 @@ local function getProgressValue(computerTable)
     return nil
 end
 
-local function isValidPC(computerTable)
-    if not computerTable then return false end
-    
-    -- Tìm Trigger
-    local hasTrigger = false
-    for _, child in ipairs(computerTable:GetChildren()) do
-        if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
-            hasTrigger = true
-            break
+local function isValid(pc)
+    if not pc then return false end
+
+    -- 1️⃣ Loại PC dev theo tên
+    local name = pc.Name:lower()
+    if name:find("dev") or name:find("test") or name:find("prefab") then
+        return false
+    end
+
+    -- 2️⃣ PC thật luôn có Trigger(s)
+    local triggers = pc:FindFirstChild("ComputerTrigger") or pc:FindFirstChild("Trigger")
+    if not triggers then
+        return false
+    end
+
+    -- 3️⃣ PC thật luôn có Screen hoặc Monitor
+    if not pc:FindFirstChild("Screen") and not pc:FindFirstChild("Monitor") then
+        return false
+    end
+
+    -- 4️⃣ Progress có thể load chậm → không reject khi nil
+    local progress = pc:FindFirstChild("Progress")
+    if progress then
+        if not progress:IsA("IntValue") and not progress:IsA("NumberValue") then
+            return false
         end
     end
-    if not hasTrigger then return false end
 
-    -- Tìm Progress
-    local val = getProgressValue(computerTable)
-    if val == nil then 
-        log("❌ Progress nil → bỏ PC")
-        return false 
-    end
-
+    -- PC này hợp lệ
     return true
 end
-
 
 -- Hàm tìm tất cả PC triggers (Mỗi 3 trigger = 1 PC) với filter
 local function findAllPCTriggers()
