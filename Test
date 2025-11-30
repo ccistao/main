@@ -21,6 +21,22 @@ local foundBeast = false
 local skipCurrentPC = false
 local hidePlatform = nil
 local statusLabel = nil -- Label hiển thị status
+local function canGoExit()
+    local gui = player:FindFirstChild("PlayerGui")
+    if not gui then return false end
+    local screen = gui:FindFirstChild("ScreenGui")
+    if not screen then return false end
+    local info = screen:FindFirstChild("GameInfoFrame")
+    if not info then return false end
+    local statusBox = info:FindFirstChild("GameStatusBox")
+    if not statusBox or not statusBox:IsA("TextLabel") then return false end
+    local txt = statusBox.Text:upper()
+    if txt:find("FIND AN EXIT") then
+        return true
+    end
+    return false
+end
+
 
 -- Hàm log
 local function log(message)
@@ -731,7 +747,7 @@ local function mainLoop()
                     for _, pcData in ipairs(allPCs) do
                         if not scriptEnabled then break end
                         
-                        if isFindExitPhase() then
+                        if canGoExit() then
                             if hackExtraPC then
                                 updateStatus("Find Exit! Extra PC BẬT")
                                 log("⚠️ Find Exit! Nhưng Extra PC BẬT → tiếp tục")
