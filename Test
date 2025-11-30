@@ -590,8 +590,6 @@ local function hackPC(pcData)
     trackPCProgress(pcData)
     
     if isPCDone(pcData) then
-        updateStatus("⏭️ PC vừa done")
-        log("⏭️ PC vừa done trước TP!")
         hackedPCs[pcData.id] = true
         isHacking = false
         currentPC = nil
@@ -607,20 +605,9 @@ local function hackPC(pcData)
         return
     end
     
-    if isPCDone(pcData) then
-        updateStatus("⏭️ PC done sau TP")
-        log("⏭️ PC vừa done sau TP!")
-        hackedPCs[pcData.id] = true
-        isHacking = false
-        currentPC = nil
-        return
-    end
-    
     task.wait(waitBeforeHack)
     
     if isPCDone(pcData) then
-        updateStatus("⏭️ PC done")
-        log("⏭️ PC done trước kích hoạt!")
         hackedPCs[pcData.id] = true
         isHacking = false
         currentPC = nil
@@ -641,75 +628,55 @@ local function hackPC(pcData)
             break
         end
         
-        if isPCDone(pcData) then
-            updateStatus("✅ PC hoàn tất!")
-            log("✓ PC done!")
-            break
-        end
-        
         if tick() - lastJumpTime >= hackDelay then
-            updateStatus("→ Jumping...")
-            log("Jumping...")
             humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
             task.wait(0.25)
-            
             rootPart.CFrame = pcData.trigger.CFrame + Vector3.new(0, 3, 0)
             task.wait(0.2)
-            
-            if isPCDone(pcData) then
-                updateStatus("✅ PC done!")
-                log("✓ PC done sau jump!")
-                break
-            end
-            
-            updateStatus("→ Kích hoạt lại...")
-            log("Kích hoạt hack sau jump...")
             activateHack(pcData)
-            
             lastJumpTime = tick()
         end
         
         task.wait(0.4)
     end
     
-    if skipCurrentPC then
-        updateStatus("⚠️ Bỏ PC này")
-        log("=== ⚠️ BỎ PC (Beast/chuyển PC khác)! ===")
-    elseif isPCDone(pcData) then
-        updateStatus("✅ PC hoàn tất!")
-        log("=== ✅ PC HOÀN TẤT! ===")
+    -------------------------------
+    -- 🔥 FIX ANTI CHEAT – CHẠY 100%
+    ----------------------------------
+    if isPCDone(pcData) then
         hackedPCs[pcData.id] = true
-        
-        -- ANTI-CHEAT: Bay lên trời chờ 5s
+
         updateStatus("⏳ Bay lên trời chờ 5s...")
-        log("⏳ Bay lên trời (500,1000,500) chờ 5s...")
-        
+        log("⏳ TP 50,70,50 và chờ 5s...")
+
         -- Tạo platform nếu chưa có
         if not hidePlatform then
-            createHidePlatform()
+            hidePlatform = Instance.new("Part")
+            hidePlatform.Size = Vector3.new(20, 1, 20)
+            hidePlatform.Anchored = true
+            hidePlatform.CanCollide = true
+            hidePlatform.Material = Enum.Material.SmoothPlastic
+            hidePlatform.Color = Color3.fromRGB(0, 0, 0)
+            hidePlatform.Name = "AntiCheatPlatform"
+            hidePlatform.Position = Vector3.new(50, 69, 50)
+            hidePlatform.Parent = workspace
         end
-        
-        -- TP lên platform
+
+        -- Teleport lên vị trí an toàn
         rootPart.CFrame = CFrame.new(50, 70, 50)
-        task.wait(0.5)
-        
-        -- Countdown 5s
-        for i = 5, 1, -1 do
-            if not scriptEnabled then break end
-            updateStatus("⏳ Chờ " .. i .. "s (an toàn)...")
-            log("⏳ " .. i .. "s...")
-            task.wait(1)
-        end
-        
+
+        -- Chờ đúng 5s
+        task.wait(5)
+
         updateStatus("✓ Sẵn sàng PC tiếp!")
-        log("✓ Đã chờ 5s, sẵn sàng hack tiếp!")
-        
+        log("✓ Chờ 5s xong, tiếp tục!")
+
     else
         updateStatus("⏱️ Timeout")
         log("=== ⏱️ TIMEOUT! ===")
         hackedPCs[pcData.id] = true
     end
-    
+
     isHacking = false
     currentPC = nil
     task.wait(0.5)
