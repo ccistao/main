@@ -597,6 +597,92 @@ local function hackPC(pcData)
     isHacking = true
     currentPC = pcData
     skipCurrentPC = false
+    ----------------------------------------------------------------
+-- 🔥 THEO DÕI PC REALTIME (10 LẦN / 1 GIÂY)
+----------------------------------------------------------------
+
+task.spawn(function()
+    local lastValue = -1
+
+    while scriptEnabled and isHacking and currentPC == pcData do
+        -- Tìm ActionProgress của PC hiện tại
+        local progressValue = nil
+
+        for _, child in pairs(pcData.computer:GetDescendants()) do
+            if (child.Name == "ActionProgress" or child.Name == "Value")
+                and (child:IsA("IntValue") or child:IsA("NumberValue")) then
+                progressValue = child
+                break
+            end
+        end
+
+        if progressValue then
+            local v = progressValue.Value
+
+            -- Debug
+            -- print("Progress:", v)
+
+            -- Nếu PC DONE → nhảy lên trời
+            if v >= 1 then
+                print("🔥 PC hoàn thành (phát hiện realtime 0.1s)")
+
+                hackedPCs[pcData.id] = true
+                isHacking = false
+
+                -- Teleport lên trời 5s
+                rootPart.CFrame = CFrame.new(50,70,50)
+                task.wait(5)
+
+                ----------------------------------------------------------------
+                -- 🔍 TÌM PC GẦN NHẤT CHƯA DONE
+                ----------------------------------------------------------------
+                local nearest = nil
+                local nearestDist = math.huge
+
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger") then
+                        local comp = obj.Parent
+                        if comp then
+                            -- Check comp chưa done
+                            local done = false
+                            for _, c in ipairs(comp:GetDescendants()) do
+                                if (c.Name == "ActionProgress" or c.Name == "Value")
+                                  and (c:IsA("IntValue") or c:IsA("NumberValue")) then
+                                    if c.Value >= 1 then
+                                        done = true
+                                        break
+                                    end
+                                end
+                            end
+
+                            if not done then
+                                local dist = (obj.Position - rootPart.Position).Magnitude
+                                if dist < nearestDist then
+                                    nearestDist = dist
+                                    nearest = obj
+                                end
+                            end
+                        end
+                    end
+                end
+
+                ----------------------------------------------------------------
+                -- Teleport qua PC gần nhất → tiếp tục hack
+                ----------------------------------------------------------------
+                if nearest then
+                    print("➡️ TP sang PC gần nhất để hack tiếp")
+                    rootPart.CFrame = nearest.CFrame + Vector3.new(0,3,0)
+                else
+                    print("⚠️ Không còn PC nào chưa done")
+                end
+
+                return -- kết thúc theo dõi PC này
+            end
+        end
+
+        task.wait(0.1) -- theo dõi 10 lần mỗi giây
+    end
+end)
     updateStatus("💻 Hack: " .. pcData.computer.Name)
     log("=== BẮT ĐẦU HACK: " .. pcData.computer.Name .. " ===")
     
@@ -694,6 +780,8 @@ local function hackPC(pcData)
     currentPC = nil
     task.wait(0.5)
 end
+
+
 
 -- Hàm kiểm tra GUI để biết có thể đi Exit không
 local function canGoExit()
