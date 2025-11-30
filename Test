@@ -912,9 +912,6 @@ end)
         task.wait(0.4)
     end
     
-    -------------------------------
-    -- 🔥 FIX ANTI CHEAT – CHẠY 100%
-    ----------------------------------
     if isPCDone(pcData) then
         hackedPCs[pcData.id] = true
 
@@ -952,11 +949,7 @@ end)
     isHacking = false
     currentPC = nil
     task.wait(0.5)
-end
-
-
-
--- Hàm kiểm tra GUI để biết có thể đi Exit không
+-- Hàm kiểm tra GUI để biếtkhônghể đi Exit không
 local function canGoExit()
     local gui = player:FindFirstChild("PlayerGui")
     if not gui then return false end
