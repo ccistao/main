@@ -550,19 +550,6 @@ local function trackPCProgress(pcData)
     end
 end
 
--- Ngăn lỗi pcData hoặc pcData.computer bị nil
-if not pcData or not pcData.computer then
-    log("⚠️ Lỗi: pcData hoặc pcData.computer bị nil tại progressPC → skip PC này")
-    skipCurrentPC = true
-    return
-end
-
-if typeof(pcData.computer) ~= "Instance" or not pcData.computer:IsDescendantOf(workspace) then
-    log("⚠️ PC đã bị xóa hoặc không còn trong workspace → skip")
-    skipCurrentPC = true
-    return
-end
-
 -- Teleport
 local chosenTrigger = findAvailableTriggerForComputer(pcData.computer)
 
