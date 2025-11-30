@@ -1,5 +1,5 @@
 -- Auto Hack PC Script for Flee the Facility
--- Final Version - Anti-Beast Fix + Exit Debug
+-- Complete Version - All Features
 
 local player = game.Players.LocalPlayer
 local Players = game:GetService("Players")
@@ -11,7 +11,7 @@ local Replicated = game:GetService("ReplicatedStorage")
 -- Settings
 local scriptEnabled = false
 local hackExtraPC = false
-local hackDelay = 4
+local hackDelay = 4 -- Jump mỗi 4 giây
 local waitBeforeHack = 1
 local currentPC = nil
 local isHacking = false
@@ -20,23 +20,7 @@ local beast = nil
 local foundBeast = false
 local skipCurrentPC = false
 local hidePlatform = nil
-local statusLabel = nil -- Label hiển thị status
-local function canGoExit()
-    local gui = player:FindFirstChild("PlayerGui")
-    if not gui then return false end
-    local screen = gui:FindFirstChild("ScreenGui")
-    if not screen then return false end
-    local info = screen:FindFirstChild("GameInfoFrame")
-    if not info then return false end
-    local statusBox = info:FindFirstChild("GameStatusBox")
-    if not statusBox or not statusBox:IsA("TextLabel") then return false end
-    local txt = statusBox.Text:upper()
-    if txt:find("FIND AN EXIT") then
-        return true
-    end
-    return false
-end
-
+local statusLabel = nil
 
 -- Hàm log
 local function log(message)
@@ -94,7 +78,7 @@ local function isBeastNearby()
     if not beastRoot or not rootPart then return false end
     
     local distance = (rootPart.Position - beastRoot.Position).Magnitude
-    return distance <= 25
+    return distance <= 20
 end
 
 -- Hàm tạo platform ẩn náu
@@ -105,7 +89,7 @@ local function createHidePlatform()
     
     local platform = Instance.new("Part")
     platform.Size = Vector3.new(10, 1, 10)
-    platform.Position = Vector3.new(500, 1000, 500)
+    platform.Position = Vector3.new(50, 70, 50)
     platform.Anchored = true
     platform.Transparency = 1
     platform.CanCollide = true
@@ -116,47 +100,42 @@ local function createHidePlatform()
     return platform
 end
 
--- Hàm trốn Beast (MỚI - thông minh hơn)
+-- Hàm trốn Beast
 local function escapeBeast()
-    updateStatus("🚨 BEAST GẦN! An toàn trước tiên...")
-    log("🚨 Beast gần! TP lên cao tránh bị bắt...")
-
+    updateStatus("🚨 TRỐN BEAST!")
+    log("🚨 BEAST Ở GẦN! TRỐN NGAY!")
+    
+    -- Bay lên platform ngay lập tức
+    updateStatus("→ Bay lên trời ẩn náu")
+    log("→ Bay lên trời ẩn náu...")
+    
     -- Tạo platform nếu chưa có
     if not hidePlatform then
-        hidePlatform = Instance.new("Part")
-        hidePlatform.Size = Vector3.new(20, 1, 20)
-        hidePlatform.Anchored = true
-        hidePlatform.CanCollide = true
-        hidePlatform.Material = Enum.Material.SmoothPlastic
-        hidePlatform.Color = Color3.fromRGB(0,0,0)
-        hidePlatform.Name = "AntiCheatPlatform"
-        hidePlatform.Position = Vector3.new(50, 69, 50)
-        hidePlatform.Parent = workspace
+        createHidePlatform()
     end
-
+    
     -- TP lên platform
     rootPart.CFrame = CFrame.new(50, 70, 50)
-    task.wait(0.5)
-
-    -- Chờ an toàn 5s
-    for i = 5,1,-1 do
-        if not scriptEnabled then break end
-        updateStatus("⏳ Chờ 5s an toàn với Beast ("..i.."s)")
-        log("⏳ Chờ "..i.."s...")
-        task.wait(1)
-    end
-
-    updateStatus("✓ An toàn! Tìm PC khác hack tiếp")
-    log("✓ Đã chờ 5s sau khi Beast gần, đi tìm PC khác...")
-
-    -- Tìm PC khác
+    log("✓ Đã bay lên Y=1000")
+    
+    -- Chờ 8s để tránh anti-cheat
+    updateStatus("⏳ Chờ 8s (anti-cheat)...")
+    log("⏳ Chờ 8s để tránh anti-cheat...")
+    task.wait(8)
+    
+    updateStatus("✓ An toàn! Tìm PC khác...")
+    log("✓ An toàn! Tìm PC khác...")
+    
+    -- Tìm PC khác để hack
+    local allPCs = workspace:GetDescendants()
     local nearestPC = nil
     local minDistance = math.huge
-
-    for _, obj in pairs(workspace:GetDescendants()) do
+    
+    for _, obj in pairs(allPCs) do
         if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger") then
             local pc = obj.Parent
             if pc and not hackedPCs[pc] then
+                -- Check PC chưa done
                 local isDone = false
                 for _, child in pairs(pc:GetDescendants()) do
                     if (child.Name == "ActionProgress" or child.Name == "Value") and 
@@ -167,8 +146,9 @@ local function escapeBeast()
                         end
                     end
                 end
+                
                 if not isDone then
-                    local distance = (rootPart.Position - obj.Position).Magnitude
+                    local distance = (Vector3.new(500, 1001, 500) - obj.Position).Magnitude
                     if distance < minDistance then
                         minDistance = distance
                         nearestPC = obj
@@ -177,24 +157,39 @@ local function escapeBeast()
             end
         end
     end
-
-    -- Nếu tìm thấy PC → TP qua PC đó
+    
+    -- Nếu tìm thấy PC khác → TP qua
     if nearestPC then
-        updateStatus("→ TP qua PC khác hack tiếp")
-        log("→ Tìm thấy PC khác! TP để hack tiếp...")
+        updateStatus("→ Tìm thấy PC khác!")
+        log("→ Tìm thấy PC khác! TP qua hack tiếp...")
         rootPart.CFrame = nearestPC.CFrame + Vector3.new(0, 3, 0)
         skipCurrentPC = true
         task.wait(0.5)
         return
     end
-
-    updateStatus("⚠️ Không còn PC, tiếp tục chờ Beast")
-    log("⚠️ Không còn PC, giữ vị trí ẩn nấp...")
-
+    
+    -- Không còn PC → Chờ Beast đi
+    updateStatus("→ Không còn PC, chờ Beast...")
+    log("→ Không còn PC! Chờ Beast đi xa...")
+    
+    -- Chờ Beast đi xa (hoặc timeout 30s)
+    local hideStartTime = tick()
+    repeat
+        task.wait(1)
+        local timeWaited = math.floor(tick() - hideStartTime)
+        if timeWaited % 5 == 0 then
+            updateStatus("⏳ Chờ Beast đi (" .. timeWaited .. "s)")
+            log("Đã chờ " .. timeWaited .. "s, kiểm tra Beast...")
+        end
+    until not isBeastNearby() or (tick() - hideStartTime > 30)
+    
+    updateStatus("✓ An toàn! Quay lại")
+    log("✓ An toàn! Quay lại map...")
+    
     skipCurrentPC = true
 end
 
--- Auto interact
+-- Auto interact chỉ cho PC
 spawn(function()
     local playerGui = player:WaitForChild("PlayerGui")
     local screenGui = playerGui:WaitForChild("ScreenGui")
@@ -247,7 +242,7 @@ local function isFindExitPhase()
     return false
 end
 
--- Hàm tìm Exit (DEBUG DETAIL)
+-- Hàm tìm Exit
 local function findExit()
     updateStatus("🔍 Đang tìm Exit...")
     log("🔍 [DEBUG] === BẮT ĐẦU TÌM EXIT ===")
@@ -264,7 +259,6 @@ local function findExit()
             if obj:IsA("Model") then
                 log("🔍 [DEBUG] → Đây là Model, tìm trigger...")
                 
-                -- Tìm trigger
                 local trigger = obj:FindFirstChild("Trigger") or 
                                obj:FindFirstChild("Button") or
                                obj:FindFirstChild("Interact") or
@@ -294,7 +288,7 @@ local function findExit()
     return nil
 end
 
--- Hàm mở Exit (DEBUG)
+-- Hàm mở Exit
 local function openExit(exitData)
     if not exitData or not exitData.trigger then 
         updateStatus("❌ exitData = nil!")
@@ -308,7 +302,6 @@ local function openExit(exitData)
     log("🔍 [DEBUG] Trigger: " .. exitData.trigger.Name)
     log("🔍 [DEBUG] Position: " .. tostring(exitData.trigger.Position))
     
-    -- TP đến cửa
     updateStatus("→ TP đến Exit...")
     log("Teleporting to exit...")
     local tpSuccess = pcall(function()
@@ -324,26 +317,22 @@ local function openExit(exitData)
     log("✓ [DEBUG] TP thành công!")
     task.wait(0.5)
     
-    -- Kích hoạt mở cửa
     updateStatus("→ Mở cửa...")
     log("Đang mở cửa...")
     local openStartTime = tick()
     local maxOpenTime = 30
     
     while scriptEnabled and (tick() - openStartTime < maxOpenTime) do
-        -- Fire remote
         pcall(function()
             game.ReplicatedStorage.RemoteEvent:FireServer("Input", "Action", true)
         end)
         
-        -- Touch trigger
         pcall(function()
             firetouchinterest(exitData.trigger, rootPart, 0)
             task.wait(0.05)
             firetouchinterest(exitData.trigger, rootPart, 1)
         end)
         
-        -- Check progress
         local actionProgress = player:FindFirstChild("TempPlayerStatsModule")
         if actionProgress then
             local progress = actionProgress:FindFirstChild("ActionProgress")
@@ -371,7 +360,7 @@ local function openExit(exitData)
     return true
 end
 
--- Hàm thoát (DEBUG)
+-- Hàm thoát
 local function escapeExit(exitData)
     if not exitData or not exitData.trigger then 
         updateStatus("❌ Không thể escape!")
@@ -415,7 +404,6 @@ local function autoExit()
     log("🚪 BẮT ĐẦU AUTO EXIT!")
     log("🔍 [DEBUG] scriptEnabled = " .. tostring(scriptEnabled))
     
-    -- Tìm Exit
     local exitData = findExit()
     if not exitData then
         log("⚠️ Không tìm thấy Exit!")
@@ -424,7 +412,6 @@ local function autoExit()
     
     log("🔍 [DEBUG] exitData found: " .. exitData.exit.Name)
     
-    -- Mở cửa
     local openSuccess = openExit(exitData)
     if not openSuccess then
         log("⚠️ Không mở được cửa!")
@@ -433,7 +420,6 @@ local function autoExit()
     
     log("🔍 [DEBUG] Cửa đã mở, chuẩn bị escape...")
     
-    -- Thoát
     escapeExit(exitData)
     
     log("✅ HOÀN TẤT AUTO EXIT!")
@@ -482,8 +468,9 @@ local function findAllPCTriggers()
 
     for comp, data in pairs(pcGroups) do
         if isValidPC(comp) and not hackedPCs[comp] then
+            -- Lưu TẤT CẢ 3 triggers
             table.insert(allPCs, {
-                trigger = data.triggers[1],
+                triggers = data.triggers, -- Lưu array thay vì chỉ [1]
                 computer = comp,
                 id = comp
             })
@@ -529,15 +516,6 @@ local function isPCAvailable(pcData)
     
     return true
 end
--- Teleport
-local function teleportToTrigger(triggerPart)
-    if not triggerPart or not rootPart then return false end
-    
-    log("Teleporting to: " .. triggerPart.Name)
-    rootPart.CFrame = triggerPart.CFrame + Vector3.new(0, 3, 0)
-    task.wait(0.5)
-    return true
-end
 
 -- Track progress
 local function trackPCProgress(pcData)
@@ -559,6 +537,48 @@ local function trackPCProgress(pcData)
     end
 end
 
+-- Hàm check trigger có đang được hack không
+local function isTriggerBeingHacked(trigger)
+    if not trigger then return false end
+    
+    -- Check xem có player nào đang ở gần trigger này không (trong 10 studs)
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if otherRoot then
+                local distance = (otherRoot.Position - trigger.Position).Magnitude
+                if distance <= 10 then
+                    log("  ⚠️ Trigger " .. trigger.Name .. " đang có người ở gần")
+                    return true
+                end
+            end
+        end
+    end
+    
+    return false
+end
+
+-- Hàm tìm trigger khả dụng của PC
+local function findAvailableTrigger(pcData)
+    if not pcData or not pcData.triggers then return nil end
+    
+    log("🔍 Kiểm tra " .. #pcData.triggers .. " triggers của PC...")
+    
+    -- Thử từng trigger
+    for i, trigger in ipairs(pcData.triggers) do
+        log("  Thử trigger " .. i .. ": " .. trigger.Name)
+        
+        if not isTriggerBeingHacked(trigger) then
+            log("  ✓ Trigger " .. trigger.Name .. " khả dụng!")
+            return trigger
+        else
+            log("  ✗ Trigger " .. trigger.Name .. " đang bị sử dụng")
+        end
+    end
+    
+    log("  ✗ Không có trigger nào khả dụng!")
+    return nil
+end
 
 -- Kích hoạt hack
 local function activateHack(pcData)
@@ -577,71 +597,7 @@ local function activateHack(pcData)
     return true
 end
 
-local function getTriggersOfComputer(computer)
-    local triggers = {}
-    if not computer then return triggers end
-    for _, obj in ipairs(computer:GetDescendants()) do
-        if obj:IsA("BasePart") and tostring(obj.Name):lower():match("computertrigger") then
-            table.insert(triggers, obj)
-        end
-    end
-    if #triggers == 0 then
-        for _, obj in ipairs(computer:GetChildren()) do
-            if obj:IsA("BasePart") then
-                table.insert(triggers, obj)
-            else
-                for _, g in ipairs(obj:GetChildren()) do
-                    if g:IsA("BasePart") and tostring(g.Name):lower():match("trigger") then
-                        table.insert(triggers, g)
-                    end
-                end
-            end
-        end
-    end
-    return triggers
-end
-
-local function findAvailableTriggerForComputer(pcComputer)
-    if not pcComputer then return nil end
-    local triggers = getTriggersOfComputer(pcComputer)
-    if #triggers == 0 then return nil end
-    table.sort(triggers, function(a,b)
-        if not a or not b then return false end
-        local da = (a.Position - rootPart.Position).Magnitude
-        local db = (b.Position - rootPart.Position).Magnitude
-        return da < db
-    end)
-    local playerGui = player:FindFirstChild("PlayerGui")
-    local actionBox = nil
-    if playerGui then
-        local screenGui = playerGui:FindFirstChild("ScreenGui")
-        if screenGui then
-            actionBox = screenGui:FindFirstChild("ActionBox")
-        end
-    end
-    for _, trig in ipairs(triggers) do
-        if trig and trig:IsA("BasePart") then
-            pcall(function() rootPart.CFrame = trig.CFrame + Vector3.new(0,3,0) end)
-            task.wait(0.15)
-            local occupied = false
-            for _, child in ipairs(pcComputer:GetDescendants()) do
-                if (child.Name == "ActionProgress" or child.Name == "Value")
-                and (child:IsA("IntValue") or child:IsA("NumberValue")) then
-                    if child.Value > 0 and child.Value < 1 then
-                        occupied = true
-                        break
-                    end
-                end
-            end
-            if actionBox and actionBox.Visible and not occupied then
-                return trig
-            end
-        end
-    end
-    return nil
-end
-
--- Hack PC
+-- Hack PC (với logic thử 3 triggers)
 local function hackPC(pcData)
     if not pcData or isHacking then return end
     
@@ -658,15 +614,26 @@ local function hackPC(pcData)
         return
     end
     
+    -- TÌM TRIGGER KHẢ DỤNG
+    local availableTrigger = findAvailableTrigger(pcData)
+    if not availableTrigger then
+        updateStatus("⏭️ Tất cả triggers đang bận")
+        log("⏭️ Không có trigger nào khả dụng, skip PC này!")
+        return
+    end
+    
     isHacking = true
     currentPC = pcData
     skipCurrentPC = false
     updateStatus("💻 Hack: " .. pcData.computer.Name)
     log("=== BẮT ĐẦU HACK: " .. pcData.computer.Name .. " ===")
+    log("→ Sử dụng trigger: " .. availableTrigger.Name)
     
     trackPCProgress(pcData)
     
     if isPCDone(pcData) then
+        updateStatus("⏭️ PC vừa done")
+        log("⏭️ PC vừa done trước TP!")
         hackedPCs[pcData.id] = true
         isHacking = false
         currentPC = nil
@@ -674,9 +641,38 @@ local function hackPC(pcData)
     end
     
     updateStatus("→ TP đến PC...")
-    if not teleportToTrigger(pcData.trigger) then
+    if not teleportToTrigger(availableTrigger) then
         updateStatus("✗ TP thất bại")
         log("✗ Teleport thất bại!")
+        isHacking = false
+        currentPC = nil
+        return
+    end
+    
+    -- CHECK LẠI SAU KHI TP: Trigger có bị chiếm không?
+    if isTriggerBeingHacked(availableTrigger) then
+        updateStatus("⚠️ Trigger bị chiếm sau TP!")
+        log("⚠️ Trigger bị người khác chiếm sau khi TP!")
+        
+        -- Thử tìm trigger khác
+        local newTrigger = findAvailableTrigger(pcData)
+        if newTrigger and newTrigger ~= availableTrigger then
+            log("→ Thử trigger khác: " .. newTrigger.Name)
+            teleportToTrigger(newTrigger)
+            availableTrigger = newTrigger
+            task.wait(0.5)
+        else
+            log("✗ Không còn trigger nào, bỏ PC này!")
+            isHacking = false
+            currentPC = nil
+            return
+        end
+    end
+    
+    if isPCDone(pcData) then
+        updateStatus("⏭️ PC done sau TP")
+        log("⏭️ PC vừa done sau TP!")
+        hackedPCs[pcData.id] = true
         isHacking = false
         currentPC = nil
         return
@@ -685,6 +681,8 @@ local function hackPC(pcData)
     task.wait(waitBeforeHack)
     
     if isPCDone(pcData) then
+        updateStatus("⏭️ PC done")
+        log("⏭️ PC done trước kích hoạt!")
         hackedPCs[pcData.id] = true
         isHacking = false
         currentPC = nil
@@ -692,8 +690,8 @@ local function hackPC(pcData)
     end
     
     updateStatus("→ Kích hoạt hack...")
-    log("Kích hoạt hack...")
-    activateHack(pcData)
+    log("Kích hoạt hack với trigger: " .. availableTrigger.Name)
+    activateHackWithTrigger(availableTrigger)
     
     local maxHackTime = 60
     local hackStartTime = tick()
@@ -705,60 +703,77 @@ local function hackPC(pcData)
             break
         end
         
+        if isPCDone(pcData) then
+            updateStatus("✅ PC hoàn tất!")
+            log("✓ PC done!")
+            break
+        end
+        
         if tick() - lastJumpTime >= hackDelay then
+            updateStatus("→ Jumping...")
+            log("Jumping...")
             humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            task.wait(0.25)
-            rootPart.CFrame = pcData.trigger.CFrame + Vector3.new(0, 3, 0)
+            task.wait(0.3)
+            
+            -- TP lại về trigger đang dùng
+            rootPart.CFrame = availableTrigger.CFrame + Vector3.new(0, 3, 0)
             task.wait(0.2)
-            activateHack(pcData)
+            
+            if isPCDone(pcData) then
+                updateStatus("✅ PC done!")
+                log("✓ PC done sau jump!")
+                break
+            end
+            
+            updateStatus("→ Kích hoạt lại...")
+            log("Kích hoạt hack sau jump...")
+            activateHackWithTrigger(availableTrigger)
+            
             lastJumpTime = tick()
         end
         
-        task.wait(0.4)
+        task.wait(0.5)
     end
     
-    -------------------------------
-    -- 🔥 FIX ANTI CHEAT – CHẠY 100%
-    ----------------------------------
-    if isPCDone(pcData) then
+    if skipCurrentPC then
+        updateStatus("⚠️ Bỏ PC này")
+        log("=== ⚠️ BỎ PC (Beast/chuyển PC khác)! ===")
+    elseif isPCDone(pcData) then
+        updateStatus("✅ PC hoàn tất!")
+        log("=== ✅ PC HOÀN TẤT! ===")
         hackedPCs[pcData.id] = true
-
+        
+        -- ANTI-CHEAT: Bay lên trời chờ 5s
         updateStatus("⏳ Bay lên trời chờ 5s...")
-        log("⏳ TP 50,70,50 và chờ 5s...")
-
-        -- Tạo platform nếu chưa có
+        log("⏳ Bay lên trời (500,1000,500) chờ 5s...")
+        
         if not hidePlatform then
-            hidePlatform = Instance.new("Part")
-            hidePlatform.Size = Vector3.new(20, 1, 20)
-            hidePlatform.Anchored = true
-            hidePlatform.CanCollide = true
-            hidePlatform.Material = Enum.Material.SmoothPlastic
-            hidePlatform.Color = Color3.fromRGB(0, 0, 0)
-            hidePlatform.Name = "AntiCheatPlatform"
-            hidePlatform.Position = Vector3.new(50, 69, 50)
-            hidePlatform.Parent = workspace
+            createHidePlatform()
         end
-
-        -- Teleport lên vị trí an toàn
+        
         rootPart.CFrame = CFrame.new(50, 70, 50)
-
-        -- Chờ đúng 5s
-        task.wait(8)
-
+        task.wait(0.5)
+        
+        for i = 5, 1, -1 do
+            if not scriptEnabled then break end
+            updateStatus("⏳ Chờ " .. i .. "s (an toàn)...")
+            log("⏳ " .. i .. "s...")
+            task.wait(1)
+        end
+        
         updateStatus("✓ Sẵn sàng PC tiếp!")
-        log("✓ Chờ 5s xong, tiếp tục!")
-
+        log("✓ Đã chờ 5s, sẵn sàng hack tiếp!")
+        
     else
         updateStatus("⏱️ Timeout")
         log("=== ⏱️ TIMEOUT! ===")
         hackedPCs[pcData.id] = true
     end
-
+    
     isHacking = false
     currentPC = nil
     task.wait(0.5)
 end
-
 
 -- Main loop
 local function mainLoop()
@@ -789,7 +804,7 @@ local function mainLoop()
                     for _, pcData in ipairs(allPCs) do
                         if not scriptEnabled then break end
                         
-                        if canGoExit() then
+                        if isFindExitPhase() then
                             if hackExtraPC then
                                 updateStatus("Find Exit! Extra PC BẬT")
                                 log("⚠️ Find Exit! Nhưng Extra PC BẬT → tiếp tục")
@@ -816,14 +831,13 @@ local function mainLoop()
                 updateStatus("⏳ Đợi Find Exit...")
                 log("Đợi Find Exit...")
                 local waitStart = tick()
-                -- Sau hack PC xong, chờ cho GUI báo Exit:
                 repeat
                     task.wait(0.5)
-                until canGoExit() or (tick() - waitStart > 30)
-
+                until isFindExitPhase() or (tick() - waitStart > 30)
+                
                 log("🔍 [DEBUG] Sau khi chờ, isFindExitPhase = " .. tostring(isFindExitPhase()))
                 
-                if canGoExit() then
+                if isFindExitPhase() then
                     updateStatus("✓ Find Exit!")
                     log("✓ Phát hiện Find Exit!")
                     task.wait(1)
@@ -851,7 +865,7 @@ local function createGUI()
     screenGui.Parent = player:WaitForChild("PlayerGui")
     
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 120) -- Tăng thêm cho status
+    frame.Size = UDim2.new(0, 200, 0, 120)
     frame.Position = UDim2.new(0.5, -100, 0, 20)
     frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
     frame.BorderSizePixel = 2
@@ -885,7 +899,7 @@ local function createGUI()
     btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = toggleButton
     
-    -- Status Label (MỚI)
+    -- Status Label
     local status = Instance.new("TextLabel")
     status.Size = UDim2.new(1, -10, 0, 18)
     status.Position = UDim2.new(0, 5, 0, 70)
@@ -899,7 +913,7 @@ local function createGUI()
     status.TextWrapped = true
     status.Parent = frame
     
-    statusLabel = status -- Lưu reference
+    statusLabel = status
     
     local checkboxFrame = Instance.new("Frame")
     checkboxFrame.Size = UDim2.new(0, 160, 0, 20)
@@ -1024,5 +1038,8 @@ createGUI()
 findBeast()
 task.spawn(mainLoop)
 log("✓ Script loaded! Bấm nút để bật/tắt")
-log("✓ Anti-Beast: TP qua PC khác hoặc bay lên trời")
-log("✓ Debug Exit: Chi tiết log để tìm lỗi")
+log("✓ Anti-Beast: Bay lên platform chờ 8s")
+log("✓ Anti-Cheat: Chờ 5s sau mỗi PC done")
+log("✓ Jump mỗi 4 giây")
+log("✓ Debug Exit: Chi tiết log")
+log("✓ Status: Hiển thị realtime")
