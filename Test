@@ -78,7 +78,7 @@ local function isBeastNearby()
     if not beastRoot or not rootPart then return false end
     
     local distance = (rootPart.Position - beastRoot.Position).Magnitude
-    return distance <= 20
+    return distance <= 25
 end
 
 -- Hàm tạo platform ẩn náu
@@ -102,19 +102,45 @@ end
 
 -- Hàm trốn Beast (MỚI - thông minh hơn)
 local function escapeBeast()
-    updateStatus("🚨 TRỐN BEAST!")
-    log("🚨 BEAST Ở GẦN! TRỐN NGAY!")
-    
-    -- Tìm PC khác để hack
-    local allPCs = workspace:GetDescendants()
+    updateStatus("🚨 BEAST GẦN! An toàn trước tiên...")
+    log("🚨 Beast gần! TP lên cao tránh bị bắt...")
+
+    -- Tạo platform nếu chưa có
+    if not hidePlatform then
+        hidePlatform = Instance.new("Part")
+        hidePlatform.Size = Vector3.new(20, 1, 20)
+        hidePlatform.Anchored = true
+        hidePlatform.CanCollide = true
+        hidePlatform.Material = Enum.Material.SmoothPlastic
+        hidePlatform.Color = Color3.fromRGB(0,0,0)
+        hidePlatform.Name = "AntiCheatPlatform"
+        hidePlatform.Position = Vector3.new(50, 69, 50)
+        hidePlatform.Parent = workspace
+    end
+
+    -- TP lên platform
+    rootPart.CFrame = CFrame.new(50, 70, 50)
+    task.wait(0.5)
+
+    -- Chờ an toàn 5s
+    for i = 5,1,-1 do
+        if not scriptEnabled then break end
+        updateStatus("⏳ Chờ 5s an toàn với Beast ("..i.."s)")
+        log("⏳ Chờ "..i.."s...")
+        task.wait(1)
+    end
+
+    updateStatus("✓ An toàn! Tìm PC khác hack tiếp")
+    log("✓ Đã chờ 5s sau khi Beast gần, đi tìm PC khác...")
+
+    -- Tìm PC khác
     local nearestPC = nil
     local minDistance = math.huge
-    
-    for _, obj in pairs(allPCs) do
+
+    for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger") then
             local pc = obj.Parent
             if pc and not hackedPCs[pc] then
-                -- Check PC chưa done
                 local isDone = false
                 for _, child in pairs(pc:GetDescendants()) do
                     if (child.Name == "ActionProgress" or child.Name == "Value") and 
@@ -125,7 +151,6 @@ local function escapeBeast()
                         end
                     end
                 end
-                
                 if not isDone then
                     local distance = (rootPart.Position - obj.Position).Magnitude
                     if distance < minDistance then
@@ -136,48 +161,20 @@ local function escapeBeast()
             end
         end
     end
-    
-    -- Nếu tìm thấy PC khác → TP qua
+
+    -- Nếu tìm thấy PC → TP qua PC đó
     if nearestPC then
-        updateStatus("→ TP qua PC khác")
-        log("→ Tìm thấy PC khác! TP qua hack tiếp...")
+        updateStatus("→ TP qua PC khác hack tiếp")
+        log("→ Tìm thấy PC khác! TP để hack tiếp...")
         rootPart.CFrame = nearestPC.CFrame + Vector3.new(0, 3, 0)
         skipCurrentPC = true
         task.wait(0.5)
         return
     end
-    
-    -- Không còn PC → Bay lên trời ẩn náu
-    updateStatus("→ Bay lên trời ẩn náu")
-    log("→ Không còn PC! Bay lên trời ẩn náu...")
-    
-    -- Tạo platform
-    local platform = createHidePlatform()
-    
-    -- TP lên platform
-    rootPart.CFrame = CFrame.new(500, 1001, 500)
-    log("✓ Đã bay lên Y=1000, chờ Beast đi...")
-    
-    -- Chờ Beast đi xa (hoặc timeout 30s)
-    local hideStartTime = tick()
-    repeat
-        task.wait(1)
-        local timeWaited = math.floor(tick() - hideStartTime)
-        if timeWaited % 5 == 0 then
-            updateStatus("⏳ Chờ Beast đi (" .. timeWaited .. "s)")
-            log("Đã chờ " .. timeWaited .. "s, kiểm tra Beast...")
-        end
-    until not isBeastNearby() or (tick() - hideStartTime > 30)
-    
-    updateStatus("✓ An toàn! Quay lại")
-    log("✓ An toàn! Quay lại map...")
-    
-    -- Xóa platform
-    if hidePlatform then
-        pcall(function() hidePlatform:Destroy() end)
-        hidePlatform = nil
-    end
-    
+
+    updateStatus("⚠️ Không còn PC, tiếp tục chờ Beast")
+    log("⚠️ Không còn PC, giữ vị trí ẩn nấp...")
+
     skipCurrentPC = true
 end
 
