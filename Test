@@ -550,77 +550,6 @@ local function trackPCProgress(pcData)
     end
 end
 
--- Teleport
-local chosenTrigger = findAvailableTriggerForComputer(pcData.computer)
-
-if not chosenTrigger then
-    updateStatus("⏭️ Tất cả trigger PC đang bận → skip PC")
-    log("⏭️ PC " .. tostring(pcData.computer.Name) .. " tất cả trigger đều đang bận, chuyển PC khác")
-    hackedPCs[pcData.id] = false
-    skipCurrentPC = true
-    return
-end
-
-pcData.trigger = chosenTrigger
-
-local ok, err = pcall(function()
-    rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0,3,0)
-end)
-
-if not ok then
-    updateStatus("✗ TP thất bại đến trigger")
-    log("✗ Teleport thất bại: " .. tostring(err))
-    skipCurrentPC = true
-    return
-end
-
-task.wait(waitBeforeHack or 0.15)
-
-local playerGui = player:FindFirstChild("PlayerGui")
-local actionBox = nil
-if playerGui then
-    local screenGui = playerGui:FindFirstChild("ScreenGui")
-    if screenGui then
-        actionBox = screenGui:FindFirstChild("ActionBox")
-    end
-end
-
-local canHackNow = true
-
-if isPCDone(pcData) then
-    canHackNow = false
-end
-
-for _, child in ipairs(pcData.computer:GetDescendants()) do
-    if (child.Name == "ActionProgress" or child.Name == "Value") 
-    and (child:IsA("IntValue") or child:IsA("NumberValue")) then
-        if child.Value > 0 and child.Value < 1 then
-            canHackNow = false
-            break
-        end
-    end
-end
-
-if not actionBox or not actionBox.Visible then
-    canHackNow = false
-end
-
-if not canHackNow then
-    updateStatus("⏭️ Trigger bị chiếm khi đến → thử trigger khác")
-    log("⏭️ Trigger " .. tostring(chosenTrigger.Name) .. " đã bị chiếm khi tới, thử tiếp")
-    local newTrig = findAvailableTriggerForComputer(pcData.computer)
-    if newTrig and newTrig ~= chosenTrigger then
-        pcData.trigger = newTrig
-        rootPart.CFrame = newTrig.CFrame + Vector3.new(0,3,0)
-        task.wait(waitBeforeHack or 0.15)
-    else
-        skipCurrentPC = true
-        return
-    end
-end
-
-activateHack(pcData)
-
 -- Kích hoạt hack
 local function activateHack(pcData)
     if not pcData or not pcData.trigger then return false end
@@ -704,8 +633,67 @@ end
 
 -- Hack PC
 local function hackPC(pcData)
-    if not pcData or isHacking then return end
+    if not pcData or not pcData.computer then return end
+
+    -- tìm trigger trống
+    local chosenTrigger = findAvailableTriggerForComputer(pcData.computer)
+    if not chosenTrigger then
+        log("⏭️ Không có trigger trống cho PC này, skip")
+        return
+    end
+
+    -- GÁN TRIGGER (bắt buộc phải có trước teleport)
+    pcData.trigger = chosenTrigger
+
+    local ok, err = pcall(function()
+        rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0,3,0)
+    end)
+
+    if not ok then
+        log("✗ Teleport thất bại: " .. tostring(err))
+        return
+    end
     
+    task.wait(waitBeforeHack or 0.15)
+
+    -- kiểm tra ActionBox / progress
+    local playerGui = player:FindFirstChild("PlayerGui")
+    local actionBox = playerGui and playerGui:FindFirstChild("ScreenGui") and playerGui.ScreenGui:FindFirstChild("ActionBox")
+
+    local canHackNow = true
+
+    if isPCDone(pcData) then
+        canHackNow = false
+    end
+
+    for _, child in ipairs(pcData.computer:GetDescendants()) do
+        if (child.Name == "ActionProgress" or child.Name == "Value")
+        and (child:IsA("IntValue") or child:IsA("NumberValue")) then
+            if child.Value > 0 and child.Value < 1 then
+                canHackNow = false
+                break
+            end
+        end
+    end
+
+    if not actionBox or not actionBox.Visible then
+        canHackNow = false
+    end
+
+    if not canHackNow then
+        log("⏭️ Trigger bị chiếm khi đến → thử trigger khác")
+        local newTrig = findAvailableTriggerForComputer(pcData.computer)
+        if newTrig and newTrig ~= chosenTrigger then
+            pcData.trigger = newTrig
+            rootPart.CFrame = newTrig.CFrame + Vector3.new(0,3,0)
+            task.wait(waitBeforeHack or 0.15)
+        else
+            return
+        end
+    end
+    activateHack(pcData)
+end
+
     if isPCDone(pcData) then
         updateStatus("⏭️ PC done, skip")
         log("⏭️ PC đã done, skip!")
