@@ -743,7 +743,7 @@ local function hackPC(pcData)
         rootPart.CFrame = CFrame.new(50, 70, 50)
 
         -- Chờ đúng 5s
-        task.wait(5)
+        task.wait(8)
 
         updateStatus("✓ Sẵn sàng PC tiếp!")
         log("✓ Chờ 5s xong, tiếp tục!")
