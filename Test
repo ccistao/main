@@ -679,6 +679,29 @@ local function hackPC(pcData)
     task.wait(0.5)
 end
 
+-- Hàm kiểm tra GUI để biết có thể đi Exit không
+local function canGoExit()
+    local gui = player:FindFirstChild("PlayerGui")
+    if not gui then return false end
+
+    local screen = gui:FindFirstChild("ScreenGui")
+    if not screen then return false end
+
+    local info = screen:FindFirstChild("GameInfoFrame")
+    if not info then return false end
+
+    local statusBox = info:FindFirstChild("GameStatusBox")
+    if not statusBox or not statusBox:IsA("TextLabel") then
+        return false
+    end
+
+    local txt = statusBox.Text:upper()
+    if txt:find("FIND AN EXIT") then
+        return true
+    end
+    return false
+end
+
 -- Main loop
 local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
@@ -735,13 +758,14 @@ local function mainLoop()
                 updateStatus("⏳ Đợi Find Exit...")
                 log("Đợi Find Exit...")
                 local waitStart = tick()
+                -- Sau hack PC xong, chờ cho GUI báo Exit:
                 repeat
                     task.wait(0.5)
-                until isFindExitPhase() or (tick() - waitStart > 30)
-                
+                until canGoExit() or (tick() - waitStart > 30)
+
                 log("🔍 [DEBUG] Sau khi chờ, isFindExitPhase = " .. tostring(isFindExitPhase()))
                 
-                if isFindExitPhase() then
+                if canGoExit() then
                     updateStatus("✓ Find Exit!")
                     log("✓ Phát hiện Find Exit!")
                     task.wait(1)
