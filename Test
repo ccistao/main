@@ -597,9 +597,6 @@ local function hackPC(pcData)
     isHacking = true
     currentPC = pcData
     skipCurrentPC = false
-    ----------------------------------------------------------------
--- 🔥 THEO DÕI PC REALTIME (10 LẦN / 1 GIÂY)
-----------------------------------------------------------------
 
 task.spawn(function()
     local lastValue = -1
@@ -633,9 +630,6 @@ task.spawn(function()
                 rootPart.CFrame = CFrame.new(50,70,50)
                 task.wait(5)
 
-                ----------------------------------------------------------------
-                -- 🔍 TÌM PC GẦN NHẤT CHƯA DONE
-                ----------------------------------------------------------------
                 local nearest = nil
                 local nearestDist = math.huge
 
@@ -666,9 +660,6 @@ task.spawn(function()
                     end
                 end
 
-                ----------------------------------------------------------------
-                -- Teleport qua PC gần nhất → tiếp tục hack
-                ----------------------------------------------------------------
                 if nearest then
                     print("➡️ TP sang PC gần nhất để hack tiếp")
                     rootPart.CFrame = nearest.CFrame + Vector3.new(0,3,0)
@@ -685,7 +676,76 @@ task.spawn(function()
 end)
     updateStatus("💻 Hack: " .. pcData.computer.Name)
     log("=== BẮT ĐẦU HACK: " .. pcData.computer.Name .. " ===")
-    
+task.spawn(function()
+    while scriptEnabled and isHacking and currentPC == pcData do
+        
+        local progressValue = nil
+        for _, c in ipairs(pcData.computer:GetDescendants()) do
+            if (c.Name == "ActionProgress" or c.Name == "Value")
+               and (c:IsA("IntValue") or c:IsA("NumberValue")) then
+                progressValue = c
+                break
+            end
+        end
+
+        if progressValue then
+            local v = progressValue.Value
+            
+            -- Nếu PC DONE → skip ngay
+            if v >= 1 then
+                print("🔥 PC DONE (Theo dõi 0.1s phát hiện)")
+
+                hackedPCs[pcData.id] = true
+                isHacking = false
+
+                rootPart.CFrame = CFrame.new(50,70,50)
+                task.wait(5)
+
+                local nearest = nil
+                local nearestDist = math.huge
+
+                for _, obj in ipairs(workspace:GetDescendants()) do
+                    if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger") then
+                        local comp = obj.Parent
+                        if comp then
+                            local done = false
+
+                            -- Check trong PC đó
+                            for _, c2 in ipairs(comp:GetDescendants()) do
+                                if (c2.Name == "ActionProgress" or c2.Name == "Value")
+                                  and (c2:IsA("IntValue") or c2:IsA("NumberValue")) then
+                                    if c2.Value >= 1 then
+                                        done = true
+                                        break
+                                    end
+                                end
+                            end
+
+                            if not done then
+                                local dist = (obj.Position - rootPart.Position).Magnitude
+                                if dist < nearestDist then
+                                    nearestDist = dist
+                                    nearest = obj
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if nearest then
+                    print("➡️ TP sang PC gần nhất để hack tiếp")
+                    rootPart.CFrame = nearest.CFrame + Vector3.new(0,3,0)
+                else
+                    print("⚠️ Không còn PC nào chưa done")
+                end
+
+                return -- kết thúc watcher
+            end
+        end
+
+        task.wait(0.1)
+    end
+end)
     trackPCProgress(pcData)
     
     if isPCDone(pcData) then
