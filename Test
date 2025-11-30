@@ -1270,19 +1270,3 @@ task.spawn(mainLoop)
 log("✓ Script loaded! Bấm nút để bật/tắt")
 log("✓ Anti-Beast: TP qua PC khác hoặc bay lên trời")
 log("✓ Debug Exit: Chi tiết log để tìm lỗi")
--- Sau khi scriptEnabled = true, hoặc khi bạn bật auto‑hack:
-local function startAutoHack()
-    while scriptEnabled do
-        local allPCs = findAllPCTriggers()
-        for _, pcData in ipairs(allPCs) do
-            if pcData and pcData.computer and pcData.computer:IsDescendantOf(workspace) then
-                hackPC(pcData)
-                task.wait(0.1)  -- tránh spam liên tục
-            end
-        end
-        task.wait(hackDelay or 5)  -- đợi vài giây trước lần quét tiếp
-    end
-end
-
--- Bật auto hack (ví dụ khi nhấn nút GUI)
-startAutoHack()
