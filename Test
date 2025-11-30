@@ -577,6 +577,70 @@ local function activateHack(pcData)
     return true
 end
 
+local function getTriggersOfComputer(computer)
+    local triggers = {}
+    if not computer then return triggers end
+    for _, obj in ipairs(computer:GetDescendants()) do
+        if obj:IsA("BasePart") and tostring(obj.Name):lower():match("computertrigger") then
+            table.insert(triggers, obj)
+        end
+    end
+    if #triggers == 0 then
+        for _, obj in ipairs(computer:GetChildren()) do
+            if obj:IsA("BasePart") then
+                table.insert(triggers, obj)
+            else
+                for _, g in ipairs(obj:GetChildren()) do
+                    if g:IsA("BasePart") and tostring(g.Name):lower():match("trigger") then
+                        table.insert(triggers, g)
+                    end
+                end
+            end
+        end
+    end
+    return triggers
+end
+
+local function findAvailableTriggerForComputer(pcComputer)
+    if not pcComputer then return nil end
+    local triggers = getTriggersOfComputer(pcComputer)
+    if #triggers == 0 then return nil end
+    table.sort(triggers, function(a,b)
+        if not a or not b then return false end
+        local da = (a.Position - rootPart.Position).Magnitude
+        local db = (b.Position - rootPart.Position).Magnitude
+        return da < db
+    end)
+    local playerGui = player:FindFirstChild("PlayerGui")
+    local actionBox = nil
+    if playerGui then
+        local screenGui = playerGui:FindFirstChild("ScreenGui")
+        if screenGui then
+            actionBox = screenGui:FindFirstChild("ActionBox")
+        end
+    end
+    for _, trig in ipairs(triggers) do
+        if trig and trig:IsA("BasePart") then
+            pcall(function() rootPart.CFrame = trig.CFrame + Vector3.new(0,3,0) end)
+            task.wait(0.15)
+            local occupied = false
+            for _, child in ipairs(pcComputer:GetDescendants()) do
+                if (child.Name == "ActionProgress" or child.Name == "Value")
+                and (child:IsA("IntValue") or child:IsA("NumberValue")) then
+                    if child.Value > 0 and child.Value < 1 then
+                        occupied = true
+                        break
+                    end
+                end
+            end
+            if actionBox and actionBox.Visible and not occupied then
+                return trig
+            end
+        end
+    end
+    return nil
+end
+
 -- Hack PC
 local function hackPC(pcData)
     if not pcData or isHacking then return end
