@@ -642,9 +642,7 @@ local function hackPC(pcData)
         return
     end
 
-    -- GÁN TRIGGER (bắt buộc phải có trước teleport)
-    pcData.trigger = chosenTrigger
-
+    -- TELEPORT (KHÔNG ĐỤNG VÀO PCDATA)
     local ok, err = pcall(function()
         rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0,3,0)
     end)
@@ -658,7 +656,9 @@ local function hackPC(pcData)
 
     -- kiểm tra ActionBox / progress
     local playerGui = player:FindFirstChild("PlayerGui")
-    local actionBox = playerGui and playerGui:FindFirstChild("ScreenGui") and playerGui.ScreenGui:FindFirstChild("ActionBox")
+    local actionBox = playerGui 
+        and playerGui:FindFirstChild("ScreenGui") 
+        and playerGui.ScreenGui:FindFirstChild("ActionBox")
 
     local canHackNow = true
 
@@ -681,35 +681,12 @@ local function hackPC(pcData)
     end
 
     if not canHackNow then
-        log("⏭️ Trigger bị chiếm khi đến → thử trigger khác")
-        local newTrig = findAvailableTriggerForComputer(pcData.computer)
-        if newTrig and newTrig ~= chosenTrigger then
-            pcData.trigger = newTrig
-            rootPart.CFrame = newTrig.CFrame + Vector3.new(0,3,0)
-            task.wait(waitBeforeHack or 0.15)
-        else
-            return
-        end
+        log("⏭️ Trigger bị chiếm khi đến → skip")
+        return
     end
+
     activateHack(pcData)
 end
-
-    if isPCDone(pcData) then
-        updateStatus("⏭️ PC done, skip")
-        log("⏭️ PC đã done, skip!")
-        hackedPCs[pcData.id] = true
-        return
-    end
-    
-    if not isPCAvailable(pcData) then
-        updateStatus("⏭️ PC không khả dụng")
-        log("⏭️ PC không khả dụng, skip!")
-        return
-    end
-    
-    isHacking = true
-    currentPC = pcData
-    skipCurrentPC = false
 
 task.spawn(function()
     local lastValue = -1
