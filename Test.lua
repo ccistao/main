@@ -464,20 +464,25 @@ RunService.Heartbeat:Connect(function(dt)
     rootPart = char:FindFirstChild("HumanoidRootPart")
 
     if canAutoJump and humanoid and rootPart and currentTrigger then
-        jumpTimer = jumpTimer + dt
+        jumpTimer += dt
+
         if jumpTimer >= jumpInterval then
             pcall(function()
-                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 15, 0)
+                local backPos = rootPart.CFrame.Position - (rootPart.CFrame.LookVector * 5)
+
+                rootPart.CFrame = CFrame.new(backPos)
             end)
+
+            task.wait(0.07)
 
             pcall(function()
                 rootPart.CFrame = currentTrigger.CFrame + Vector3.new(0, 0.5, 0)
             end)
-
             jumpTimer = 0
         end
     end
 end)
+
 
 local function hackPC(pcData)
     if not pcData or not pcData.computer then
@@ -580,7 +585,7 @@ local function hackPC(pcData)
             end)
         end
 
-        if progress >= 0.95 or progress >= 1 then
+        if progress >= 1 then
             updateStatus("✔️ Hack xong PC " .. tostring(pcData.id))
             hackedPCs[pcData.id] = true
 
@@ -590,7 +595,10 @@ local function hackPC(pcData)
 
             pcall(function()
                 if rootPart then
-                    rootPart.CFrame = CFrame.new(SAFE_POS)
+                     for i = 1, 3 do
+                         rootPart.CFrame = CFrame.new(SAFE_POS)
+                         task.wait(0.1)
+                     end
                 end
             end)
 
