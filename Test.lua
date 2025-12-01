@@ -483,7 +483,6 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
-
 local function hackPC(pcData)
     if not pcData or not pcData.computer then
         updateStatus("❌ pcData rỗng – bỏ qua")
@@ -614,10 +613,8 @@ local function hackPC(pcData)
                     end
                 end
             end)
-        end
 
-
-            updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti‑cheat")
+            updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti-cheat")
             task.wait(delayAfterHack)
             return true
         end
@@ -630,7 +627,6 @@ local function hackPC(pcData)
     canAutoJump = false
     return false
 end
-
     
 local function canGoExit()
     local gui = player:FindFirstChild("PlayerGui")
