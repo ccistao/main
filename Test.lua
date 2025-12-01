@@ -552,6 +552,9 @@ local function autoExitUnified()
         end
     end
 end
+task.spawn(function()
+    autoExitUnified()
+end)
 
 local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
