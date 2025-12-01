@@ -786,4 +786,16 @@ log("✓ Force TP sau mỗi PC")
 createGUI()
 findBeast()
 task.spawn(mainLoop)
+task.spawn(function()
+    while true do
+        task.wait(4)
+        
+        if scriptEnabled and isHacking and humanoid and currentPC then
+            pcall(function()
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end)
+            log("🦘 Auto jump")
+        end
+    end
+end)
 log("✓ Script loaded!")
