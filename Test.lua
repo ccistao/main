@@ -160,138 +160,6 @@ local function waitForGameActive()
     return false
 end
 
-local function isFindExitPhase()
-    local gameStatus = Replicated:FindFirstChild("GameStatus")
-    if gameStatus and gameStatus:IsA("StringValue") then
-        return gameStatus.Value:upper():find("FIND AN EXIT") ~= nil
-    end
-    return false
-end
-
-local function findExit()
-    updateStatus("🔍 Tìm ExitDoor...")
-    
-    local currentMap = Replicated:FindFirstChild("CurrentMap")
-    if currentMap and currentMap.Value then
-        for _, obj in pairs(currentMap.Value:GetDescendants()) do
-            if obj.Name == "ExitDoor" and obj:IsA("Model") then
-                local trigger = obj:FindFirstChild("ExitPart") 
-                    or obj:FindFirstChild("Trigger") 
-                    or obj:FindFirstChild("Door")
-                    or obj:FindFirstChildWhichIsA("BasePart")
-                
-                if trigger and trigger:IsA("BasePart") then
-                    log("✓ Tìm thấy ExitDoor: " .. obj:GetFullName())
-                    return {exit = obj, trigger = trigger, position = trigger.Position}
-                end
-            end
-        end
-    end
-    
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "ExitDoor" and obj:IsA("Model") then
-            local trigger = obj:FindFirstChild("ExitPart") 
-                or obj:FindFirstChild("Trigger") 
-                or obj:FindFirstChild("Door")
-                or obj:FindFirstChildWhichIsA("BasePart")
-            
-            if trigger and trigger:IsA("BasePart") then
-                log("✓ Tìm thấy ExitDoor (workspace): " .. obj:GetFullName())
-                return {exit = obj, trigger = trigger, position = trigger.Position}
-            end
-        end
-    end
-    
-    log("❌ Không tìm thấy ExitDoor!")
-    return nil
-end
-
-local function openExit(exitData)
-    if not exitData or not exitData.trigger then return false end
-    
-    updateStatus("🚪 Đang mở cửa...")
-    
-    for i = 1, 3 do
-        rootPart.CFrame = exitData.trigger.CFrame * CFrame.new(0, 3, 0)
-        task.wait(0.1)
-    end
-    
-    local lastProgress = 0
-    
-    while scriptEnabled do
-        pcall(function()
-            firetouchinterest(rootPart, exitData.trigger, 0)
-            task.wait(0.02)
-            firetouchinterest(rootPart, exitData.trigger, 1)
-        end)
-        
-        pcall(function()
-            game.ReplicatedStorage.RemoteEvent:FireServer("Input", "Action", true)
-        end)
-        
-        local tps = player:FindFirstChild("TempPlayerStatsModule")
-        if tps then
-            local progress = tps:FindFirstChild("ActionProgress")
-            if progress and progress:IsA("NumberValue") then
-                local currentProgress = progress.Value
-                
-                if currentProgress > lastProgress then
-                    lastProgress = currentProgress
-                    updateStatus(string.format("🚪 Mở cửa: %.0f%%", currentProgress * 100))
-                end
-                
-                if currentProgress >= 0.98 then
-                    updateStatus("✓ Cửa mở!")
-                    task.wait(0.5)
-                    return true
-                end
-            end
-        end
-        
-        task.wait(0.1)
-    end
-    
-    return false
-end
-
-local function escapeExit(exitData)
-    if not exitData or not exitData.trigger then return false end
-    
-    updateStatus("🏃 Thoát qua cửa...")
-    
-    local exitPos = exitData.trigger.Position
-    local exitCFrame = exitData.trigger.CFrame
-    
-    local escapePositions = {
-        exitCFrame * CFrame.new(0, 0, -8),
-        exitCFrame * CFrame.new(0, 0, 8),
-        exitCFrame * CFrame.new(-8, 0, 0),
-        exitCFrame * CFrame.new(8, 0, 0),
-    }
-    
-    for i, pos in ipairs(escapePositions) do
-        rootPart.CFrame = pos
-        task.wait(0.3)
-        
-        pcall(function()
-            firetouchinterest(rootPart, exitData.trigger, 0)
-            task.wait(0.05)
-            firetouchinterest(rootPart, exitData.trigger, 1)
-        end)
-    end
-    
-    task.wait(1)
-    updateStatus("✅ Đã thoát!")
-    return true
-end
-
-local function autoExit()
-    if not scriptEnabled then return end
-    local exitData = findExit()
-    if not exitData then return end
-    if openExit(exitData) then escapeExit(exitData) end
-end
-
 local function isValidPC(pc)
     if not pc then return false end
     local name = pc.Name:lower()
@@ -628,16 +496,61 @@ local function hackPC(pcData)
     return false
 end
     
-local function canGoExit()
-    local gui = player:FindFirstChild("PlayerGui")
-    if not gui then return false end
-    local screen = gui:FindFirstChild("ScreenGui")
-    if not screen then return false end
-    local info = screen:FindFirstChild("GameInfoFrame")
-    if not info then return false end
-    local statusBox = info:FindFirstChild("GameStatusBox")
-    if not statusBox or not statusBox:IsA("TextLabel") then return false end
-    return statusBox.Text:upper():find("FIND AN EXIT") ~= nil
+local function autoExitUnified()
+    -- 1) Kiểm tra đang ở giai đoạn mở cửa chưa
+    local function isFindExitPhase()
+        local statusFolder = game:GetService("ReplicatedStorage"):FindFirstChild("FTF_Status")
+        if not statusFolder then return false end
+        local phase = statusFolder:FindFirstChild("Phase")
+        if not phase then return false end
+        return tostring(phase.Value):lower():find("exit") ~= nil
+    end
+
+    -- 2) Scan toàn map để tìm ExitDoor
+    local function findExit()
+        local exits = {}
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name:lower():match("exit") then
+                local trigger = obj:FindFirstChildWhichIsA("BasePart")
+                if trigger then
+                    table.insert(exits, {model = obj, trigger = trigger})
+                end
+            end
+        end
+        return exits
+    end
+
+    -- 3) Fire mở cửa
+    local function openExit(exitData)
+        local trig = exitData.trigger
+        if trig and trig:IsA("BasePart") then
+            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, trig, 0)
+            task.wait()
+            firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, trig, 1)
+        end
+    end
+
+    -- 4) Chạy vào cửa để escape
+    local function escapeExit(exitData)
+        local trig = exitData.trigger
+        if trig then
+            game.Players.LocalPlayer.Character:PivotTo(trig.CFrame + Vector3.new(0, 2, 0))
+        end
+    end
+
+    -- 5) Chu trình auto
+    while task.wait(0.5) do
+        if not isFindExitPhase() then continue end
+
+        local exits = findExit()
+        if #exits == 0 then continue end
+
+        for _, exitData in ipairs(exits) do
+            openExit(exitData)
+            task.wait(0.2)
+            escapeExit(exitData)
+        end
+    end
 end
 
 local function mainLoop()
