@@ -90,16 +90,57 @@ local function escapeBeast()
     skipCurrentPC = true
 end
 
+-- THAY THẾ: spawn block dùng ActionBox (an toàn, không block)
 spawn(function()
     local playerGui = player:WaitForChild("PlayerGui")
-    local screenGui = playerGui:WaitForChild("ScreenGui")
-    local actionBox = screenGui:WaitForChild("ActionBox")
-    actionBox:GetPropertyChangedSignal("Visible"):Connect(function()
-        if scriptEnabled and actionBox.Visible and isHacking and currentPC then
-            game.ReplicatedStorage.RemoteEvent:FireServer("Input", "Action", true)
+    -- Thay vì chờ tên chung "ScreenGui", ta quan sát khi AutoHackGUI xuất hiện hoặc ChildAdded
+    local function bindToScreenGui(screenGui)
+        if not screenGui then return end
+        local actionBox = screenGui:FindFirstChild("ActionBox")
+        if actionBox then
+            actionBox:GetPropertyChangedSignal("Visible"):Connect(function()
+                if scriptEnabled and actionBox.Visible and isHacking and currentPC then
+                    -- guard: đảm bảo RemoteEvent tồn tại
+                    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+                    if remote and remote.FireServer then
+                        pcall(function()
+                            remote:FireServer("Input", "Action", true)
+                        end)
+                    end
+                end
+            end)
+        else
+            -- nếu chưa có ActionBox, lắng nghe ChildAdded để bind khi nó xuất hiện
+            screenGui.ChildAdded:Connect(function(child)
+                if child.Name == "ActionBox" then
+                    child:GetPropertyChangedSignal("Visible"):Connect(function()
+                        if scriptEnabled and child.Visible and isHacking and currentPC then
+                            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+                            if remote and remote.FireServer then
+                                pcall(function()
+                                    remote:FireServer("Input", "Action", true)
+                                end)
+                            end
+                        end
+                    end)
+                end
+            end)
         end
-    end)
+    end
+
+    -- Nếu AutoHackGUI đã có (do createGUI được gọi sau), tìm nó; nếu chưa có, lắng nghe ChildAdded
+    local existing = playerGui:FindFirstChild("AutoHackGUI")
+    if existing then
+        bindToScreenGui(existing)
+    else
+        playerGui.ChildAdded:Connect(function(child)
+            if child.Name == "AutoHackGUI" then
+                bindToScreenGui(child)
+            end
+        end)
+    end
 end)
+
 
 local function waitForGameActive()
     updateStatus("⏳ Chờ game...")
