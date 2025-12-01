@@ -169,60 +169,119 @@ local function isFindExitPhase()
 end
 
 local function findExit()
-    updateStatus("🔍 Tìm Exit...")
+    updateStatus("🔍 Tìm ExitDoor...")
+    
+    local currentMap = Replicated:FindFirstChild("CurrentMap")
+    if currentMap and currentMap.Value then
+        for _, obj in pairs(currentMap.Value:GetDescendants()) do
+            if obj.Name == "ExitDoor" and obj:IsA("Model") then
+                local trigger = obj:FindFirstChild("ExitPart") 
+                    or obj:FindFirstChild("Trigger") 
+                    or obj:FindFirstChild("Door")
+                    or obj:FindFirstChildWhichIsA("BasePart")
+                
+                if trigger and trigger:IsA("BasePart") then
+                    log("✓ Tìm thấy ExitDoor: " .. obj:GetFullName())
+                    return {exit = obj, trigger = trigger, position = trigger.Position}
+                end
+            end
+        end
+    end
+    
     for _, obj in pairs(workspace:GetDescendants()) do
-        local name = obj.Name:lower()
-        if (name:find("exit") or name:find("door") or name:find("escape") or 
-            name:find("freeze") or name:find("pod")) and obj:IsA("Model") then
-            local trigger = obj:FindFirstChild("Trigger") or obj:FindFirstChild("Button") or 
-                           obj:FindFirstChild("Interact") or obj:FindFirstChildWhichIsA("BasePart")
+        if obj.Name == "ExitDoor" and obj:IsA("Model") then
+            local trigger = obj:FindFirstChild("ExitPart") 
+                or obj:FindFirstChild("Trigger") 
+                or obj:FindFirstChild("Door")
+                or obj:FindFirstChildWhichIsA("BasePart")
+            
             if trigger and trigger:IsA("BasePart") then
-                updateStatus("✓ Tìm thấy Exit!")
+                log("✓ Tìm thấy ExitDoor (workspace): " .. obj:GetFullName())
                 return {exit = obj, trigger = trigger, position = trigger.Position}
             end
         end
     end
+    
+    log("❌ Không tìm thấy ExitDoor!")
     return nil
 end
 
 local function openExit(exitData)
     if not exitData or not exitData.trigger then return false end
-    updateStatus("🚪 Mở Exit...")
-    rootPart.CFrame = exitData.trigger.CFrame + Vector3.new(0, 3, 0)
-    task.wait(0.5)
     
-    local openStart = tick()
-    while scriptEnabled and (tick() - openStart < 30) do
+    updateStatus("🚪 Đang mở cửa...")
+    
+    for i = 1, 3 do
+        rootPart.CFrame = exitData.trigger.CFrame * CFrame.new(0, 3, 0)
+        task.wait(0.1)
+    end
+    
+    local lastProgress = 0
+    
+    while scriptEnabled do
         pcall(function()
-            game.ReplicatedStorage.RemoteEvent:FireServer("Input", "Action", true)
-            firetouchinterest(exitData.trigger, rootPart, 0)
-            task.wait(0.05)
-            firetouchinterest(exitData.trigger, rootPart, 1)
+            firetouchinterest(rootPart, exitData.trigger, 0)
+            task.wait(0.02)
+            firetouchinterest(rootPart, exitData.trigger, 1)
         end)
         
-        local actionProgress = player:FindFirstChild("TempPlayerStatsModule")
-        if actionProgress then
-            local progress = actionProgress:FindFirstChild("ActionProgress")
-            if progress and progress:IsA("NumberValue") and progress.Value >= 0.95 then
-                updateStatus("✓ Cửa mở!")
-                task.wait(0.5)
-                return true
+        pcall(function()
+            game.ReplicatedStorage.RemoteEvent:FireServer("Input", "Action", true)
+        end)
+        
+        local tps = player:FindFirstChild("TempPlayerStatsModule")
+        if tps then
+            local progress = tps:FindFirstChild("ActionProgress")
+            if progress and progress:IsA("NumberValue") then
+                local currentProgress = progress.Value
+                
+                if currentProgress > lastProgress then
+                    lastProgress = currentProgress
+                    updateStatus(string.format("🚪 Mở cửa: %.0f%%", currentProgress * 100))
+                end
+                
+                if currentProgress >= 0.98 then
+                    updateStatus("✓ Cửa mở!")
+                    task.wait(0.5)
+                    return true
+                end
             end
         end
-        task.wait(0.3)
+        
+        task.wait(0.1)
     end
-    return true
+    
+    return false
 end
 
 local function escapeExit(exitData)
     if not exitData or not exitData.trigger then return false end
-    updateStatus("🏃 Thoát...")
+    
+    updateStatus("🏃 Thoát qua cửa...")
+    
     local exitPos = exitData.trigger.Position
-    local direction = (exitData.trigger.CFrame.LookVector * -5)
-    local escapePos = exitPos + direction
-    rootPart.CFrame = CFrame.new(escapePos.X, exitPos.Y, escapePos.Z)
+    local exitCFrame = exitData.trigger.CFrame
+    
+    local escapePositions = {
+        exitCFrame * CFrame.new(0, 0, -8),
+        exitCFrame * CFrame.new(0, 0, 8),
+        exitCFrame * CFrame.new(-8, 0, 0),
+        exitCFrame * CFrame.new(8, 0, 0),
+    }
+    
+    for i, pos in ipairs(escapePositions) do
+        rootPart.CFrame = pos
+        task.wait(0.3)
+        
+        pcall(function()
+            firetouchinterest(rootPart, exitData.trigger, 0)
+            task.wait(0.05)
+            firetouchinterest(rootPart, exitData.trigger, 1)
+        end)
+    end
+    
     task.wait(1)
-    updateStatus("✅ Thoát thành công!")
+    updateStatus("✅ Đã thoát!")
     return true
 end
 
