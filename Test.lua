@@ -13,7 +13,7 @@ local scriptEnabled = false
 local hackExtraPC = false
 local hackDelay = 4
 local waitBeforeHack = 1
-local ANTI_CHEAT_DELAY = 5
+local ANTI_CHEAT_DELAY = 8
 local currentPC = nil
 local isHacking = false
 local hackedPCs = {}
@@ -441,7 +441,6 @@ local function hackPC(pcData)
 
     local lastProgress = 0
     local stuckCount = 0
-    local hackStartTime = tick()
 
     while isHacking and scriptEnabled do
         task.wait(0.15)
@@ -453,12 +452,7 @@ local function hackPC(pcData)
             escapeBeast()
             return false
         end
-
-        if tick() - hackStartTime > 30 then
-            updateStatus("⏱️ Timeout - skip PC")
-            break
-        end
-
+        
         if not pcData.computer or not pcData.computer.Parent then
             updateStatus("❌ PC biến mất – dừng hack")
             break
