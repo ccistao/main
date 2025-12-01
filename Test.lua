@@ -450,7 +450,12 @@ end
 local RunService = game:GetService("RunService")
 local delayAfterHack = 8
 local SAFE_POS = Vector3.new(50, 71, 50)
-local RunService = game:GetService("RunService")
+
+local jumpTimer = 0
+local jumpInterval = 4
+local canAutoJump = false
+local currentTrigger = nil
+
 RunService.Heartbeat:Connect(function(dt)
     local char = player.Character
     if not char then return end
@@ -459,15 +464,12 @@ RunService.Heartbeat:Connect(function(dt)
     rootPart = char:FindFirstChild("HumanoidRootPart")
 
     if canAutoJump and humanoid and rootPart and currentTrigger then
-        jumpTimer += dt
+        jumpTimer = jumpTimer + dt
         if jumpTimer >= jumpInterval then
-
-            -- TP lên ~2 stud so với vị trí hiện tại (thay vì nhảy thật)
             pcall(function()
                 rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 2, 0)
             end)
 
-            -- TP lại trigger ngay lập tức để tiếp tục hack
             pcall(function()
                 rootPart.CFrame = currentTrigger.CFrame + Vector3.new(0, 0.5, 0)
             end)
@@ -476,7 +478,6 @@ RunService.Heartbeat:Connect(function(dt)
         end
     end
 end)
-
 
 local function hackPC(pcData)
     if not pcData or not pcData.computer then
