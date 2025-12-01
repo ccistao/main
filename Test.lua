@@ -92,7 +92,7 @@ local function escapeBeast()
     updateStatus("🚨 Trốn Beast!")
     if not hidePlatform then createHidePlatform() end
     rootPart.CFrame = CFrame.new(50, 71, 50)
-    task.wait(8)
+    task.wait(7)
     skipCurrentPC = true
 end
 
