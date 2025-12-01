@@ -408,7 +408,12 @@ local function hackPC(pcData)
         updateStatus("⏭️ Không có trigger trống, skip PC " .. tostring(pcData.id))
         return false
     end
-
+   
+    if chosenTrigger and rootPart then
+        rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 3, 0)
+        task.wait(0.1)
+    end
+    
     isHacking = true
     currentPC = pcData
     updateStatus("🔵 Đang hack PC " .. tostring(pcData.id))
