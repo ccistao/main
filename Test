@@ -394,8 +394,8 @@ end
 local delayAfterHack = 8 -- giây
 local safePos = Vector3.new(0, 120, 0) -- toạ độ né anti cheat
 
-local function hackPC(pcData)
-    if not pcData then
+local function hackPC(pc)
+    if not pc then return end
         return false
     end
 
