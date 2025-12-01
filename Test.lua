@@ -585,7 +585,20 @@ local function hackPC(pcData)
             end)
         end
 
-        if progress >= 1 then
+        -- Lấy screen PC
+        local screen = pcData.computer:FindFirstChild("Screen")
+
+        -- Check 1: dựa vào màu xanh lá
+        local doneByColor = false
+        if screen and screen:IsA("BasePart") then
+            local c = screen.Color
+            if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
+                doneByColor = true
+            end
+        end
+
+        -- Check 2: dựa vào progress value >=0.999
+        if doneByColor or progress >= 0.999 then
             updateStatus("✔️ Hack xong PC " .. tostring(pcData.id))
             hackedPCs[pcData.id] = true
 
@@ -595,12 +608,14 @@ local function hackPC(pcData)
 
             pcall(function()
                 if rootPart then
-                     for i = 1, 3 do
-                         rootPart.CFrame = CFrame.new(SAFE_POS)
-                         task.wait(0.1)
-                     end
+                    for i = 1, 3 do
+                        rootPart.CFrame = CFrame.new(SAFE_POS)
+                        task.wait(0.1)
+                    end
                 end
             end)
+       end
+
 
             updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti‑cheat")
             task.wait(delayAfterHack)
