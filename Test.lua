@@ -45,11 +45,10 @@ local function findBeast()
     task.spawn(function()
         while true do
             if not scriptEnabled then
+                updateStatus("Script TẮT")
                 task.wait(0.1)
-                continue
-            end
-
-            task.wait(0.05)
+            else
+            task.wait(0.1)
             if foundBeast then
                 if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
                     beast, foundBeast = nil, false
@@ -414,6 +413,7 @@ local function hackPC(pcData)
     updateStatus("🔵 Đang hack PC " .. tostring(pcData.id))
 
     pcall(function()
+        local hackRemote = Replicated:WaitForChild("RemoteEvent")
         hackRemote:FireServer("StartHack", pcData.id)
     end)
 
@@ -486,8 +486,7 @@ local function mainLoop()
         if not scriptEnabled then
             updateStatus("Script TẮT")
             task.wait(0.5)
-            continue
-        end
+        else
         if scriptEnabled then
             updateStatus("⏳ Đợi game...")
             if not waitForGameActive() then
