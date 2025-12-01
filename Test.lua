@@ -568,18 +568,16 @@ end)
 
 local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
-    
+
     while true do
         if not scriptEnabled then
             updateStatus("Script TẮT")
             task.wait(0.5)
-
         else
             updateStatus("⏳ Đợi game...")
 
             if not waitForGameActive() then
                 task.wait(10)
-
             else
                 hackedPCs = {}
                 updateStatus("🆕 Game mới!")
@@ -588,7 +586,7 @@ local function mainLoop()
                 log("═══════════════════════════════")
                 log("Hack Extra PC: " .. (hackExtraPC and "BẬT" or "TẮT"))
                 log("Anti-cheat delay: " .. ANTI_CHEAT_DELAY .. "s")
-                
+
                 updateStatus("🔍 Tìm PC...")
                 local allPCs = findAllPCTriggers()
 
@@ -596,19 +594,18 @@ local function mainLoop()
                     updateStatus("⚠️ Không có PC")
                     log("⚠️ Không tìm thấy PC!")
                     task.wait(3)
-
                 else
                     updateStatus("Tìm thấy " .. #allPCs .. " PC")
                     log("✓ Tìm thấy " .. #allPCs .. " PC(s)")
-                    
+
                     for idx, pcData in ipairs(allPCs) do
                         if not scriptEnabled then break end
-                        
+
                         log("")
                         log("╔═══════════════════════════════╗")
                         log("║  PC " .. idx .. "/" .. #allPCs)
                         log("╚═══════════════════════════════╝")
-                        
+
                         if isFindExitPhase() then
                             if hackExtraPC then
                                 log("⚠️ Find Exit! Nhưng Extra PC BẬT")
@@ -617,19 +614,19 @@ local function mainLoop()
                                 break
                             end
                         end
-                        
+
                         hackPC(pcData)
                     end
-                    
+
                     log("═══════════════════════════════")
                     log("✅ HOÀN TẤT TẤT CẢ PC")
                     log("═══════════════════════════════")
                 end
-                
+
                 if hackExtraPC then
                     task.wait(2)
                 end
-                
+
                 updateStatus("⏳ Đợi Find Exit...")
                 log("Đợi Find Exit...")
                 local waitStart = tick()
@@ -642,9 +639,10 @@ local function mainLoop()
                     updateStatus("✓ Find Exit!")
                     log("✓ Phát hiện Find Exit!")
                     task.wait(1)
-                    autoExit()
+                    -- spawn để chạy song song, tránh block
+                    task.spawn(autoExitUnified)
                 end
-                
+
                 updateStatus("🎉 Round hoàn tất!")
                 log("🎉 ROUND HOÀN TẤT!")
             end
