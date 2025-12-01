@@ -148,16 +148,26 @@ spawn(function()
     end
 end)
 
-
 local function waitForGameActive()
-    updateStatus("⏳ Chờ game...")
-    local gameActive = Replicated:WaitForChild("IsGameActive", 10)
-    if gameActive and gameActive:IsA("BoolValue") then
-        repeat task.wait(0.5) until gameActive.Value == true
-        updateStatus("✓ Game active!")
-        return true
+    updateStatus("⏳ Chờ game chuẩn bị...")
+
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+
+    local statusBox = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
+                         :WaitForChild("GameInfoFrame"):WaitForChild("GameStatusBox")
+
+    if not statusBox or not statusBox:IsA("TextLabel") then
+        updateStatus("❌ Không tìm thấy GameStatusBox!")
+        return false
     end
-    return false
+
+    repeat
+        task.wait(0.1)
+    until statusBox.Text:upper():find("15 SEC HEAD START") -- kiểm tra chính xác
+
+    updateStatus("✓ Game chuẩn bị xong! Chạy script...")
+    return true
 end
 
 local function isValidPC(pc)
