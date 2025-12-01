@@ -599,7 +599,7 @@ local function mainLoop()
                         log("║  PC " .. idx .. "/" .. #allPCs)
                         log("╚═══════════════════════════════╝")
                         
-                        if canGoExit() then
+                        if isFindExitPhase() then
                             if hackExtraPC then
                                 log("⚠️ Find Exit! Nhưng Extra PC BẬT")
                             else
