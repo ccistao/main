@@ -397,14 +397,19 @@ local jumpTimer = 0
 local canAutoJump = false -- bật khi TP tới PC và đang hack
 
 RUN.Heartbeat:Connect(function(dt)
+    local char = player.Character
+    if char then humanoid = char:FindFirstChild("Humanoid") end
+
     if canAutoJump and humanoid then
         jumpTimer += dt
         if jumpTimer >= jumpInterval then
+            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
             humanoid.Jump = true
             jumpTimer = 0
         end
     end
 end)
+
 
 local function hackPC(pcData)
     if not pcData or not pcData.computer then
