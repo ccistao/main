@@ -47,26 +47,27 @@ local function findBeast()
             if not scriptEnabled then
                 updateStatus("Script TẮT")
                 task.wait(0.1)
-            else
-            task.wait(0.1)
-            if foundBeast then
-                if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
-                    beast, foundBeast = nil, false
-                end
-            end
-            if not foundBeast then
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if isBeast(p) then
-                        beast, foundBeast = p, true
-                        log("👹 Beast: " .. beast.Name)
-                        break
+            else                          
+                task.wait(0.1)
+                if foundBeast then
+                    if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
+                        beast, foundBeast = nil, false
                     end
                 end
-            end
+
+                if not foundBeast then
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if isBeast(p) then
+                            beast, foundBeast = p, true
+                            log("👹 Beast: " .. beast.Name)
+                            break
+                        end
+                    end
+                end
+            end   
         end
     end)
 end
-
 local function isBeastNearby()
     if not foundBeast or not beast or not beast.Character then return false end
     local beastRoot = beast.Character:FindFirstChild("HumanoidRootPart")
@@ -435,7 +436,10 @@ local function hackPC(pcData)
             and pcData.computer.SkillCheckActive.Value then
             updateStatus("⚠️ Skill check! Auto perfect")
             pcall(function()
-                hackRemote:FireServer("SkillCheck", true)
+                local hr = Replicated:FindFirstChild("RemoteEvent")
+                if hr then
+                    hr:FireServer("SkillCheck", true)
+                end
             end)
         end
 
@@ -486,11 +490,13 @@ local function mainLoop()
         if not scriptEnabled then
             updateStatus("Script TẮT")
             task.wait(0.5)
+
         else
-        if scriptEnabled then
             updateStatus("⏳ Đợi game...")
+
             if not waitForGameActive() then
                 task.wait(10)
+
             else
                 hackedPCs = {}
                 updateStatus("🆕 Game mới!")
@@ -502,11 +508,12 @@ local function mainLoop()
                 
                 updateStatus("🔍 Tìm PC...")
                 local allPCs = findAllPCTriggers()
-                
+
                 if #allPCs == 0 then
                     updateStatus("⚠️ Không có PC")
                     log("⚠️ Không tìm thấy PC!")
                     task.wait(3)
+
                 else
                     updateStatus("Tìm thấy " .. #allPCs .. " PC")
                     log("✓ Tìm thấy " .. #allPCs .. " PC(s)")
@@ -543,10 +550,11 @@ local function mainLoop()
                 updateStatus("⏳ Đợi Find Exit...")
                 log("Đợi Find Exit...")
                 local waitStart = tick()
+
                 repeat
                     task.wait(0.5)
                 until canGoExit() or (tick() - waitStart > 30)
-                
+
                 if canGoExit() then
                     updateStatus("✓ Find Exit!")
                     log("✓ Phát hiện Find Exit!")
@@ -557,9 +565,6 @@ local function mainLoop()
                 updateStatus("🎉 Round hoàn tất!")
                 log("🎉 ROUND HOÀN TẤT!")
             end
-        else
-            updateStatus("💤 Script TẮT")
-            task.wait(2)
         end
     end
 end
