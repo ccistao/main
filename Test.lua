@@ -472,7 +472,8 @@ local function hackPC(pcData)
         end)
 
         local progress = getPlayerActionProgress()
-
+        log("Progress: " .. progress .. " | Last: " .. lastProgress)
+        
         if progress == lastProgress then
             stuckCount = stuckCount + 1
             if stuckCount > 10 then
