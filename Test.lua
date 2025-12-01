@@ -394,105 +394,79 @@ end
 local delayAfterHack = 8 -- giây
 local safePos = Vector3.new(0, 120, 0) -- toạ độ né anti cheat
 
-local function hackPC(pc)
-    if not pc then return end
+local SAFE_POS = Vector3.new(50, 70, 50)
+
+local function hackPC(pcData)
+    if not pcData or not pcData.computer then
+        updateStatus("❌ pcData rỗng – bỏ qua")
         return false
     end
+    print("PC:", pcData.id, "triggers:", #pcData.triggers)
 
-    if not pcData.computer 
-        or not pcData.computer:FindFirstChild("Trigger") 
-        or not pcData.computer:FindFirstChild("Progress") then
-        
-        updateStatus("⛔ PC lỗi hoặc không hợp lệ")
-        return false
-    end
-
-    -- chọn trigger trống
-    local chosenTrigger = findAvailableTriggerForComputer(pcData.computer)
+    local chosenTrigger = findAvailableTrigger(pcData)
     if not chosenTrigger then
-        updateStatus("⏭️ PC này không có trigger trống, skip")
+        updateStatus("⏭️ Không có trigger trống, skip PC " .. tostring(pcData.id))
         return false
     end
 
-    -- bắt đầu hack
     isHacking = true
     currentPC = pcData
     updateStatus("🔵 Đang hack PC " .. tostring(pcData.id))
 
-    -- gửi remote bắt đầu hack
     pcall(function()
         hackRemote:FireServer("StartHack", pcData.id)
     end)
 
     local lastProgress = 0
 
-    -- theo dõi quá trình hack
     while isHacking and scriptEnabled do
-        if not scriptEnabled then
-            isHacking = false
-            currentPC = nil
-            return false
-        end
-
         task.wait(0.15)
 
-        -- check PC còn tồn tại
         if not pcData.computer or not pcData.computer.Parent then
-            updateStatus("❌ PC biến mất, dừng hack")
-            isHacking = false
-            currentPC = nil
-            return false
+            updateStatus("❌ PC biến mất – dừng hack")
+            break
         end
 
-        -- lấy tiến độ hack
         local progressObj = pcData.computer:FindFirstChild("Progress")
-        if not progressObj then
-            updateStatus("❌ Không tìm thấy Progress")
-            isHacking = false
-            currentPC = nil
-            return false
-        end
+        local progress = progressObj and progressObj.Value or 0
 
-        local progress = progressObj.Value
-
-        -- nếu có skill check
+        -- AUTO PERFECT
         if pcData.computer:FindFirstChild("SkillCheckActive")
-            and pcData.computer.SkillCheckActive.Value == true then
-
+            and pcData.computer.SkillCheckActive.Value then
             updateStatus("⚠️ Skill check! Auto perfect")
             pcall(function()
                 hackRemote:FireServer("SkillCheck", true)
             end)
         end
 
-        -- kiểm tra hack xong
+        -- HACK XONG
         if progress >= 1 then
             updateStatus("✔️ Hack xong PC " .. tostring(pcData.id))
-
             hackedPCs[pcData.id] = true
+
             isHacking = false
             currentPC = nil
 
-            -- TP chống anti cheat
-            local char = player.Character
-            local root = char and char:FindFirstChild("HumanoidRootPart")
-            if root then
-                root.CFrame = CFrame.new(safePos)
-            end
+            -- ANTI CHEAT SAFE TELEPORT
+            pcall(function()
+                if rootPart then
+                    rootPart.CFrame = CFrame.new(SAFE_POS)
+                end
+            end)
 
-            updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti cheat")
+            updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti‑cheat")
             task.wait(delayAfterHack)
-
-            return true -- 🔥 báo vòng lặp chính biết hack hoàn tất
+            return true
         end
 
         lastProgress = progress
     end
 
+    isHacking = false
+    currentPC = nil
     return false
 end
 
-  
 local function canGoExit()
     local gui = player:FindFirstChild("PlayerGui")
     if not gui then return false end
