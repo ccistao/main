@@ -328,7 +328,6 @@ end
 local function isPCAvailable(pcData)
     if not pcData or not pcData.computer then return false end
     local progress = getPCProgress(pcData)
-    -- Cho phép hack tiếp PC đang được hack (0 < progress < 0.95)
     if progress >= 0.95 then 
         return false 
     end
@@ -359,7 +358,6 @@ local function findAvailableTrigger(pcData)
     return nil
 end
 
--- ANTI-CHEAT DELAY - FORCE TP
 local function antiCheatDelay()
     log("🛡️ =================================")
     log("🛡️ ANTI-CHEAT DELAY BẮT ĐẦU")
@@ -378,7 +376,6 @@ local function antiCheatDelay()
     
     log("✓ Đã TP lên (50, 71, 50)")
     
-    -- COUNTDOWN
     for i = ANTI_CHEAT_DELAY, 1, -1 do
         if not scriptEnabled then break end
         updateStatus("⏳ Chờ " .. i .. "s...")
@@ -391,8 +388,24 @@ local function antiCheatDelay()
     log("🛡️ =================================")
 end
 
-local delayAfterHack = 4-- giây
+local delayAfterHack = 8
 local SAFE_POS = Vector3.new(50, 71, 50)
+local RUN = game:GetService("RunService")
+
+local jumpInterval = 4 -- 4 giây
+local jumpTimer = 0
+local canAutoJump = false -- bật khi TP tới PC và đang hack
+
+RUN.Heartbeat:Connect(function(dt)
+    if canAutoJump and humanoid then
+        jumpTimer += dt
+        if jumpTimer >= jumpInterval then
+            humanoid.Jump = true
+            jumpTimer = 0
+        end
+    end
+end)
+
 local function hackPC(pcData)
     if not pcData or not pcData.computer then
         updateStatus("❌ pcData rỗng – bỏ qua")
@@ -409,6 +422,7 @@ local function hackPC(pcData)
     if chosenTrigger and rootPart then
         rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 3, 0)
         task.wait(0.3)
+        canAutoJump = true -- bật auto jump khi TP tới PC
     end
     
     isHacking = true
@@ -424,12 +438,7 @@ local function hackPC(pcData)
         end
     end)
 
-    pcall(function()
-        if humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-    task.wait(0.2)
+    -- bỏ task.wait(0.2) và humanoid.ChangeState cũ, nhường cho auto jump
 
     pcall(function()
         if chosenTrigger and rootPart then
@@ -449,6 +458,7 @@ local function hackPC(pcData)
             updateStatus("🚨 Beast gần! Trốn...")
             isHacking = false
             currentPC = nil
+            canAutoJump = false -- tắt auto jump
             escapeBeast()
             return false
         end
@@ -472,13 +482,8 @@ local function hackPC(pcData)
             stuckCount = stuckCount + 1
             if stuckCount > 10 then
                 updateStatus("⚠️ Stuck! Re-trigger...")
-                
-                pcall(function()
-                    if humanoid then
-                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    end
-                end)
-                
+
+                -- auto jump vẫn chạy ở luồng riêng nên không cần ChangeState ở đây
                 pcall(function()
                     local r = Replicated:FindFirstChild("RemoteEvent")
                     if r then
@@ -509,6 +514,7 @@ local function hackPC(pcData)
 
             isHacking = false
             currentPC = nil
+            canAutoJump = false -- tắt auto jump khi hack xong
 
             pcall(function()
                 if rootPart then
@@ -526,8 +532,10 @@ local function hackPC(pcData)
 
     isHacking = false
     currentPC = nil
+    canAutoJump = false -- tắt auto jump nếu dừng hack giữa chừng
     return false
 end
+
     
 local function canGoExit()
     local gui = player:FindFirstChild("PlayerGui")
