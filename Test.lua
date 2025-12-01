@@ -424,17 +424,12 @@ local function hackPC(pcData)
         end
     end)
 
-    local lastJump = 0
-    local jumpInterval = 4 -- số giây bạn muốn jump 1 lần
-
     pcall(function()
         if humanoid then
-            if tick() - lastJump >= jumpInterval then
-    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                lastJump = tick()
-            end
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end)
+    task.wait(0.2)
 
     pcall(function()
         if chosenTrigger and rootPart then
