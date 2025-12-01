@@ -447,6 +447,7 @@ local function antiCheatDelay()
     log("🛡️ =================================")
 end
 
+local RunService = game:GetService("RunService")
 local delayAfterHack = 8
 local SAFE_POS = Vector3.new(50, 71, 50)
 local RunService = game:GetService("RunService")
