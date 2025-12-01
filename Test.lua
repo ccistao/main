@@ -614,7 +614,7 @@ local function hackPC(pcData)
                     end
                 end
             end)
-       end
+        end
 
 
             updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti‑cheat")
