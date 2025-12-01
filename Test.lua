@@ -408,7 +408,7 @@ local function hackPC(pcData)
    
     if chosenTrigger and rootPart then
         rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 3, 0)
-        task.wait(0.3)
+        task.wait(0.1)
     end
     
     isHacking = true
@@ -416,45 +416,21 @@ local function hackPC(pcData)
     updateStatus("🔵 Đang hack PC " .. tostring(pcData.id))
 
     pcall(function()
-        local hackRemote = Replicated:FindFirstChild("RemoteEvent")
-        if hackRemote then
-            hackRemote:FireServer("Input", "Action", true)
-            task.wait(0.1)
-            hackRemote:FireServer("Input", "Action", true)
-        end
-    end)
-
-    pcall(function()
-        if humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-    task.wait(0.2)
-
-    pcall(function()
-        if chosenTrigger and rootPart then
-            firetouchinterest(rootPart, chosenTrigger, 0)
-            task.wait(0.05)
-            firetouchinterest(rootPart, chosenTrigger, 1)
-        end
+        local hackRemote = Replicated:WaitForChild("RemoteEvent")
+        hackRemote:FireServer("StartHack", pcData.id)
     end)
 
     local lastProgress = 0
-    local stuckCount = 0
-    local hackStartTime = tick()
 
     while isHacking and scriptEnabled do
         task.wait(0.15)
+
         if isBeastNearby() then
             updateStatus("🚨 Beast gần! Trốn...")
             isHacking = false
             currentPC = nil
             escapeBeast()
             return false
-         end
-        if tick() - hackStartTime > 30 then
-            updateStatus("⏱️ Timeout - skip PC")
-            break
         end
 
         if not pcData.computer or not pcData.computer.Parent then
@@ -462,44 +438,7 @@ local function hackPC(pcData)
             break
         end
 
-        pcall(function()
-            local remote = Replicated:FindFirstChild("RemoteEvent")
-            if remote then
-                remote:FireServer("Input", "Action", true)
-            end
-        end)
-
-        local progressObj = pcData.computer:FindFirstChild("Progress")
-        local progress = progressObj and progressObj.Value or 0
-
-        local playerProgress = getPlayerActionProgress()
-        if playerProgress > progress then
-            progress = playerProgress
-        end
-
-        if progress == lastProgress then
-            stuckCount = stuckCount + 1
-            if stuckCount > 10 then
-                updateStatus("⚠️ Stuck! Re-trigger...")
-                
-                pcall(function()
-                    if humanoid then
-                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                    end
-                end)
-                
-                pcall(function()
-                    local r = Replicated:FindFirstChild("RemoteEvent")
-                    if r then
-                        r:FireServer("Input", "Action", true)
-                    end
-                end)
-                
-                stuckCount = 0
-            end
-        else
-            stuckCount = 0
-        end
+        local progress = getPlayerActionProgress()
 
         if pcData.computer:FindFirstChild("SkillCheckActive")
             and pcData.computer.SkillCheckActive.Value then
@@ -512,7 +451,7 @@ local function hackPC(pcData)
             end)
         end
 
-        if progress >= 0.95 or progress >= 1 then
+        if progress >= 1 then
             updateStatus("✔️ Hack xong PC " .. tostring(pcData.id))
             hackedPCs[pcData.id] = true
 
@@ -537,47 +476,7 @@ local function hackPC(pcData)
     currentPC = nil
     return false
 end
-
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        
-        if scriptEnabled and isHacking and currentPC then
-            pcall(function()
-                local remote = Replicated:FindFirstChild("RemoteEvent")
-                if remote then
-                    remote:FireServer("Input", "Action", true)
-                end
-            end)
-            
-            pcall(function()
-                if rootPart and currentPC.triggers then
-                    for _, trigger in ipairs(currentPC.triggers) do
-                        if (rootPart.Position - trigger.Position).Magnitude < 15 then
-                            firetouchinterest(rootPart, trigger, 0)
-                            task.wait(0.01)
-                            firetouchinterest(rootPart, trigger, 1)
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
-task.spawn(function()
-    while true do
-        task.wait(4)
-        
-        if scriptEnabled and isHacking and humanoid and currentPC then
-            pcall(function()
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end)
-            log("🦘 Auto jump")
-        end
-    end
-end)
-
+    
 local function canGoExit()
     local gui = player:FindFirstChild("PlayerGui")
     if not gui then return false end
