@@ -393,8 +393,6 @@ end
 
 local delayAfterHack = 8 -- giây
 local SAFE_POS = Vector3.new(50, 70, 50)
--- PHẦN BỔ SUNG/THAY THẾ cho hackPC() function
-
 local function hackPC(pcData)
     if not pcData or not pcData.computer then
         updateStatus("❌ pcData rỗng – bỏ qua")
@@ -408,10 +406,9 @@ local function hackPC(pcData)
         return false
     end
    
-    -- TP ĐẾN TRIGGER
     if chosenTrigger and rootPart then
         rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 3, 0)
-        task.wait(0.3) -- Đợi TP ổn định
+        task.wait(0.3)
     end
     
     isHacking = true
@@ -421,18 +418,18 @@ local function hackPC(pcData)
     pcall(function()
         local hackRemote = Replicated:FindFirstChild("RemoteEvent")
         if hackRemote then
-            -- Bắt đầu hack
             hackRemote:FireServer("Input", "Action", true)
             task.wait(0.1)
-            -- Fire lại để chắc chắn
             hackRemote:FireServer("Input", "Action", true)
         end
     end)
 
-    if humanoid then
-        humanoid.Jump = true
-        task.wait(0.2)
-    end
+    pcall(function()
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+    task.wait(0.2)
 
     pcall(function()
         if chosenTrigger and rootPart then
@@ -449,8 +446,7 @@ local function hackPC(pcData)
     while isHacking and scriptEnabled do
         task.wait(0.15)
 
-        -- Timeout protection (30s)
-        if tick() - hackStartTime > 65 then
+        if tick() - hackStartTime > 30 then
             updateStatus("⏱️ Timeout - skip PC")
             break
         end
@@ -470,25 +466,22 @@ local function hackPC(pcData)
         local progressObj = pcData.computer:FindFirstChild("Progress")
         local progress = progressObj and progressObj.Value or 0
 
-        -- Check player action progress (backup)
         local playerProgress = getPlayerActionProgress()
         if playerProgress > progress then
             progress = playerProgress
         end
 
-        -- Detect stuck (progress không tăng)
         if progress == lastProgress then
             stuckCount = stuckCount + 1
-            if stuckCount > 10 then -- 1.5s stuck
-                -- Re-trigger interaction
+            if stuckCount > 10 then
                 updateStatus("⚠️ Stuck! Re-trigger...")
                 
-                -- Jump lại
-                if humanoid then
-                    humanoid.Jump = true
-                end
+                pcall(function()
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end)
                 
-                -- Fire remote lại
                 pcall(function()
                     local r = Replicated:FindFirstChild("RemoteEvent")
                     if r then
@@ -502,7 +495,6 @@ local function hackPC(pcData)
             stuckCount = 0
         end
 
-        -- AUTO PERFECT SKILL CHECK
         if pcData.computer:FindFirstChild("SkillCheckActive")
             and pcData.computer.SkillCheckActive.Value then
             updateStatus("⚠️ Skill check! Auto perfect")
@@ -514,7 +506,6 @@ local function hackPC(pcData)
             end)
         end
 
-        -- HACK XONG
         if progress >= 0.95 or progress >= 1 then
             updateStatus("✔️ Hack xong PC " .. tostring(pcData.id))
             hackedPCs[pcData.id] = true
@@ -522,7 +513,6 @@ local function hackPC(pcData)
             isHacking = false
             currentPC = nil
 
-            -- ANTI CHEAT SAFE TELEPORT
             pcall(function()
                 if rootPart then
                     rootPart.CFrame = CFrame.new(SAFE_POS)
@@ -547,7 +537,6 @@ task.spawn(function()
         task.wait(0.1)
         
         if scriptEnabled and isHacking and currentPC then
-            -- Liên tục fire remote khi đang hack
             pcall(function()
                 local remote = Replicated:FindFirstChild("RemoteEvent")
                 if remote then
@@ -555,7 +544,6 @@ task.spawn(function()
                 end
             end)
             
-            -- Fire touch interest
             pcall(function()
                 if rootPart and currentPC.triggers then
                     for _, trigger in ipairs(currentPC.triggers) do
@@ -573,10 +561,12 @@ end)
 
 task.spawn(function()
     while true do
-        task.wait(4) -- Jump mỗi 4 giây
+        task.wait(4)
         
         if scriptEnabled and isHacking and humanoid and currentPC then
-            humanoid.Jump = true
+            pcall(function()
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end)
             log("🦘 Auto jump")
         end
     end
