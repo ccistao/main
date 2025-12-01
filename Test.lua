@@ -448,9 +448,9 @@ local function hackPC(pcData)
     end
    
     if chosenTrigger and rootPart then
-        rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 3, 0)
+        rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 1, 0)
         currentTrigger = chosenTrigger
-        task.wait(0.2)
+        task.wait(0.1)
         canAutoJump = true -- bật auto jump khi TP tới PC
     end
     
