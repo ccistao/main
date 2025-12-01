@@ -391,7 +391,7 @@ local function antiCheatDelay()
     log("🛡️ =================================")
 end
 
-local delayAfterHack = 8 -- giây
+local delayAfterHack = 4-- giây
 local SAFE_POS = Vector3.new(50, 71, 50)
 local function hackPC(pcData)
     if not pcData or not pcData.computer then
