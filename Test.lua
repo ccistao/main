@@ -398,14 +398,21 @@ local canAutoJump = false -- bật khi TP tới PC và đang hack
 
 RUN.Heartbeat:Connect(function(dt)
     local char = player.Character
-    if char then humanoid = char:FindFirstChild("Humanoid") end
-
-    if canAutoJump and humanoid then
-        jumpTimer += dt
-        if jumpTimer >= jumpInterval then
-            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-            humanoid.Jump = true
-            jumpTimer = 0
+    if char then 
+        humanoid = char:FindFirstChild("Humanoid") 
+        local rootPart = char:FindFirstChild("HumanoidRootPart")
+        if rootPart and canAutoJump and humanoid then
+            jumpTimer += dt
+            if jumpTimer >= jumpInterval then
+                -- Lưu JumpPower cũ
+                local oldJumpPower = humanoid.JumpPower
+                humanoid.JumpPower = 35  -- đúng với Flee the Facility
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                humanoid.Jump = true
+                task.wait(0.1)
+                humanoid.JumpPower = oldJumpPower  -- trả lại lực nhảy cũ
+                jumpTimer = 0
+            end
         end
     end
 end)
