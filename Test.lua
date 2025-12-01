@@ -467,7 +467,7 @@ RunService.Heartbeat:Connect(function(dt)
         jumpTimer = jumpTimer + dt
         if jumpTimer >= jumpInterval then
             pcall(function()
-                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 6, 0)
+                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 15, 0)
             end)
 
             pcall(function()
