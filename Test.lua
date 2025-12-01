@@ -390,15 +390,6 @@ end
 
 local delayAfterHack = 8
 local SAFE_POS = Vector3.new(50, 71, 50)
-local RUN = game:GetService("RunService")
-
-local jumpInterval = 4
-local jumpTimer = 0
-local canAutoJump = false
-
--- Lưu trigger hiện tại để TP lại sau khi nhảy
-local currentTrigger = nil
-
 RUN.Heartbeat:Connect(function(dt)
     local char = player.Character
     if not char then return end
@@ -409,25 +400,17 @@ RUN.Heartbeat:Connect(function(dt)
     if canAutoJump and humanoid and rootPart and currentTrigger then
         jumpTimer += dt
         if jumpTimer >= jumpInterval then
-            
-            -- Lưu lại lực nhảy hiện tại
-            local oldJP = humanoid.JumpPower
-            
-            -- Nhảy mạnh đúng chuẩn Flee
-            humanoid.JumpPower = 35
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            humanoid.Jump = true
 
-            -- Đợi nhân vật bật nhảy
-            task.wait(0.2)
-
-            -- TP lại trigger ngay lập tức
+            -- TP lên ~2 stud so với vị trí hiện tại (thay vì nhảy thật)
             pcall(function()
-                rootPart.CFrame = currentTrigger.CFrame + Vector3.new(0, 3, 0)
+                rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 2, 0)
             end)
 
-            -- Trả jump power lại như cũ
-            humanoid.JumpPower = oldJP
+            -- TP lại trigger ngay lập tức để tiếp tục hack
+            pcall(function()
+                rootPart.CFrame = currentTrigger.CFrame + Vector3.new(0, 0.5, 0)
+            end)
+
             jumpTimer = 0
         end
     end
@@ -448,7 +431,7 @@ local function hackPC(pcData)
     end
    
     if chosenTrigger and rootPart then
-        rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 1, 0)
+        rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 0.5, 0)
         currentTrigger = chosenTrigger
         task.wait(0.1)
         canAutoJump = true -- bật auto jump khi TP tới PC
@@ -466,8 +449,6 @@ local function hackPC(pcData)
             hackRemote:FireServer("Input", "Action", true)
         end
     end)
-
-    -- bỏ task.wait(0.2) và humanoid.ChangeState cũ, nhường cho auto jump
 
     pcall(function()
         if chosenTrigger and rootPart then
@@ -543,7 +524,7 @@ local function hackPC(pcData)
 
             isHacking = false
             currentPC = nil
-            canAutoJump = false -- tắt auto jump khi hack xong
+            canAutoJump = false
 
             pcall(function()
                 if rootPart then
@@ -561,7 +542,7 @@ local function hackPC(pcData)
 
     isHacking = false
     currentPC = nil
-    canAutoJump = false -- tắt auto jump nếu dừng hack giữa chừng
+    canAutoJump = false
     return false
 end
 
