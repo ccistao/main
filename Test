@@ -421,6 +421,12 @@ local function hackPC(pcData)
 
     -- theo dõi quá trình hack
     while isHacking and scriptEnabled do
+        if not scriptEnabled then
+            isHacking = false
+            currentPC = nil
+            return false
+        end
+
         task.wait(0.15)
 
         -- check PC còn tồn tại
