@@ -43,7 +43,13 @@ end
 
 local function findBeast()
     task.spawn(function()
-        while task.wait(0.05) do
+        while true do
+            if not scriptEnabled then
+                task.wait(0.1)
+                continue
+            end
+
+            task.wait(0.05)
             if foundBeast then
                 if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
                     beast, foundBeast = nil, false
@@ -92,6 +98,7 @@ end
 
 -- THAY THẾ: spawn block dùng ActionBox (an toàn, không block)
 spawn(function()
+    if not scriptEnabled then return end
     local playerGui = player:WaitForChild("PlayerGui")
     -- Thay vì chờ tên chung "ScreenGui", ta quan sát khi AutoHackGUI xuất hiện hoặc ChildAdded
     local function bindToScreenGui(screenGui)
@@ -502,6 +509,11 @@ local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
     
     while true do
+        if not scriptEnabled then
+            updateStatus("Script TẮT")
+            task.wait(0.5)
+            continue
+        end
         if scriptEnabled then
             updateStatus("⏳ Đợi game...")
             if not waitForGameActive() then
