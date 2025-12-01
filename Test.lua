@@ -626,9 +626,9 @@ local function mainLoop()
 
                 repeat
                     task.wait(0.5)
-                until canGoExit() or (tick() - waitStart > 30)
+                until isFindExitPhase() or (tick() - waitStart > 30)
 
-                if canGoExit() then
+                if isFindExitPhase() then
                     updateStatus("✓ Find Exit!")
                     log("✓ Phát hiện Find Exit!")
                     task.wait(1)
