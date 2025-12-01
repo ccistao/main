@@ -408,7 +408,7 @@ local function hackPC(pcData)
    
     if chosenTrigger and rootPart then
         rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 3, 0)
-        task.wait(0.1)
+        task.wait(0.3)
     end
     
     isHacking = true
@@ -416,11 +416,32 @@ local function hackPC(pcData)
     updateStatus("🔵 Đang hack PC " .. tostring(pcData.id))
 
     pcall(function()
-        local hackRemote = Replicated:WaitForChild("RemoteEvent")
-        hackRemote:FireServer("StartHack", pcData.id)
+        local hackRemote = Replicated:FindFirstChild("RemoteEvent")
+        if hackRemote then
+            hackRemote:FireServer("Input", "Action", true)
+            task.wait(0.1)
+            hackRemote:FireServer("Input", "Action", true)
+        end
+    end)
+
+    pcall(function()
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+    task.wait(0.2)
+
+    pcall(function()
+        if chosenTrigger and rootPart then
+            firetouchinterest(rootPart, chosenTrigger, 0)
+            task.wait(0.05)
+            firetouchinterest(rootPart, chosenTrigger, 1)
+        end
     end)
 
     local lastProgress = 0
+    local stuckCount = 0
+    local hackStartTime = tick()
 
     while isHacking and scriptEnabled do
         task.wait(0.15)
@@ -433,12 +454,48 @@ local function hackPC(pcData)
             return false
         end
 
+        if tick() - hackStartTime > 30 then
+            updateStatus("⏱️ Timeout - skip PC")
+            break
+        end
+
         if not pcData.computer or not pcData.computer.Parent then
             updateStatus("❌ PC biến mất – dừng hack")
             break
         end
 
+        pcall(function()
+            local remote = Replicated:FindFirstChild("RemoteEvent")
+            if remote then
+                remote:FireServer("Input", "Action", true)
+            end
+        end)
+
         local progress = getPlayerActionProgress()
+
+        if progress == lastProgress then
+            stuckCount = stuckCount + 1
+            if stuckCount > 10 then
+                updateStatus("⚠️ Stuck! Re-trigger...")
+                
+                pcall(function()
+                    if humanoid then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end)
+                
+                pcall(function()
+                    local r = Replicated:FindFirstChild("RemoteEvent")
+                    if r then
+                        r:FireServer("Input", "Action", true)
+                    end
+                end)
+                
+                stuckCount = 0
+            end
+        else
+            stuckCount = 0
+        end
 
         if pcData.computer:FindFirstChild("SkillCheckActive")
             and pcData.computer.SkillCheckActive.Value then
@@ -451,7 +508,7 @@ local function hackPC(pcData)
             end)
         end
 
-        if progress >= 1 then
+        if progress >= 0.95 or progress >= 1 then
             updateStatus("✔️ Hack xong PC " .. tostring(pcData.id))
             hackedPCs[pcData.id] = true
 
