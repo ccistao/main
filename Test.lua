@@ -392,27 +392,43 @@ local delayAfterHack = 8
 local SAFE_POS = Vector3.new(50, 71, 50)
 local RUN = game:GetService("RunService")
 
-local jumpInterval = 4 -- 4 giây
+local jumpInterval = 4
 local jumpTimer = 0
-local canAutoJump = false -- bật khi TP tới PC và đang hack
+local canAutoJump = false
+
+-- Lưu trigger hiện tại để TP lại sau khi nhảy
+local currentTrigger = nil
 
 RUN.Heartbeat:Connect(function(dt)
     local char = player.Character
-    if char then 
-        humanoid = char:FindFirstChild("Humanoid") 
-        local rootPart = char:FindFirstChild("HumanoidRootPart")
-        if rootPart and canAutoJump and humanoid then
-            jumpTimer += dt
-            if jumpTimer >= jumpInterval then
-                -- Lưu JumpPower cũ
-                local oldJumpPower = humanoid.JumpPower
-                humanoid.JumpPower = 35  -- đúng với Flee the Facility
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                humanoid.Jump = true
-                task.wait(0.1)
-                humanoid.JumpPower = oldJumpPower  -- trả lại lực nhảy cũ
-                jumpTimer = 0
-            end
+    if not char then return end
+
+    humanoid = char:FindFirstChild("Humanoid")
+    rootPart = char:FindFirstChild("HumanoidRootPart")
+
+    if canAutoJump and humanoid and rootPart and currentTrigger then
+        jumpTimer += dt
+        if jumpTimer >= jumpInterval then
+            
+            -- Lưu lại lực nhảy hiện tại
+            local oldJP = humanoid.JumpPower
+            
+            -- Nhảy mạnh đúng chuẩn Flee
+            humanoid.JumpPower = 35
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            humanoid.Jump = true
+
+            -- Đợi nhân vật bật nhảy
+            task.wait(0.2)
+
+            -- TP lại trigger ngay lập tức
+            pcall(function()
+                rootPart.CFrame = currentTrigger.CFrame + Vector3.new(0, 3, 0)
+            end)
+
+            -- Trả jump power lại như cũ
+            humanoid.JumpPower = oldJP
+            jumpTimer = 0
         end
     end
 end)
@@ -433,7 +449,8 @@ local function hackPC(pcData)
    
     if chosenTrigger and rootPart then
         rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 3, 0)
-        task.wait(0.3)
+        currentTrigger = chosenTrigger
+        task.wait(0.2)
         canAutoJump = true -- bật auto jump khi TP tới PC
     end
     
