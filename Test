@@ -258,7 +258,6 @@ local function findAllPCTriggers()
     return allPCs
 end
 
--- CHECK PC PROGRESS - FIXED
 -- CHECK PROGRESS ĐÚNG CÁCH (dựa theo pc1.txt) - SAFE VERSION
 local function getPCProgress(pcData)
     -- SAFE CHECK
@@ -439,7 +438,7 @@ local function hackPC(pcData)
     local hackStartTime = tick()
     local lastJumpTime = tick()
     local lastProgress = 0
-    
+    local loopCount = 0
     -- HACK LOOP
     while scriptEnabled and not skipCurrentPC and (tick() - hackStartTime < maxHackTime) do
         
