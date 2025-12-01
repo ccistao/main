@@ -449,7 +449,8 @@ end
 
 local delayAfterHack = 8
 local SAFE_POS = Vector3.new(50, 71, 50)
-RUN.Heartbeat:Connect(function(dt)
+local RunService = game:GetService("RunService")
+RunService.Heartbeat:Connect(function(dt)
     local char = player.Character
     if not char then return end
 
