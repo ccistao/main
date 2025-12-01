@@ -445,7 +445,13 @@ local function hackPC(pcData)
 
     while isHacking and scriptEnabled do
         task.wait(0.15)
-
+        if isBeastNearby() then
+            updateStatus("🚨 Beast gần! Trốn...")
+            isHacking = false
+            currentPC = nil
+            escapeBeast()
+            return false
+         end
         if tick() - hackStartTime > 30 then
             updateStatus("⏱️ Timeout - skip PC")
             break
