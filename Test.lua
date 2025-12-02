@@ -323,6 +323,7 @@ local function findAllPCs()
     local found = {}
     local groups = {}
 
+    -- Tìm tất cả BasePart có tên ComputerTrigger
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name:match("^ComputerTrigger%d$") then
             local pc = obj.Parent
@@ -333,12 +334,22 @@ local function findAllPCs()
         end
     end
 
+    -- Lọc PC có thể hack và chưa bị hack
     for pc, data in pairs(groups) do
         if isHackablePC(pc) and not hackedPCs[pc] then
             table.insert(found, data)
         end
     end
-    
+
+    -- DEBUG: hiển thị số PC tìm thấy và tên từng PC
+    local pcsFound = #found
+    warn("🔍 [DEBUG] Số PC tìm thấy:", pcsFound)
+    for i, data in ipairs(found) do
+        local pc = data.computer
+        local pcName = pc and pc.Name or "nil"
+        warn("   ➤ PC:", pc, "Tên:", pcName)
+    end
+
     return found
 end
 -- ===== GLOBAL isFindExitPhase() =====
