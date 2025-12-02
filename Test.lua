@@ -209,6 +209,9 @@ local function isHackablePC(pc)
 
     -- Chống nil: progress phải có số
     local progress = getPCProgress({computer = pc})
+    if progress == nil then
+        warn("❌ [DEBUG] getPCProgress trả về NIL! PC =", pc, "Name =", pc and pc.Name)
+    end
     if not progress then
         return false
     end
@@ -222,7 +225,10 @@ end
 
 -- ⚡ TIẾN TRÌNH PC (progress)
 local function getPCProgress(pcData)
-    if not pcData or not pcData.computer then return 0 end
+    if not pcData or not pcData.computer then
+        warn("❌ [DEBUG] pcData hoặc pcData.computer bị nil!", pcData)
+        return 0 
+    end
 
     local success, result = pcall(function()
         local pc = pcData.computer
