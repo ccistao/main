@@ -548,48 +548,28 @@ local function hackPC(pcData)
 end
     
 local function autoExitUnified()
-    local function findExit()
-    updateStatus("🔍 Tìm ExitDoor...")
-    log("🔍 Đang tìm ExitDoor trong map...")
-    
-    local currentMap = Replicated:FindFirstChild("CurrentMap")
-    if currentMap and currentMap.Value then
-        for _, obj in pairs(currentMap.Value:GetDescendants()) do
-            if obj.Name == "ExitDoor" and obj:IsA("Model") then
-                local trigger = obj:FindFirstChild("ExitPart") 
-                    or obj:FindFirstChild("Trigger") 
-                    or obj:FindFirstChild("Door")
-                    or obj:FindFirstChild("Button")
-                    or obj:FindFirstChildWhichIsA("BasePart")
-                
-                if trigger and trigger:IsA("BasePart") then
-                    log("✓ Tìm thấy ExitDoor: " .. obj:GetFullName())
-                    updateStatus("✓ Tìm thấy Exit!")
-                    return {exit = obj, trigger = trigger, position = trigger.Position}
-                end
-            end
-        end
+    local function canGoExit()
+    local gameStatus = Replicated:FindFirstChild("GameStatus")
+    if gameStatus and gameStatus:IsA("StringValue") then
+        local status = gameStatus.Value:upper()
+        log("GameStatus: " .. status)
+        return status:find("FIND AN EXIT") ~= nil or status:find("EXIT") ~= nil
     end
     
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "ExitDoor" and obj:IsA("Model") then
-            local trigger = obj:FindFirstChild("ExitPart") 
-                or obj:FindFirstChild("Trigger") 
-                or obj:FindFirstChild("Door")
-                or obj:FindFirstChild("Button")
-                or obj:FindFirstChildWhichIsA("BasePart")
-            
-            if trigger and trigger:IsA("BasePart") then
-                log("✓ Tìm thấy ExitDoor (workspace): " .. obj:GetFullName())
-                updateStatus("✓ Tìm thấy Exit!")
-                return {exit = obj, trigger = trigger, position = trigger.Position}
-            end
-        end
+    local gui = player:FindFirstChild("PlayerGui")
+    if not gui then return false end
+    local screen = gui:FindFirstChild("ScreenGui")
+    if not screen then return false end
+    local info = screen:FindFirstChild("GameInfoFrame")
+    if not info then return false end
+    local statusBox = info:FindFirstChild("GameStatusBox")
+    if statusBox and statusBox:IsA("TextLabel") then
+        local text = statusBox.Text:upper()
+        log("UI Text: " .. text)
+        return text:find("FIND AN EXIT") ~= nil or text:find("EXIT") ~= nil
     end
     
-    log("❌ Không tìm thấy ExitDoor!")
-    updateStatus("❌ Không thấy Exit")
-    return nil
+    return false
 end
 
     -- 3) Fire mở cửa
