@@ -338,14 +338,7 @@ local function findAllPCs()
             table.insert(found, data)
         end
     end
-
-    -- Debug trước khi return
-    local pcsFound = #found
-    warn("🔍 [DEBUG] Số PC tìm thấy:", pcsFound)
-    for i, data in ipairs(found) do
-        warn("   ➤ PC:", data.computer, "Tên:", data.computer and data.computer.Name)
-    end
-
+    
     return found
 end
 -- ===== GLOBAL isFindExitPhase() =====
