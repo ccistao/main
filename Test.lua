@@ -7,7 +7,6 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 local Replicated = game:GetService("ReplicatedStorage")
-
 -- Settings
 local scriptEnabled = false
 local hackExtraPC = false
@@ -185,9 +184,143 @@ local function waitForGameActive()
     end
 end
 
+-- ⚡ HÀM KIỂM TRA PC HỢP LỆ + CÒN HACK ĐƯỢC
+local function isHackablePC(pc)
+    if not pc then return false end
+
+    local name = pc.Name:lower()
+    if name:find("prefab") or name:find("dev") or name:find("test") then
+        return false
+    end
+
+    -- PC phải có ít nhất 1 trigger
+    local hasTrigger = false
+    for _, child in ipairs(pc:GetChildren()) do
+        if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
+            hasTrigger = true
+            break
+        end
+    end
+    if not hasTrigger then
+        return false
+    end
+
+    -- PC phải có progress < 100%
+    if getPCProgress({computer = pc}) >= 1 then
+        return false
+    end
+
+    return true
+end
 
 
+-- ⚡ TIẾN TRÌNH PC (progress)
+local function getPCProgress(pcData)
+    if not pcData or not pcData.computer then return 0 end
 
+    local success, result = pcall(function()
+        local pc = pcData.computer
+
+        -- Cách 1: Screen -> Green = Done
+        local screen = pc:FindFirstChild("Screen")
+        if screen and screen:IsA("BasePart") then
+            local c = screen.Color
+            if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
+                return 1
+            end
+        end
+
+        -- Cách 2: Value progress
+        local maxVal = 0
+        for _, v in ipairs(pc:GetDescendants()) do
+            if v:IsA("IntValue") or v:IsA("NumberValue") then
+                if v.Name == "ActionProgress" or v.Name == "Value" then
+                    if v.Value > maxVal then
+                        maxVal = v.Value
+                    end
+                end
+            end
+        end
+
+        return maxVal
+    end)
+
+    return success and result or 0
+end
+
+
+-- ⚡ LẤY PROGRESS BẢN THÂN NGƯỜI CHƠI
+local function getPlayerActionProgress()
+    local stats = player:FindFirstChild("TempPlayerStatsModule")
+    if not stats then return 0 end
+
+    local p = stats:FindFirstChild("ActionProgress")
+    if p and (p:IsA("IntValue") or p:IsA("NumberValue")) then
+        return p.Value
+    end
+    return 0
+end
+
+
+-- ⚡ PC DONE?
+local function isPCDone(pcData)
+    return getPCProgress(pcData) >= 1
+end
+
+
+-- ⚡ PLAYER KHÁC ĐANG HACK TRÊN TRIGGER NÀY?
+local function isTriggerBeingHacked(trigger)
+    if not trigger then return false end
+
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= player and other.Character then
+            local root = other.Character:FindFirstChild("HumanoidRootPart")
+            if root and (root.Position - trigger.Position).Magnitude <= 10 then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+
+-- ⚡ CHỌN TRIGGER KHẢ DỤNG NHẤT
+local function getAvailableTrigger(pcData)
+    if not pcData or not pcData.triggers then return nil end
+
+    for i, trigger in ipairs(pcData.triggers) do
+        if not isTriggerBeingHacked(trigger) then
+            return trigger
+        end
+    end
+
+    return nil
+end
+
+
+-- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
+local function findAllPCs()
+    local found = {}
+    local groups = {}
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name:match("^ComputerTrigger%d$") then
+            local pc = obj.Parent
+            if pc then
+                groups[pc] = groups[pc] or { computer = pc, triggers = {} }
+                table.insert(groups[pc].triggers, obj)
+            end
+        end
+    end
+
+    for pc, data in pairs(groups) do
+        if isHackablePC(pc) and not hackedPCs[pc] then
+            table.insert(found, data)
+        end
+    end
+
+    return found
+end
 
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
