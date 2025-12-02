@@ -363,6 +363,29 @@ local function antiCheatDelay()
     log("🛡️ =================================")
 end
 
+-- AUTO PERFECT MINIGAME (NEVER FAIL)
+local neverfailtoggle = true
+
+task.spawn(function()
+    local mt = getrawmetatable(game)
+    local old = mt.__namecall
+    setreadonly(mt, false)
+
+    mt.__namecall = newcclosure(function(self, ...)
+        local args = {...}
+
+        if getnamecallmethod() == "FireServer" 
+            and args[1] == "SetPlayerMinigameResult"
+            and neverfailtoggle then
+            
+            args[2] = true  -- luôn perfect
+            return old(self, unpack(args))
+        end
+
+        return old(self, ...)
+    end)
+end)
+
 local RunService = game:GetService("RunService")
 local delayAfterHack = 9
 local SAFE_POS = Vector3.new(50, 71, 50)
@@ -443,28 +466,36 @@ local function hackPC(pcData)
     local stuckCount = 0
 
     while isHacking and scriptEnabled do
-        task.wait(0.15)
+    task.wait(0.15)
 
-        if isBeastNearby() then
-            updateStatus("🚨 Beast gần! Trốn...")
-            isHacking = false
-            currentPC = nil
-            canAutoJump = false -- tắt auto jump
-            escapeBeast()
-            return false
-        end
-        
-        if not pcData.computer or not pcData.computer.Parent then
-            updateStatus("❌ PC biến mất – dừng hack")
-            break
-        end
+    if isBeastNearby() then
+        updateStatus("🚨 Beast gần! Trốn...")
+        isHacking = false
+        currentPC = nil
+        canAutoJump = false
+        escapeBeast()
+        return false
+    end
 
-        pcall(function()
-            local remote = Replicated:FindFirstChild("RemoteEvent")
-            if remote then
-                remote:FireServer("Input", "Action", true)
-            end
-        end)
+    -- 🆕 Nếu có người hack chung → tắt auto jump
+    if isTriggerBeingHacked(currentTrigger) then
+        if canAutoJump then
+            updateStatus("👥 Có người hack chung – tắt auto jump")
+        end
+        canAutoJump = false
+    end
+    
+    if not pcData.computer or not pcData.computer.Parent then
+        updateStatus("❌ PC biến mất – dừng hack")
+        break
+    end
+
+    pcall(function()
+        local remote = Replicated:FindFirstChild("RemoteEvent")
+        if remote then
+            remote:FireServer("Input", "Action", true)
+        end
+    end)
 
         local progress = getPlayerActionProgress()
         
