@@ -153,7 +153,9 @@ local function waitForGameActive()
 
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
+    local Replicated = game:GetService("ReplicatedStorage")
 
+    -- Lấy GameStatusBox
     local statusBox = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
                          :WaitForChild("GameInfoFrame"):WaitForChild("GameStatusBox")
 
@@ -162,12 +164,25 @@ local function waitForGameActive()
         return false
     end
 
-    repeat
-        task.wait(0.1)
-    until statusBox.Text:upper():find("15 SEC HEAD START") -- kiểm tra chính xác
+    -- Lấy IsGameActive
+    local isActiveFlag = Replicated:WaitForChild("IsGameActive", 10)
 
-    updateStatus("✓ Game chuẩn bị xong! Chạy script...")
-    return true
+    -- Lặp kiểm tra
+    while true do
+        task.wait(0.1)
+
+        -- Điều kiện 1: Hiện "15 SEC HEAD START"
+        if statusBox.Text and statusBox.Text:upper():find("15 SEC HEAD START") then
+            updateStatus("✓ HEAD START! Bắt đầu chạy script...")
+            return true
+        end
+
+        -- Điều kiện 2: Game active rồi
+        if isActiveFlag and isActiveFlag.Value == true then
+            updateStatus("✓ Game active! Bắt đầu chạy script...")
+            return true
+        end
+    end
 end
 
 local function isValidPC(pc)
