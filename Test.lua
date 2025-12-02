@@ -511,15 +511,29 @@ local function hackPC(pcData)
             canAutoJump = false
 
             pcall(function()
-                if rootPart then
-                    local safePos = Vector3.new(50, 73, 50) -- tọa độ mới bạn muốn
-           
-                    for i = 1, 3 do
-                        rootPart.CFrame = CFrame.new(safePos)
-                        task.wait(0.1)
-                    end
-                end
-            end)
+                local char = player.Character
+                if char then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    local hum = char:FindFirstChild("Humanoid")
+                    if hrp and hum then
+                        local safePos = Vector3.new(50, 73, 50) -- tọa độ mới
+
+            -- Freeze nhân vật
+            hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+            -- Teleport 1 lần
+            char:PivotTo(CFrame.new(safePos))
+
+            -- Chờ ổn định physics
+            task.wait(0.05)
+
+            -- Unfreeze
+            hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+        end
+    end
+end)
 
             updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti-cheat")
             task.wait(delayAfterHack)
