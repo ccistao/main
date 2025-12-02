@@ -548,6 +548,15 @@ local function hackPC(pcData)
 end
     
 local function autoExitUnified()
+    local map = game.ReplicatedStorage.CurrentMap.Value
+    print("Map loaded:", map)
+
+    for _,v in ipairs(map:GetChildren()) do
+        if v.Name == "ExitDoor" then
+            print("Found exit:", v)
+            print("Children:", v:GetChildren())
+        end
+    end
     local function canGoExit()
     local gameStatus = Replicated:FindFirstChild("GameStatus")
     if gameStatus and gameStatus:IsA("StringValue") then
