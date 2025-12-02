@@ -261,6 +261,18 @@ local function getPCProgress(pcData)
     end
 end
 
+-- ===== GLOBAL isFindExitPhase() =====
+local function isFindExitPhase()
+    local statusFolder = Replicated:FindFirstChild("FTF_Status")
+    if not statusFolder then return false end
+
+    local phase = statusFolder:FindFirstChild("Phase")
+    if not phase then return false end
+
+    return tostring(phase.Value):lower():find("exit") ~= nil
+end
+-- ====================================
+
 -- CHECK PROGRESS QUA PLAYER STATS (backup method)
 local function getPlayerActionProgress()
     local stats = player:FindFirstChild("TempPlayerStatsModule")
@@ -522,16 +534,6 @@ local function hackPC(pcData)
 end
     
 local function autoExitUnified()
-    -- 1) Kiểm tra đang ở giai đoạn mở cửa chưa
-    local function isFindExitPhase()
-        local statusFolder = game:GetService("ReplicatedStorage"):FindFirstChild("FTF_Status")
-        if not statusFolder then return false end
-        local phase = statusFolder:FindFirstChild("Phase")
-        if not phase then return false end
-        return tostring(phase.Value):lower():find("exit") ~= nil
-    end
-
-    -- 2) Scan toàn map để tìm ExitDoor
     local function findExit()
         local exits = {}
         for _, obj in ipairs(workspace:GetDescendants()) do
