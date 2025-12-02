@@ -188,14 +188,16 @@ end
 local getPCProgress -- forward declaration
 
 local function isHackablePC(pc)
-    if not pc then return false end
+    if not pc or typeof(pc) ~= "Instance" then
+        return false
+    end
 
     local name = pc.Name:lower()
     if name:find("prefab") or name:find("dev") or name:find("test") then
         return false
     end
 
-    -- PC phải có ít nhất 1 trigger
+    -- PC phải có trigger
     local hasTrigger = false
     for _, child in ipairs(pc:GetChildren()) do
         if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
@@ -207,8 +209,13 @@ local function isHackablePC(pc)
         return false
     end
 
-    -- PC phải có progress < 100%
-    if getPCProgress({computer = pc}) >= 1 then
+    -- Chống nil: progress phải có số
+    local progress = getPCProgress({computer = pc})
+    if not progress then
+        return false
+    end
+
+    if progress >= 1 then
         return false
     end
 
