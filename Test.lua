@@ -393,7 +393,6 @@ local function hackPC(pcData)
         updateStatus("❌ pcData rỗng – bỏ qua")
         return false
     end
-    print("PC:", pcData.id, "triggers:", #pcData.triggers)
 
     local chosenTrigger = findAvailableTrigger(pcData)
     if not chosenTrigger then
