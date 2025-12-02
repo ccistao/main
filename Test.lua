@@ -551,17 +551,48 @@ end
     
 local function autoExitUnified()
     local function findExit()
-        local exits = {}
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") and obj.Name:lower():match("exit") then
-                local trigger = obj:FindFirstChildWhichIsA("BasePart")
-                if trigger then
-                    table.insert(exits, {model = obj, trigger = trigger})
+    updateStatus("🔍 Tìm ExitDoor...")
+    log("🔍 Đang tìm ExitDoor trong map...")
+    
+    local currentMap = Replicated:FindFirstChild("CurrentMap")
+    if currentMap and currentMap.Value then
+        for _, obj in pairs(currentMap.Value:GetDescendants()) do
+            if obj.Name == "ExitDoor" and obj:IsA("Model") then
+                local trigger = obj:FindFirstChild("ExitPart") 
+                    or obj:FindFirstChild("Trigger") 
+                    or obj:FindFirstChild("Door")
+                    or obj:FindFirstChild("Button")
+                    or obj:FindFirstChildWhichIsA("BasePart")
+                
+                if trigger and trigger:IsA("BasePart") then
+                    log("✓ Tìm thấy ExitDoor: " .. obj:GetFullName())
+                    updateStatus("✓ Tìm thấy Exit!")
+                    return {exit = obj, trigger = trigger, position = trigger.Position}
                 end
             end
         end
-        return exits
     end
+    
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj.Name == "ExitDoor" and obj:IsA("Model") then
+            local trigger = obj:FindFirstChild("ExitPart") 
+                or obj:FindFirstChild("Trigger") 
+                or obj:FindFirstChild("Door")
+                or obj:FindFirstChild("Button")
+                or obj:FindFirstChildWhichIsA("BasePart")
+            
+            if trigger and trigger:IsA("BasePart") then
+                log("✓ Tìm thấy ExitDoor (workspace): " .. obj:GetFullName())
+                updateStatus("✓ Tìm thấy Exit!")
+                return {exit = obj, trigger = trigger, position = trigger.Position}
+            end
+        end
+    end
+    
+    log("❌ Không tìm thấy ExitDoor!")
+    updateStatus("❌ Không thấy Exit")
+    return nil
+end
 
     -- 3) Fire mở cửa
     local function openExit(exitData)
