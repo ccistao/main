@@ -548,38 +548,27 @@ local function hackPC(pcData)
 end
     
 local function autoExitUnified()
+    local lastExitUsed = nil -- tránh nhảy liên tục cùng exit
+
     local function findExit()
         local exits = {}
         local mapFolder = Replicated:FindFirstChild("CurrentMap")
         local map = mapFolder and mapFolder.Value
-        if not map then 
-            warn("[DEBUG] CurrentMap chưa load!")
-            return exits 
-        end
+        if not map then return exits end
 
         for _, obj in ipairs(map:GetDescendants()) do
             if obj:IsA("Model") and obj.Name == "ExitDoor" then
                 local doorTrigger = obj:FindFirstChild("ExitDoorTrigger") or obj:FindFirstChildWhichIsA("BasePart")
                 local exitArea = obj:FindFirstChild("ExitArea") or doorTrigger
 
-                if doorTrigger and exitArea then
+                if exitArea then -- exitArea luôn phải có
                     table.insert(exits, {
                         model = obj,
-                        trigger = doorTrigger,
+                        trigger = doorTrigger, -- có thể nil nếu đã mở
                         area = exitArea
                     })
-                    print(string.format(
-                        "[DEBUG] Found EXIT object: %s | Trigger: %s | Area: %s", 
-                        obj:GetFullName(), 
-                        doorTrigger:GetFullName(), 
-                        exitArea:GetFullName()
-                    ))
                 end
             end
-        end
-
-        if #exits == 0 then
-            print("[DEBUG] Không tìm thấy exit nào trong map")
         end
 
         return exits
@@ -587,17 +576,14 @@ local function autoExitUnified()
 
     local function canGoExit()
         local gameStatus = Replicated:FindFirstChild("GameStatus")
-        local status = gameStatus and gameStatus.Value or "N/A"
-        local result = gameStatus and status:upper():find("EXIT") ~= nil
-        print("[DEBUG] canGoExit check | GameStatus:", status, "| Result:", result)
-        return result
+        local status = gameStatus and gameStatus.Value or ""
+        return status:upper():find("EXIT") ~= nil
     end
 
     local function openExit(exitData)
         local trig = exitData.trigger
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if trig and root then
-            print("[DEBUG] Mở cửa:", trig:GetFullName())
             firetouchinterest(root, trig, 0)
             task.wait(0.1)
             firetouchinterest(root, trig, 1)
@@ -608,7 +594,6 @@ local function autoExitUnified()
         local area = exitData.area
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if area and root then
-            print("[DEBUG] Teleport vào ExitArea:", area:GetFullName())
             root.CFrame = area.CFrame + Vector3.new(0, 2, 0)
         end
     end
@@ -618,15 +603,17 @@ local function autoExitUnified()
             local exits = findExit()
             if #exits > 0 then
                 for _, exitData in ipairs(exits) do
-                    openExit(exitData)
-                    task.wait(0.15)
-                    escapeExit(exitData)
+                    if exitData ~= lastExitUsed then
+                        if exitData.trigger then
+                            openExit(exitData)
+                            task.wait(10.5) -- chờ cửa mở
+                        end
+                        escapeExit(exitData)
+                        lastExitUsed = exitData
+                        task.wait(1) -- tránh loop liên tục
+                    end
                 end
-            else
-                -- print("[DEBUG] Exit chưa tìm được, chờ map load")
             end
-        else
-            -- print("[DEBUG] Chưa tới phase exit, chờ...")
         end
     end
 end
