@@ -590,7 +590,7 @@ local function hackPC(pcData)
 end
     
 local function autoExitUnified()
-    local lastExitUsed = nil -- tránh nhảy liên tục cùng exit
+    local lastExitUsed = nil
 
     local function findExit()
         local exits = {}
@@ -600,35 +600,37 @@ local function autoExitUnified()
 
         for _, obj in ipairs(map:GetDescendants()) do
             if obj:IsA("Model") and obj.Name == "ExitDoor" then
-                local doorTrigger = obj:FindFirstChild("ExitDoorTrigger") or obj:FindFirstChildWhichIsA("BasePart")
+                local doorTrigger = obj:FindFirstChild("ExitDoorTrigger")
                 local exitArea = obj:FindFirstChild("ExitArea") or doorTrigger
 
-                if exitArea then -- exitArea luôn phải có
+                if exitArea then
                     table.insert(exits, {
                         model = obj,
-                        trigger = doorTrigger, -- có thể nil nếu đã mở
+                        trigger = doorTrigger or nil,
                         area = exitArea
                     })
                 end
             end
         end
-
         return exits
     end
 
     local function canGoExit()
         local gameStatus = Replicated:FindFirstChild("GameStatus")
         local status = gameStatus and gameStatus.Value or ""
-        return status:upper():find("EXIT") ~= nil
+        status = tostring(status):upper()
+        return status:find("EXIT") ~= nil
     end
 
     local function openExit(exitData)
         local trig = exitData.trigger
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if trig and root then
-            firetouchinterest(root, trig, 0)
-            task.wait(0.1)
-            firetouchinterest(root, trig, 1)
+            pcall(function()
+                firetouchinterest(root, trig, 0)
+                task.wait(0.1)
+                firetouchinterest(root, trig, 1)
+            end)
         end
     end
 
@@ -636,7 +638,9 @@ local function autoExitUnified()
         local area = exitData.area
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if area and root then
-            root.CFrame = area.CFrame + Vector3.new(0, 2, 0)
+            pcall(function()
+                root.CFrame = area.CFrame + Vector3.new(0, 2, 0)
+            end)
         end
     end
 
@@ -652,10 +656,14 @@ local function autoExitUnified()
                         end
                         escapeExit(exitData)
                         lastExitUsed = exitData
-                        task.wait(1) -- tránh loop liên tục
+                        task.wait(1)
                     end
                 end
+            else
+                task.wait(0.5) -- chưa load exit, chờ
             end
+        else
+            task.wait(0.5) -- chưa tới phase exit, chờ
         end
     end
 end
