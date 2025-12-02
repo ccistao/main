@@ -323,44 +323,53 @@ local function findAllPCs()
     local found = {}
     local groups = {}
 
+    warn("🔍 [DEBUG] Bắt đầu tìm BaseParts...")
+
     -- Tìm tất cả BasePart có tên ComputerTrigger
     for _, obj in ipairs(workspace:GetDescendants()) do
+        warn("Kiểm tra object:", obj:GetFullName())
         if obj:IsA("BasePart") and obj.Name:match("^ComputerTrigger%d$") then
             local pc = obj.Parent
             if pc then
+                warn("  ➤ Thêm vào group:", pc:GetFullName())
                 groups[pc] = groups[pc] or { computer = pc, triggers = {} }
                 table.insert(groups[pc].triggers, obj)
+            else
+                warn("  ⚠️ PC parent là nil cho object:", obj:GetFullName())
             end
         end
     end
 
+    warn("🔍 [DEBUG] Tổng số group PC tìm thấy:", #groups)
+
     -- Lọc PC có thể hack và chưa bị hack
     for pc, data in pairs(groups) do
-        if isHackablePC(pc) and not hackedPCs[pc] then
-            table.insert(found, data)
+        if not pc then
+            warn("  ⚠️ pc là nil trong groups!")
+        elseif isHackablePC(pc) then
+            if not hackedPCs[pc] then
+                warn("  ➤ PC hợp lệ, chưa hack:", pc.Name)
+                table.insert(found, data)
+            else
+                warn("  ⚠️ PC đã bị hack:", pc.Name)
+            end
+        else
+            warn("  ⚠️ PC không hack được:", pc.Name)
         end
     end
 
     -- DEBUG: hiển thị số PC tìm thấy và tên từng PC
     local pcsFound = #found
-    warn("🔍 [DEBUG] Số PC tìm thấy:", pcsFound)
+    warn("🔍 [DEBUG] Số PC cuối cùng tìm thấy:", pcsFound)
     for i, data in ipairs(found) do
         local pc = data.computer
         local pcName = pc and pc.Name or "nil"
-        warn("   ➤ PC:", pc, "Tên:", pcName)
+        local triggerCount = data.triggers and #data.triggers or 0
+        warn(string.format("   ➤ PC: %s | Tên: %s | Số trigger: %d", tostring(pc), pcName, triggerCount))
     end
 
+    warn("🔍 [DEBUG] Kết thúc findAllPCs.")
     return found
-end
--- ===== GLOBAL isFindExitPhase() =====
-local function isFindExitPhase()
-    local statusFolder = Replicated:FindFirstChild("FTF_Status")
-    if not statusFolder then return false end
-
-    local phase = statusFolder:FindFirstChild("Phase")
-    if not phase then return false end
-
-    return tostring(phase.Value):lower():find("exit") ~= nil
 end
 
 local function antiCheatDelay()
