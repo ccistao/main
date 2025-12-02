@@ -185,81 +185,9 @@ local function waitForGameActive()
     end
 end
 
-local function isValidPC(pc)
-    if not pc then return false end
-    local name = pc.Name:lower()
-    if name:find("prefab") or name:find("dev") or name:find("test") then return false end
-    for _, child in pairs(pc:GetChildren()) do
-        if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then return true end
-    end
-    return false
-end
 
-local function findAllPCTriggers()
-    local pcGroups = {}
-    local allPCs = {}
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Name == "ComputerTrigger1" or obj.Name == "ComputerTrigger2" or obj.Name == "ComputerTrigger3") then
-            local computer = obj.Parent
-            if computer then
-                if not pcGroups[computer] then
-                    pcGroups[computer] = {computer = computer, triggers = {}}
-                end
-                table.insert(pcGroups[computer].triggers, obj)
-            end
-        end
-    end
-    for comp, data in pairs(pcGroups) do
-        if isValidPC(comp) and not hackedPCs[comp] then
-            table.insert(allPCs, {triggers = data.triggers, computer = comp, id = comp})
-        end
-    end
-    return allPCs
-end
 
--- CHECK PROGRESS ĐÚNG CÁCH (dựa theo pc1.txt) - SAFE VERSION
-local function getPCProgress(pcData)
-    -- SAFE CHECK
-    if not pcData or not pcData.computer then 
-        return 0 
-    end
-    
-    local success, result = pcall(function()
-        -- Method 1: Check Screen Color (DONE = GREEN)
-        local screen = pcData.computer:FindFirstChild("Screen")
-        if screen and screen:IsA("BasePart") then
-            local c = screen.Color
-            -- GREEN = DONE
-            if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
-                return 1  -- 100% done
-            end
-            -- RED = ERROR
-            if c.R > c.G + 0.2 and c.R > c.B + 0.2 then
-                return 0  -- Error, coi như chưa làm
-            end
-        end
-        
-        -- Method 2: Check bất kỳ Value nào trong PC
-        local maxProgress = 0
-        for _, child in pairs(pcData.computer:GetDescendants()) do
-            if (child:IsA("IntValue") or child:IsA("NumberValue")) then
-                if child.Name == "ActionProgress" or child.Name == "Value" then
-                    if child.Value > maxProgress then
-                        maxProgress = child.Value
-                    end
-                end
-            end
-        end
-        
-        return maxProgress
-    end)
-    
-    if success then
-        return result or 0
-    else
-        return 0
-    end
-end
+
 
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
@@ -270,56 +198,6 @@ local function isFindExitPhase()
     if not phase then return false end
 
     return tostring(phase.Value):lower():find("exit") ~= nil
-end
--- ====================================
-
--- CHECK PROGRESS QUA PLAYER STATS (backup method)
-local function getPlayerActionProgress()
-    local stats = player:FindFirstChild("TempPlayerStatsModule")
-    if stats then
-        local progress = stats:FindFirstChild("ActionProgress")
-        if progress and (progress:IsA("IntValue") or progress:IsA("NumberValue")) then
-            return progress.Value
-        end
-    end
-    return 0
-end
-
-local function isPCDone(pcData)
-    return getPCProgress(pcData) >= 1
-end
-
-local function isPCAvailable(pcData)
-    if not pcData or not pcData.computer then return false end
-    local progress = getPCProgress(pcData)
-    if progress >= 0.95 then 
-        return false 
-    end
-    return true
-end
-
-local function isTriggerBeingHacked(trigger)
-    if not trigger then return false end
-    for _, otherPlayer in pairs(Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if otherRoot and (otherRoot.Position - trigger.Position).Magnitude <= 10 then
-                return true
-            end
-        end
-    end
-    return false
-end
-
-local function findAvailableTrigger(pcData)
-    if not pcData or not pcData.triggers then return nil end
-    for i, trigger in ipairs(pcData.triggers) do
-        if not isTriggerBeingHacked(trigger) then
-            log("  ✓ Trigger " .. i .. " khả dụng")
-            return trigger
-        end
-    end
-    return nil
 end
 
 local function antiCheatDelay()
