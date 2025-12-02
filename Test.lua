@@ -692,7 +692,7 @@ local function mainLoop()
                 log("Anti-cheat delay: " .. ANTI_CHEAT_DELAY .. "s")
 
                 updateStatus("🔍 Tìm PC...")
-                local allPCs = findAllPCTriggers()
+                local allPCs = findAllPCs()
 
                 if #allPCs == 0 then
                     updateStatus("⚠️ Không có PC")
