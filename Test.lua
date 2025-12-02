@@ -186,6 +186,11 @@ end
 
 -- ⚡ HÀM KIỂM TRA PC HỢP LỆ + CÒN HACK ĐƯỢC
 local function isHackablePC(pc)
+    if pc == nil then
+        warn("❌ [DEBUG] pc bị NIL khi vào isHackablePC")
+        return false
+    end
+
     if not pc or typeof(pc) ~= "Instance" then
         return false
     end
@@ -210,8 +215,11 @@ local function isHackablePC(pc)
     -- Chống nil: progress phải có số
     local progress = getPCProgress({computer = pc})
     if progress == nil then
-        warn("❌ [DEBUG] getPCProgress trả về NIL! PC =", pc, "Name =", pc and pc.Name)
+        warn("❌ [DEBUG] getPCProgress() trả về NIL! PC:", pc, pc and pc.Name)
+    else
+        warn("✔ [DEBUG] getPCProgress =", progress)
     end
+
     if not progress then
         return false
     end
@@ -332,6 +340,12 @@ local function findAllPCs()
     end
 
     return found
+    local pcsFound = #found
+    warn("🔍 [DEBUG] Số PC tìm thấy:", pcsFound)
+    for i, data in ipairs(found) do
+        warn("   ➤ PC:", data.computer, "Tên:", data.computer and data.computer.Name)
+    end
+
 end
 
 -- ===== GLOBAL isFindExitPhase() =====
