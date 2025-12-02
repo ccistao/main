@@ -339,15 +339,15 @@ local function findAllPCs()
         end
     end
 
-    return found
+    -- Debug trước khi return
     local pcsFound = #found
     warn("🔍 [DEBUG] Số PC tìm thấy:", pcsFound)
     for i, data in ipairs(found) do
         warn("   ➤ PC:", data.computer, "Tên:", data.computer and data.computer.Name)
     end
 
+    return found
 end
-
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
     local statusFolder = Replicated:FindFirstChild("FTF_Status")
