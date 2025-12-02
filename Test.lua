@@ -314,11 +314,23 @@ local function findAllPCs()
     local groups = {}
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name:match("^ComputerTrigger%d$") then
-            local pc = obj.Parent
-            if pc then
-                groups[pc] = groups[pc] or { computer = pc, triggers = {} }
-                table.insert(groups[pc].triggers, obj)
+        
+        -- Tìm trigger PC thực tế (game FTF 2024–2025)
+        if obj:IsA("BasePart") then
+            
+            if obj.Name == "ComputerTrigger"
+            or obj.Name:find("ComputerTrigger")
+            or obj.Name == "Trigger"
+            or obj.Name == "Computer"
+            then
+                local pc = obj.Parent
+
+                -- PC phải có Screen (điểm nhận dạng đúng 100%)
+                if pc and pc:FindFirstChild("Screen") then
+                    
+                    groups[pc] = groups[pc] or { computer = pc, triggers = {} }
+                    table.insert(groups[pc].triggers, obj)
+                end
             end
         end
     end
@@ -329,8 +341,11 @@ local function findAllPCs()
         end
     end
 
+    warn("🔍 [DEBUG] Số PC tìm thấy (sau FIX):", #found)
+
     return found
 end
+
 
 local function antiCheatDelay()
     log("🛡️ =================================")
