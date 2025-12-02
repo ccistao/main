@@ -512,8 +512,10 @@ local function hackPC(pcData)
 
             pcall(function()
                 if rootPart then
+                    local safePos = Vector3.new(50, 73, 50) -- tọa độ mới bạn muốn
+           
                     for i = 1, 3 do
-                        rootPart.CFrame = CFrame.new(SAFE_POS)
+                        rootPart.CFrame = CFrame.new(safePos)
                         task.wait(0.1)
                     end
                 end
