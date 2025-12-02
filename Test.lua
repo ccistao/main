@@ -518,22 +518,22 @@ local function hackPC(pcData)
                     if hrp and hum then
                         local safePos = Vector3.new(50, 73, 50) -- tọa độ mới
 
-            -- Freeze nhân vật
-            hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
-            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                        -- Freeze nhân vật
+                        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+                        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 
-            -- Teleport 1 lần
-            char:PivotTo(CFrame.new(safePos))
+                        -- Teleport 1 lần
+                        char:PivotTo(CFrame.new(safePos))
 
-            -- Chờ ổn định physics
-            task.wait(0.05)
+                        -- Chờ ổn định physics
+                        task.wait(0.05)
 
-            -- Unfreeze
-            hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
-        end
-    end
-end)
+                        -- Unfreeze
+                        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+                    end
+                end
+            end)
 
             updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti-cheat")
             task.wait(delayAfterHack)
