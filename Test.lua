@@ -309,48 +309,55 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
-lastPercent = lastPercent or {}
-
 local function findAllPCs()
     local found = {}
 
-    for _, model in ipairs(workspace:GetDescendants()) do
+    -- Lấy folder map hiện tại
+    local currentMap = workspace:FindFirstChild("CurrentMap")
+    if not currentMap then
+        warn("Không tìm thấy CurrentMap trong workspace")
+        return found
+    end
+
+    for _, model in ipairs(currentMap:GetDescendants()) do
         if model:IsA("Model") then
             local triggers = {}
 
-            -- Tìm các trigger
+            -- Tìm các trigger hợp lệ
             for _, t in ipairs(model:GetDescendants()) do
                 if t:IsA("BasePart") and (t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3") then
                     table.insert(triggers, t)
                 end
             end
 
-            -- Debug: in tên model và số trigger
-            print("Checking model:", model.Name, "Triggers found:", #triggers)
-
-            local hasMainScript = model:FindFirstChild("MainComputerScript") ~= nil
-            local hasLastPercent = lastPercent[model] ~= nil
-
-            -- Debug chi tiết
-            if not hasMainScript then
-                print("-> Bỏ model vì không có MainComputerScript:", model.Name)
-            elseif not hasLastPercent then
-                print("-> Bỏ model vì lastPercent chưa tồn tại:", model.Name)
-            elseif #triggers ~= 3 then
-                print("-> Bỏ model vì trigger chưa đủ 3:", model.Name)
+            -- Bỏ model nếu không đủ 3 trigger
+            if #triggers ~= 3 then
+                --print("Bỏ vì trigger không đủ 3:", model.Name)
             else
-                print("-> Thêm model vào list:", model.Name)
-                table.insert(found, {
-                    computer = model,
-                    triggers = triggers
-                })
+                -- Kiểm tra parent của triggers
+                local allPrefab = true
+                for _, t in ipairs(triggers) do
+                    if not t.Parent or t.Parent.Name ~= "PrefabComputerTable" then
+                        allPrefab = false
+                        break
+                    end
+                end
+
+                if allPrefab then
+                    print("Bỏ model vì thuộc PrefabComputerTable (fake/admin):", model.Name)
+                else
+                    -- Đây là PC thật
+                    print("Thêm model PC thật:", model.Name)
+                    table.insert(found, {
+                        computer = model,
+                        triggers = triggers
+                    })
+                end
             end
-        else
-            print("-> Bỏ vì không phải Model:", tostring(model))
         end
     end
 
-    -- Gán id
+    -- Gán ID cho PC thật
     for i, pc in ipairs(found) do
         pc.id = i
         print("PC ID:", pc.id, "Name:", pc.computer.Name)
