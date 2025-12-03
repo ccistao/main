@@ -309,7 +309,44 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
+local function findAllPCs()
+    local found = {}
 
+    for _, model in ipairs(workspace:GetDescendants()) do
+        if model:IsA("Model") then
+            local triggers = {}
+            for _, t in ipairs(model:GetDescendants()) do
+                if t:IsA("BasePart") and (t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3") then
+                    table.insert(triggers, t)
+                end
+            end
+
+            if #triggers == 3 then
+                -- Loại bỏ PC fake/admin
+                if not model:FindFirstChild("MainComputerScript") then goto skip end
+                local screen = model:FindFirstChild("Screen")
+                if not screen or not screen:IsA("BasePart") then goto skip end
+
+                -- Kiểm tra progress: nếu chưa có lastPercent → sẽ cập nhật trong hackPC
+                if lastPercent[model] == nil then
+                    lastPercent[model] = 0
+                end
+
+                table.insert(found, {
+                    computer = model,
+                    triggers = triggers
+                })
+            end
+        end
+        ::skip::
+    end
+
+    for i, pc in ipairs(found) do
+        pc.id = i
+    end
+
+    return found
+end
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
     local statusFolder = Replicated:FindFirstChild("FTF_Status")
