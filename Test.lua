@@ -356,7 +356,7 @@ local function findAllPCTriggers()
     log("✓ [DEBUG] Tìm thấy " .. #pcGroups .. " nhóm PC")
     
     for comp, data in pairs(pcGroups) do
-        if isValidPC(comp) and not hackedPCs[comp] then
+        if isHackablePC(comp) and not hackedPCs[comp] then
             local pcId = tostring(comp):gsub("%.%.", "_")
             log("✓ [DEBUG] PC hợp lệ: " .. comp.Name .. " (ID: " .. pcId .. "), triggers: " .. #data.triggers)
             table.insert(allPCs, {
