@@ -309,25 +309,29 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
-local function isRealPC(model)
-    local progress = model:FindFirstChild("Progress", true)
-    if not progress then return false end
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CurrentMap = ReplicatedStorage:WaitForChild("CurrentMap")
 
-    local ok = pcall(function()
-        return progress.Value
-    end)
-
-    return ok -- nếu lỗi => fake
-end
 local function findAllPCs()
     local found = {}
 
-    for _, model in ipairs(workspace:GetDescendants()) do
-        if model:IsA("Model") then
-            local triggers = {}
+    local map = CurrentMap.Value
+    if not map then
+        warn("CurrentMap.Value chưa load, không tìm thấy PC")
+        return found
+    end
 
-            -- Tìm trigger
-            for _, t in ipairs(model:GetDescendants()) do
+    local computerFolder = map:FindFirstChild("ComputerTable")
+    if not computerFolder then
+        warn("Map có nhưng không có ComputerTable")
+        return found
+    end
+
+    for _, pcModel in ipairs(computerFolder:GetChildren()) do
+        if pcModel:IsA("Model") then
+            -- Tùy chọn: kiểm tra đủ 3 trigger
+            local triggers = {}
+            for _, t in ipairs(pcModel:GetDescendants()) do
                 if t:IsA("BasePart") and (
                     t.Name == "ComputerTrigger1" or
                     t.Name == "ComputerTrigger2" or
@@ -337,25 +341,20 @@ local function findAllPCs()
                 end
             end
 
-            -- Cần đủ 3 trigger
+            -- Nếu muốn chỉ lấy PC thật có đủ 3 trigger
             if #triggers == 3 then
-
-                -- Kiểm tra bằng cách đọc Value (cách bạn muốn)
-                if isRealPC(model) then
-                    table.insert(found, {
-                        computer = model,
-                        triggers = triggers
-                    })
-                else
-                    --print("PC fake bị loại:", model.Name)
-                end
+                table.insert(found, {
+                    computer = pcModel,
+                    triggers = triggers
+                })
             end
         end
     end
 
-    -- Gán ID
+    -- Gán ID cho PC
     for i, pc in ipairs(found) do
         pc.id = i
+        print("PC ID:", i, "Tên:", pc.computer.Name)
     end
 
     return found
