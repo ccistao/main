@@ -185,8 +185,6 @@ local function waitForGameActive()
 end
 
 -- ⚡ HÀM KIỂM TRA PC HỢP LỆ + CÒN HACK ĐƯỢC
-local getPCProgress -- forward declaration
-
 local function isHackablePC(pc)
     if not pc then return false end
 
