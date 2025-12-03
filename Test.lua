@@ -615,40 +615,24 @@ local function hackPC(pcData)
 end
 
 local function isFindExitPhase()
-    local Replicated = game:GetService("ReplicatedStorage")
+    local playerGui = player:FindFirstChild("PlayerGui")
+    if not playerGui then return false end
 
-    -- Cách 1: GameStatus (ổn định nhất)
-    local status = Replicated:FindFirstChild("GameStatus")
-    if status and typeof(status.Value) == "string" then
-        if status.Value:lower():find("exit") then
-            return true
-        end
-    end
+    local screenGui = playerGui:FindFirstChild("ScreenGui")
+    if not screenGui then return false end
 
-    -- Cách 2: FTF_Status (nhiều map dùng)
-    local statusFolder = Replicated:FindFirstChild("FTF_Status")
-    if statusFolder then
-        local phase = statusFolder:FindFirstChild("Phase")
-        if phase and typeof(phase.Value) == "string" then
-            if phase.Value:lower():find("exit") then
-                return true
-            end
-        end
-    end
+    local gameInfo = screenGui:FindFirstChild("GameInfoFrame")
+    if not gameInfo then return false end
 
-    -- Cách 3: Check ExitDoor xuất hiện trong map
-    local mapFolder = Replicated:FindFirstChild("CurrentMap")
-    local map = mapFolder and mapFolder.Value
-    if map then
-        for _, obj in ipairs(map:GetDescendants()) do
-            if obj:IsA("Model") and obj.Name:lower():find("exitdoor") then
-                return true
-            end
-        end
-    end
+    local statusBox = gameInfo:FindFirstChild("GameStatusBox")
+    if not statusBox then return false end
 
-    return false
+    local text = tostring(statusBox.Text):lower()
+
+    -- Chỉ đúng 2 dạng này mới là exit:
+    return (text == "FIND AN EXIT!" or text == "FIND AN EXIT")
 end
+
 
 local function autoExitUnified()
     local lastExitUsed = nil
