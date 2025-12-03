@@ -313,40 +313,49 @@ local function findAllPCs()
     local found = {}
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        -- Chỉ xét Model
-        if obj:IsA("Model") then
-            
+        repeat
+            -- Chỉ xét Model
+            if not obj:IsA("Model") then break end
+
             local nameLower = obj.Name:lower()
-            local isNamedPC = (
-                nameLower:find("ComputerTable")
-            )
+
+            -- ❌ Bỏ qua model chứa "prefab"
+            if nameLower:find("prefab") then
+                --print("Skip prefab:", obj.Name)
+                break
+            end
+
+            -- Tên gợi ý là PC
+            local isNamedPC = nameLower:find("computertable")
 
             local triggers = {}
 
-            -- Tìm tất cả ComputerTrigger
+            -- Tìm tất cả trigger
             for _, child in ipairs(obj:GetDescendants()) do
                 if child:IsA("BasePart") and child.Name:match("^ComputerTrigger%d+$") then
                     table.insert(triggers, child)
                 end
             end
 
-            -- Nếu có trigger → chắc chắn là PC
+            -- Nếu có trigger → PC thật
             if #triggers > 0 then
                 table.insert(found, {
                     computer = obj,
                     triggers = triggers
                 })
-            
-            -- Nếu KHÔNG có trigger nhưng tên chắc chắn là PC → bỏ qua (map lỗi)
-            elseif isNamedPC then
-                warn("[PC] Model có tên giống PC nhưng không có trigger:", obj.Name)
+                break
             end
-        end
+
+            -- Nếu tên giống ComputerTable nhưng không có trigger → cảnh báo
+            if isNamedPC then
+                warn("[PC] Model trông như PC nhưng thiếu trigger:", obj.Name)
+            end
+
+        until true
     end
 
     return found
 end
-
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
     local statusFolder = Replicated:FindFirstChild("FTF_Status")
