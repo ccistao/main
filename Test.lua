@@ -314,35 +314,46 @@ lastPercent = lastPercent or {}
 local function findAllPCs()
     local found = {}
 
-    -- Duyệt tất cả descendants trong workspace
     for _, model in ipairs(workspace:GetDescendants()) do
         if model:IsA("Model") then
             local triggers = {}
 
-            -- Tìm các trigger hợp lệ trong model
+            -- Tìm các trigger
             for _, t in ipairs(model:GetDescendants()) do
                 if t:IsA("BasePart") and (t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3") then
                     table.insert(triggers, t)
                 end
             end
 
-            -- Kiểm tra model hợp lệ
+            -- Debug: in tên model và số trigger
+            print("Checking model:", model.Name, "Triggers found:", #triggers)
+
             local hasMainScript = model:FindFirstChild("MainComputerScript") ~= nil
             local hasLastPercent = lastPercent[model] ~= nil
 
-            -- Nếu đủ 3 trigger, có MainComputerScript và đã có lastPercent
-            if #triggers == 3 and hasMainScript and hasLastPercent then
+            -- Debug chi tiết
+            if not hasMainScript then
+                print("-> Bỏ model vì không có MainComputerScript:", model.Name)
+            elseif not hasLastPercent then
+                print("-> Bỏ model vì lastPercent chưa tồn tại:", model.Name)
+            elseif #triggers ~= 3 then
+                print("-> Bỏ model vì trigger chưa đủ 3:", model.Name)
+            else
+                print("-> Thêm model vào list:", model.Name)
                 table.insert(found, {
                     computer = model,
                     triggers = triggers
                 })
             end
+        else
+            print("-> Bỏ vì không phải Model:", tostring(model))
         end
     end
 
-    -- Gán id cho từng PC trong danh sách
+    -- Gán id
     for i, pc in ipairs(found) do
         pc.id = i
+        print("PC ID:", pc.id, "Name:", pc.computer.Name)
     end
 
     return found
