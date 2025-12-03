@@ -312,40 +312,27 @@ end
 local function findAllPCs()
     local found = {}
 
-    -- Lấy folder map hiện tại
-    local currentMap = workspace:FindFirstChild("CurrentMap")
-    if not currentMap then
-        warn("Không tìm thấy CurrentMap trong workspace")
-        return found
-    end
-
-    for _, model in ipairs(currentMap:GetDescendants()) do
-        if model:IsA("Model") then
+    for _, model in ipairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and model.Name:lower():find("computer") then
             local triggers = {}
 
-            -- Tìm các trigger hợp lệ
+            -- Tìm trigger hợp lệ
             for _, t in ipairs(model:GetDescendants()) do
                 if t:IsA("BasePart") and (t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3") then
                     table.insert(triggers, t)
                 end
             end
 
-            -- Bỏ model nếu không đủ 3 trigger
+            -- Bỏ nếu không đủ 3 trigger
             if #triggers ~= 3 then
-                --print("Bỏ vì trigger không đủ 3:", model.Name)
+                --print("Bỏ model vì trigger chưa đủ 3:", model.Name)
             else
-                -- Kiểm tra parent của triggers
-                local allPrefab = true
-                for _, t in ipairs(triggers) do
-                    if not t.Parent or t.Parent.Name ~= "PrefabComputerTable" then
-                        allPrefab = false
-                        break
-                    end
-                end
-
-                if allPrefab then
-                    print("Bỏ model vì thuộc PrefabComputerTable (fake/admin):", model.Name)
-                else
+                -- Kiểm tra parent để loại fake/admin
+                local parentName = model.Parent and model.Parent.Name or ""
+                if parentName == "PrefabComputerTable" then
+                    -- Bỏ fake/admin
+                    print("Bỏ model vì PrefabComputerTable:", model.Name)
+                elseif parentName == "ComputerTable" then
                     -- Đây là PC thật
                     print("Thêm model PC thật:", model.Name)
                     table.insert(found, {
