@@ -186,23 +186,13 @@ end
 
 -- ⚡ HÀM KIỂM TRA PC HỢP LỆ + CÒN HACK ĐƯỢC
 local function isHackablePC(pc)
-    -- Check pc có tồn tại không
-    if not pc then 
-        warn("[isHackablePC] pc is nil")
-        return false 
-    end
+    if not pc then return false end
 
-    -- Log thông tin cơ bản của PC
-    print("[isHackablePC] Checking pc:", pc, "ClassName:", pc.ClassName)
-
-    -- Check tên pc
     local name = pc.Name:lower()
     if name:find("prefab") or name:find("dev") or name:find("test") then
-        print("[isHackablePC] pc excluded by name:", pc.Name)
         return false
     end
 
-    -- Check trigger
     local hasTrigger = false
     for _, child in ipairs(pc:GetChildren()) do
         if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
@@ -211,45 +201,37 @@ local function isHackablePC(pc)
         end
     end
     if not hasTrigger then
-        warn("[isHackablePC] pc has no trigger:", pc)
         return false
     end
 
-    -- Check progress
-    local progress
-    local ok, result = pcall(function()
-        progress = getPCProgress({computer = pc})
-        return progress
-    end)
-    if not ok then
-        warn("[isHackablePC] getPCProgress error on pc:", pc, "Error:", result)
-        progress = 0
-    end
-
-    if progress == nil then
-        warn("[isHackablePC] getPCProgress returned nil for pc:", pc)
-        progress = 0
-    end
-
-    print("[isHackablePC] pc progress:", progress, pc)
-
-    if progress >= 1 then
-        print("[isHackablePC] pc already done:", pc)
+    -- Bỏ debug, chỉ check progress
+    if getPCProgress({computer = pc}) >= 1 then
         return false
     end
 
-    -- Nếu tất cả ok
     return true
 end
-
 -- ⚡ TIẾN TRÌNH PC (progress)
 local function getPCProgress(pcData)
-    if not pcData or not pcData.computer then return 0 end
+    if not pcData then
+        warn("[getPCProgress] pcData is nil")
+        return 0
+    end
+    if not pcData.computer then
+        warn("[getPCProgress] pcData.computer is nil")
+        return 0
+    end
+    if type(getPCProgress) ~= "function" then
+        warn("[getPCProgress] getPCProgress is nil???")
+        return 0
+    end
 
     local success, result = pcall(function()
         local pc = pcData.computer
+        if not pc then
+            error("pc is nil inside getPCProgress")
+        end
 
-        -- Cách 1: Screen -> Green = Done
         local screen = pc:FindFirstChild("Screen")
         if screen and screen:IsA("BasePart") then
             local c = screen.Color
@@ -258,7 +240,6 @@ local function getPCProgress(pcData)
             end
         end
 
-        -- Cách 2: Value progress
         local maxVal = 0
         for _, v in ipairs(pc:GetDescendants()) do
             if v:IsA("IntValue") or v:IsA("NumberValue") then
@@ -273,9 +254,13 @@ local function getPCProgress(pcData)
         return maxVal
     end)
 
-    return success and result or 0
-end
+    if not success then
+        warn("[getPCProgress] pcall failed:", result)
+        return 0
+    end
 
+    return result or 0
+end
 
 -- ⚡ LẤY PROGRESS BẢN THÂN NGƯỜI CHƠI
 local function getPlayerActionProgress()
