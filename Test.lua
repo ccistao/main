@@ -309,38 +309,7 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
-local function findAllPCs()
-    local found = {}
 
-    -- Lặp tất cả model trong workspace
-    for _, model in ipairs(workspace:GetDescendants()) do
-        if model:IsA("Model") then
-            local triggers = {}
-            for _, t in ipairs(model:GetDescendants()) do
-                if t:IsA("BasePart") then
-                    if t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3" then
-                        table.insert(triggers, t)
-                    end
-                end
-            end
-
-            -- Nếu đủ 3 trigger → thêm vào danh sách PC
-            if #triggers == 3 then
-                table.insert(found, {
-                    computer = model,
-                    triggers = triggers
-                })
-            end
-        end
-    end
-
-    -- ⭐ THÊM ĐOẠN NÀY ĐỂ GÁN ID CHO MỖI PC
-    for i, pc in ipairs(found) do
-        pc.id = i
-    end
-
-    return found
-end
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
     local statusFolder = Replicated:FindFirstChild("FTF_Status")
