@@ -379,7 +379,7 @@ local function antiCheatDelay()
     
     -- FORCE TP NGAY LẬP TỨC
     for i = 1, 3 do
-        rootPart.CFrame = CFrame.new(50, 71, 50)
+        rootPart.CFrame = CFrame.new(50, 73, 50)
         task.wait(0.2)
     end
     
@@ -422,7 +422,7 @@ end)
 
 local RunService = game:GetService("RunService")
 local delayAfterHack = 9
-local SAFE_POS = Vector3.new(50, 71, 50)
+local SAFE_POS = Vector3.new(50, 73, 50)
 
 local jumpTimer = 0
 local jumpInterval = 4
@@ -441,7 +441,7 @@ RunService.Heartbeat:Connect(function(dt)
 
         if jumpTimer >= jumpInterval then
             pcall(function()
-                local backPos = rootPart.CFrame.Position - (rootPart.CFrame.LookVector * 5)
+                local backPos = rootPart.CFrame.Position - (rootPart.CFrame.LookVector * 2)
 
                 rootPart.CFrame = CFrame.new(backPos)
             end)
