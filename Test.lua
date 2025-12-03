@@ -453,7 +453,7 @@ local function hackPC(pcData)
     log("🔵 [DEBUG] PC: " .. pcIdStr .. ", triggers: " .. triggerCount)
     log("🔵 [DEBUG] Computer name: " .. pcData.computer.Name)
 
-    local chosenTrigger = findAvailableTrigger(pcData)
+    local chosenTrigger = getAvailableTrigger(pcData)
     if not chosenTrigger then
         updateStatus("⏭️ Không có trigger trống, skip PC " .. tostring(pcData.id))
         return false
