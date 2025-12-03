@@ -186,80 +186,68 @@ end
 
 -- ⚡ HÀM KIỂM TRA PC HỢP LỆ + CÒN HACK ĐƯỢC
 local function isHackablePC(pc)
-    if not pc then return false end
+    if not pc or not pc.Parent then return false end
 
-    local name = pc.Name:lower()
+    -- Name check
+    local name = tostring(pc.Name):lower()
     if name:find("prefab") or name:find("dev") or name:find("test") then
         return false
     end
 
+    -- Trigger check
+    local children = pc:GetChildren()
     local hasTrigger = false
-    for _, child in ipairs(pc:GetChildren()) do
-        if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
+
+    for _, child in ipairs(children) do
+        if child and child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
             hasTrigger = true
             break
         end
     end
-    if not hasTrigger then
-        return false
-    end
 
-    -- Bỏ debug, chỉ check progress
-    if getPCProgress({computer = pc}) >= 1 then
+    if not hasTrigger then return false end
+
+    -- Progress check
+    local progress = getPCProgress({computer = pc})
+    if progress >= 1 then
         return false
     end
 
     return true
 end
 -- ⚡ TIẾN TRÌNH PC (progress)
-local function getPCProgress(pcData)
-    if not pcData then
-        warn("[getPCProgress] pcData is nil")
-        return 0
-    end
-    if not pcData.computer then
-        warn("[getPCProgress] pcData.computer is nil")
-        return 0
-    end
-    if type(getPCProgress) ~= "function" then
-        warn("[getPCProgress] getPCProgress is nil???")
+local function getPCProgress(data)
+    if not data or not data.computer then
         return 0
     end
 
-    local success, result = pcall(function()
-        local pc = pcData.computer
-        if not pc then
-            error("pc is nil inside getPCProgress")
+    local pc = data.computer
+    if not pc or not pc.Parent then
+        return 0
+    end
+
+    -- Screen progress
+    local screen = pc:FindFirstChild("Screen")
+    if screen and screen:IsA("BasePart") then
+        local c = screen.Color
+        if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
+            return 1
         end
+    end
 
-        local screen = pc:FindFirstChild("Screen")
-        if screen and screen:IsA("BasePart") then
-            local c = screen.Color
-            if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
-                return 1
-            end
-        end
-
-        local maxVal = 0
-        for _, v in ipairs(pc:GetDescendants()) do
-            if v:IsA("IntValue") or v:IsA("NumberValue") then
-                if v.Name == "ActionProgress" or v.Name == "Value" then
-                    if v.Value > maxVal then
-                        maxVal = v.Value
-                    end
+    -- ActionProgress values
+    local maxValue = 0
+    for _, v in ipairs(pc:GetDescendants()) do
+        if v and (v:IsA("IntValue") or v:IsA("NumberValue")) then
+            if (v.Name == "ActionProgress" or v.Name == "Value") and tonumber(v.Value) then
+                if v.Value > maxValue then
+                    maxValue = v.Value
                 end
             end
         end
-
-        return maxVal
-    end)
-
-    if not success then
-        warn("[getPCProgress] pcall failed:", result)
-        return 0
     end
 
-    return result or 0
+    return maxValue
 end
 
 -- ⚡ LẤY PROGRESS BẢN THÂN NGƯỜI CHƠI
