@@ -314,20 +314,28 @@ local function findAllPCs()
     local groups = {}
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name:match("^ComputerTrigger%d$") then
-            local pc = obj.Parent
-            if pc then
-                groups[pc] = groups[pc] or { computer = pc, triggers = {} }
-                table.insert(groups[pc].triggers, obj)
+        -- ✅ Lọc model PC đúng tên
+        if obj:IsA("Model") and obj.Name == "Computer" then
+            local hasTrigger = false
+            local triggers = {}
+
+            -- tìm trigger dưới model PC
+            for _, child in ipairs(obj:GetDescendants()) do
+                if child:IsA("BasePart") and child.Name:match("^ComputerTrigger%d$") then
+                    hasTrigger = true
+                    table.insert(triggers, child)
+                end
+            end
+
+            if hasTrigger then
+                groups[obj] = { computer = obj, triggers = triggers }
+                table.insert(found, groups[obj])
             end
         end
     end
 
-    for pc, data in pairs(groups) do
-        if isHackablePC(pc) and not hackedPCs[pc] then
-            table.insert(found, data)
-        end
-    end
+    -- ✅ làm mới danh sách PC hiện tại
+    PCList = found
 
     return found
 end
