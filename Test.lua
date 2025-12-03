@@ -186,12 +186,18 @@ end
 
 -- ⚡ HÀM KIỂM TRA PC HỢP LỆ + CÒN HACK ĐƯỢC
 local function isHackablePC(pc)
+    log("🔍 [DEBUG] isHackablePC bắt đầu check: " .. tostring(pc and pc.Name or "nil"))
+    
     if not pc or typeof(pc) ~= "Instance" then
+        log("❌ [DEBUG] PC không phải Instance")
         return false
     end
 
     local name = pc.Name:lower()
+    log("🔍 [DEBUG] PC name: " .. name)
+    
     if name:find("prefab") or name:find("dev") or name:find("test") then
+        log("❌ [DEBUG] PC trong blacklist")
         return false
     end
 
@@ -200,29 +206,31 @@ local function isHackablePC(pc)
     for _, child in ipairs(pc:GetChildren()) do
         if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
             hasTrigger = true
+            log("✓ [DEBUG] Tìm thấy trigger: " .. child.Name)
             break
         end
     end
+    
     if not hasTrigger then
+        log("❌ [DEBUG] Không có trigger")
         return false
     end
 
-    -- Chống nil: progress phải có số
+    -- ✅ FIX: Check progress an toàn hơn
     local progress = getPCProgress({computer = pc})
+    log("🔍 [DEBUG] Progress: " .. tostring(progress) .. " (type: " .. type(progress) .. ")")
+    
     if progress == nil then
-        warn("❌ [DEBUG] getPCProgress() trả về NIL! PC:", pc, pc and pc.Name)
-    else
-        warn("✔ [DEBUG] getPCProgress =", progress)
-    end
-
-    if not progress then
+        warn("❌ [DEBUG] getPCProgress() trả về NIL! PC:", pc.Name)
         return false
     end
 
     if progress >= 1 then
+        log("❌ [DEBUG] PC đã hack xong (progress >= 1)")
         return false
     end
 
+    log("✅ [DEBUG] PC HỢP LỆ để hack!")
     return true
 end
 
