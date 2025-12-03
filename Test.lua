@@ -320,7 +320,7 @@ local function findAllPCs()
             local nameLower = obj.Name:lower()
 
             -- ❌ Bỏ qua model chứa "prefab"
-            if nameLower:find("prefab") then
+            if nameLower:find("PrefabComputerTable") then
                 --print("Skip prefab:", obj.Name)
                 break
             end
