@@ -309,22 +309,29 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
+lastPercent = lastPercent or {}
+
 local function findAllPCs()
     local found = {}
 
+    -- Duyệt tất cả descendants trong workspace
     for _, model in ipairs(workspace:GetDescendants()) do
         if model:IsA("Model") then
             local triggers = {}
 
-            -- Tìm triggers
+            -- Tìm các trigger hợp lệ trong model
             for _, t in ipairs(model:GetDescendants()) do
                 if t:IsA("BasePart") and (t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3") then
                     table.insert(triggers, t)
                 end
             end
 
-            -- Chỉ xử lý model hợp lệ: đủ 3 trigger và có MainComputerScript
-            if #triggers == 3 and model:FindFirstChild("MainComputerScript") and lastPercent[model] ~= nil then
+            -- Kiểm tra model hợp lệ
+            local hasMainScript = model:FindFirstChild("MainComputerScript") ~= nil
+            local hasLastPercent = lastPercent[model] ~= nil
+
+            -- Nếu đủ 3 trigger, có MainComputerScript và đã có lastPercent
+            if #triggers == 3 and hasMainScript and hasLastPercent then
                 table.insert(found, {
                     computer = model,
                     triggers = triggers
@@ -333,7 +340,7 @@ local function findAllPCs()
         end
     end
 
-    -- Gán id cho từng PC
+    -- Gán id cho từng PC trong danh sách
     for i, pc in ipairs(found) do
         pc.id = i
     end
