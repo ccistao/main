@@ -185,57 +185,40 @@ local function waitForGameActive()
 end
 
 -- ⚡ HÀM KIỂM TRA PC HỢP LỆ + CÒN HACK ĐƯỢC
+local getPCProgress -- forward declaration
+
 local function isHackablePC(pc)
-    log("🔍 [DEBUG] isHackablePC bắt đầu check: " .. tostring(pc and pc.Name or "nil"))
-    
-    if not pc or typeof(pc) ~= "Instance" then
-        log("❌ [DEBUG] PC không phải Instance")
-        return false
-    end
+    if not pc then return false end
 
     local name = pc.Name:lower()
-    log("🔍 [DEBUG] PC name: " .. name)
-    
     if name:find("prefab") or name:find("dev") or name:find("test") then
-        log("❌ [DEBUG] PC trong blacklist")
         return false
     end
 
-    -- PC phải có trigger
+    -- PC phải có ít nhất 1 trigger
     local hasTrigger = false
     for _, child in ipairs(pc:GetChildren()) do
         if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
             hasTrigger = true
-            log("✓ [DEBUG] Tìm thấy trigger: " .. child.Name)
             break
         end
     end
-    
     if not hasTrigger then
-        log("❌ [DEBUG] Không có trigger")
         return false
     end
 
-    -- ✅ FIX: Check progress an toàn hơn
-    local progress = getPCProgress({computer = pc})
-    log("🔍 [DEBUG] Progress: " .. tostring(progress) .. " (type: " .. type(progress) .. ")")
-    
-    if progress == nil then
-        warn("❌ [DEBUG] getPCProgress() trả về NIL! PC:", pc.Name)
+    -- PC phải có progress < 100%
+    if getPCProgress({computer = pc}) >= 1 then
         return false
     end
 
-    if progress >= 1 then
-        log("❌ [DEBUG] PC đã hack xong (progress >= 1)")
-        return false
-    end
-
-    log("✅ [DEBUG] PC HỢP LỆ để hack!")
     return true
 end
 
 -- ⚡ TIẾN TRÌNH PC (progress)
 local function getPCProgress(pcData)
+    if not pcData or not pcData.computer then return 0 end
+
     local success, result = pcall(function()
         local pc = pcData.computer
 
@@ -317,38 +300,39 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
-local function isValidPC(pc)
-    if not pc then return false end
-    local name = pc.Name:lower()
-    if name:find("prefab") or name:find("dev") or name:find("test") then return false end
-    for _, child in pairs(pc:GetChildren()) do
-        if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then return true end
-    end
-    return false
-end
+local function findAllPCs()
+    local found = {}
+    local groups = {}
 
-local function findAllPCTriggers()
-    local pcGroups = {}
-    local allPCs = {}
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and (obj.Name == "ComputerTrigger1" or obj.Name == "ComputerTrigger2" or obj.Name == "ComputerTrigger3") then
-            local computer = obj.Parent
-            if computer then
-                if not pcGroups[computer] then
-                    pcGroups[computer] = {computer = computer, triggers = {}}
-                end
-                table.insert(pcGroups[computer].triggers, obj)
+        if obj:IsA("BasePart") and obj.Name:match("^ComputerTrigger%d$") then
+            local pc = obj.Parent
+            if pc then
+                groups[pc] = groups[pc] or { computer = pc, triggers = {} }
+                table.insert(groups[pc].triggers, obj)
             end
         end
     end
-    for comp, data in pairs(pcGroups) do
-        if isValidPC(comp) and not hackedPCs[comp] then
-            table.insert(allPCs, {triggers = data.triggers, computer = comp, id = comp})
+
+    for pc, data in pairs(groups) do
+        if isHackablePC(pc) and not hackedPCs[pc] then
+            table.insert(found, data)
         end
     end
-    return allPCs
+
+    return found
 end
 
+-- ===== GLOBAL isFindExitPhase() =====
+local function isFindExitPhase()
+    local statusFolder = Replicated:FindFirstChild("FTF_Status")
+    if not statusFolder then return false end
+
+    local phase = statusFolder:FindFirstChild("Phase")
+    if not phase then return false end
+
+    return tostring(phase.Value):lower():find("exit") ~= nil
+end
 
 local function antiCheatDelay()
     log("🛡️ =================================")
@@ -440,20 +424,12 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 local function hackPC(pcData)
-    log("🔵 [DEBUG] hackPC() được gọi")
-    
     if not pcData or not pcData.computer then
-        log("❌ [DEBUG] pcData rỗng!")
         updateStatus("❌ pcData rỗng – bỏ qua")
         return false
     end
-    
-    local pcIdStr = tostring(pcData.id or "unknown")
-    local triggerCount = (pcData.triggers and #pcData.triggers) or 0
-    log("🔵 [DEBUG] PC: " .. pcIdStr .. ", triggers: " .. triggerCount)
-    log("🔵 [DEBUG] Computer name: " .. pcData.computer.Name)
 
-    local chosenTrigger = getAvailableTrigger(pcData)
+    local chosenTrigger = findAvailableTrigger(pcData)
     if not chosenTrigger then
         updateStatus("⏭️ Không có trigger trống, skip PC " .. tostring(pcData.id))
         return false
@@ -613,27 +589,7 @@ local function hackPC(pcData)
     canAutoJump = false
     return false
 end
-
-local function isFindExitPhase()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if not playerGui then return false end
-
-    local screenGui = playerGui:FindFirstChild("ScreenGui")
-    if not screenGui then return false end
-
-    local gameInfo = screenGui:FindFirstChild("GameInfoFrame")
-    if not gameInfo then return false end
-
-    local statusBox = gameInfo:FindFirstChild("GameStatusBox")
-    if not statusBox then return false end
-
-    local text = tostring(statusBox.Text):lower()
-
-    -- Chỉ đúng 2 dạng này mới là exit:
-    return (text == "FIND AN EXIT!" or text == "FIND AN EXIT")
-end
-
-
+    
 local function autoExitUnified()
     local lastExitUsed = nil
 
@@ -737,15 +693,11 @@ local function mainLoop()
                 log("Anti-cheat delay: " .. ANTI_CHEAT_DELAY .. "s")
 
                 updateStatus("🔍 Tìm PC...")
-                log("🔍 [DEBUG] Bắt đầu gọi findAllPCTriggers()...")
-
-                local allPCs = findAllPCTriggers()
-
-                log("✓ [DEBUG] findAllPCTriggers() trả về: " .. #allPCs .. " PC")
+                local allPCs = findAllPCs()
 
                 if #allPCs == 0 then
                     updateStatus("⚠️ Không có PC")
-                    log("⚠️ [DEBUG] Không tìm thấy PC!")
+                    log("⚠️ Không tìm thấy PC!")
                     task.wait(3)
                 else
                     updateStatus("Tìm thấy " .. #allPCs .. " PC")
