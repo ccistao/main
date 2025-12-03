@@ -77,10 +77,10 @@ end
 local function createHidePlatform()
     if hidePlatform then pcall(function() hidePlatform:Destroy() end) end
     local platform = Instance.new("Part")
-    platform.Size = Vector3.new(10, 1, 10)
+    platform.Size = Vector3.new(30, 5, 30)
     platform.Position = Vector3.new(50, 70, 50)
     platform.Anchored = true
-    platform.Transparency = 1
+    platform.Transparency = 0.4
     platform.CanCollide = true
     platform.Parent = workspace
     hidePlatform = platform
