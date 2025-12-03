@@ -309,7 +309,7 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
-local function findAllPCs()
+local function findAllPCTriggers()
     local pcGroups = {}
     local allPCs = {}
 
@@ -700,7 +700,7 @@ local function mainLoop()
                 log("Anti-cheat delay: " .. ANTI_CHEAT_DELAY .. "s")
 
                 updateStatus("🔍 Tìm PC...")
-                local allPCs = findAllPCs()
+                local allPCs = findAllPCTriggers()
 
                 if #allPCs == 0 then
                     updateStatus("⚠️ Không có PC")
