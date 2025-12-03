@@ -334,6 +334,11 @@ local function findAllPCs()
         end
     end
 
+    -- ⭐ THÊM ĐOẠN NÀY ĐỂ GÁN ID CHO MỖI PC
+    for i, pc in ipairs(found) do
+        pc.id = i
+    end
+
     return found
 end
 -- ===== GLOBAL isFindExitPhase() =====
