@@ -311,31 +311,39 @@ end
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
 local function findAllPCs()
     local found = {}
-    local groups = {}
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        -- ✅ Lọc model PC đúng tên
-        if obj:IsA("Model") and obj.Name == "Computer" then
-            local hasTrigger = false
+        -- Chỉ xét Model
+        if obj:IsA("Model") then
+            
+            local nameLower = obj.Name:lower()
+            local isNamedPC = (
+                nameLower:find("computer") or 
+                nameLower:find("computertable")
+            )
+
             local triggers = {}
 
-            -- tìm trigger dưới model PC
+            -- Tìm tất cả ComputerTrigger
             for _, child in ipairs(obj:GetDescendants()) do
-                if child:IsA("BasePart") and child.Name:match("^ComputerTrigger%d$") then
-                    hasTrigger = true
+                if child:IsA("BasePart") and child.Name:match("^ComputerTrigger%d+$") then
                     table.insert(triggers, child)
                 end
             end
 
-            if hasTrigger then
-                groups[obj] = { computer = obj, triggers = triggers }
-                table.insert(found, groups[obj])
+            -- Nếu có trigger → chắc chắn là PC
+            if #triggers > 0 then
+                table.insert(found, {
+                    computer = obj,
+                    triggers = triggers
+                })
+            
+            -- Nếu KHÔNG có trigger nhưng tên chắc chắn là PC → bỏ qua (map lỗi)
+            elseif isNamedPC then
+                warn("[PC] Model có tên giống PC nhưng không có trigger:", obj.Name)
             end
         end
     end
-
-    -- ✅ làm mới danh sách PC hiện tại
-    PCList = found
 
     return found
 end
@@ -492,6 +500,8 @@ local function hackPC(pcData)
         currentPC = nil
         canAutoJump = false
         escapeBeast()
+        task.wait(0.2)
+        allPCs = findAllPCs()
         return false
     end
 
@@ -563,6 +573,7 @@ local function hackPC(pcData)
         if doneByColor or progress >= 0.999 then
             updateStatus("✔️ Hack xong PC " .. tostring(pcData.id))
             hackedPCs[pcData.id] = true
+            allPCs = findAllPCs()
 
             isHacking = false
             currentPC = nil
