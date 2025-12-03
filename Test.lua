@@ -453,7 +453,7 @@ local function hackPC(pcData)
     
     isHacking = true
     currentPC = pcData
-    updateStatus("🔵 Đang hack PC " .. tostring(pcData.id))
+    updateStatus("🔵 Đang hack PC " .. tostring(pcData.computer and pcData.computer.Name or "Unknown"))
 
     pcall(function()
         local hackRemote = Replicated:FindFirstChild("RemoteEvent")
