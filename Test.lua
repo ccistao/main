@@ -312,62 +312,51 @@ end
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CurrentMap = ReplicatedStorage:WaitForChild("CurrentMap")
 
+local function waitForMapReady()
+    local map = CurrentMap.Value
+    if map then
+        -- Nếu ComputerTable đã tồn tại, map sẵn sàng
+        if map:FindFirstChild("ComputerTable") then
+            return map
+        end
+    end
+    -- Nếu chưa có map/computertable, đợi tiếp
+    repeat
+        CurrentMap.Changed:Wait()
+    until CurrentMap.Value and CurrentMap.Value:FindFirstChild("ComputerTable")
+    return CurrentMap.Value
+end
+
 local function findAllPCs()
     local found = {}
-    local map = CurrentMap.Value
+    local map = waitForMapReady()
 
-    if not map then
-        warn("Map chưa load")
-        return found
-    end
-
-    for _, obj in ipairs(map:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("Folder") then
-            
-            local nameLower = obj.Name:lower()
-
-            -- phải chứa "computer"
-            if nameLower:find("computer") then
-
-                -- loại PC có chữ prefab (Prefab, PrefabComputerTable,...)
-                if nameLower:find("prefab") then
-                    print("Bỏ PC vì tên chứa 'prefab':", obj.Name)
-                else
-                    local triggers = {}
-
-                    -- tìm trigger
-                    for _, t in ipairs(obj:GetDescendants()) do
-                        if t:IsA("BasePart") then
-                            if t.Name == "ComputerTrigger1"
-                                or t.Name == "ComputerTrigger2"
-                                or t.Name == "ComputerTrigger3" then
-
-                                table.insert(triggers, t)
-                            end
-                        end
-                    end
-
-                    -- PC thật phải có đúng 3 trigger
-                    if #triggers == 3 then
-                        print("Tìm thấy PC thật:", obj.Name)
-                        table.insert(found, {
-                            computer = obj,
-                            triggers = triggers
-                        })
-                    else
-                        print("Bỏ vì trigger không đủ 3:", obj.Name)
-                    end
+    local computerFolder = map:FindFirstChild("ComputerTable")
+    for _, obj in ipairs(computerFolder:GetChildren()) do
+        -- Lọc tên chứa "computer" nếu muốn (không cần nếu ComputerTable chỉ chứa PC)
+        local lower = obj.Name:lower()
+        if lower:find("computer") then
+            local triggers = {}
+            for _, t in ipairs(obj:GetDescendants()) do
+                if t:IsA("BasePart") and (
+                    t.Name == "ComputerTrigger1" or
+                    t.Name == "ComputerTrigger2" or
+                    t.Name == "ComputerTrigger3"
+                ) then
+                    table.insert(triggers, t)
                 end
+            end
+
+            if #triggers == 3 then
+                table.insert(found, { computer = obj, triggers = triggers })
             end
         end
     end
 
-    -- gán ID
     for i, pc in ipairs(found) do
         pc.id = i
-        print("PC ID:", i, "Tên:", pc.computer.Name)
+        print("PC ID:", i, "Name:", pc.computer.Name)
     end
-
     return found
 end
 -- ===== GLOBAL isFindExitPhase() =====
