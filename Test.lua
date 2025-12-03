@@ -613,7 +613,43 @@ local function hackPC(pcData)
     canAutoJump = false
     return false
 end
-    
+
+local function isFindExitPhase()
+    local Replicated = game:GetService("ReplicatedStorage")
+
+    -- Cách 1: GameStatus (ổn định nhất)
+    local status = Replicated:FindFirstChild("GameStatus")
+    if status and typeof(status.Value) == "string" then
+        if status.Value:lower():find("exit") then
+            return true
+        end
+    end
+
+    -- Cách 2: FTF_Status (nhiều map dùng)
+    local statusFolder = Replicated:FindFirstChild("FTF_Status")
+    if statusFolder then
+        local phase = statusFolder:FindFirstChild("Phase")
+        if phase and typeof(phase.Value) == "string" then
+            if phase.Value:lower():find("exit") then
+                return true
+            end
+        end
+    end
+
+    -- Cách 3: Check ExitDoor xuất hiện trong map
+    local mapFolder = Replicated:FindFirstChild("CurrentMap")
+    local map = mapFolder and mapFolder.Value
+    if map then
+        for _, obj in ipairs(map:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name:lower():find("exitdoor") then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 local function autoExitUnified()
     local lastExitUsed = nil
 
