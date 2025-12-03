@@ -449,8 +449,8 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 local function hackPC(pcData)
-    if not pcData or not pcData.computer then
-        updateStatus("❌ pcData rỗng – bỏ qua")
+    if not pcData or not pcData.computer or not pcData.triggers or #pcData.triggers == 0 then
+        updateStatus("❌ PC không hợp lệ – bỏ qua")
         return false
     end
 
