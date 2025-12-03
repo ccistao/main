@@ -309,45 +309,53 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
+local function isRealPC(model)
+    local progress = model:FindFirstChild("Progress", true)
+    if not progress then return false end
+
+    local ok = pcall(function()
+        return progress.Value
+    end)
+
+    return ok -- nếu lỗi => fake
+end
 local function findAllPCs()
     local found = {}
 
     for _, model in ipairs(workspace:GetDescendants()) do
-        if model:IsA("Model") and model.Name:lower():find("computer") then
+        if model:IsA("Model") then
             local triggers = {}
 
-            -- Tìm trigger hợp lệ
+            -- Tìm trigger
             for _, t in ipairs(model:GetDescendants()) do
-                if t:IsA("BasePart") and (t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3") then
+                if t:IsA("BasePart") and (
+                    t.Name == "ComputerTrigger1" or
+                    t.Name == "ComputerTrigger2" or
+                    t.Name == "ComputerTrigger3"
+                ) then
                     table.insert(triggers, t)
                 end
             end
 
-            -- Bỏ nếu không đủ 3 trigger
-            if #triggers ~= 3 then
-                --print("Bỏ model vì trigger chưa đủ 3:", model.Name)
-            else
-                -- Kiểm tra parent để loại fake/admin
-                local parentName = model.Parent and model.Parent.Name or ""
-                if parentName == "PrefabComputerTable" then
-                    -- Bỏ fake/admin
-                    print("Bỏ model vì PrefabComputerTable:", model.Name)
-                elseif parentName == "ComputerTable" then
-                    -- Đây là PC thật
-                    print("Thêm model PC thật:", model.Name)
+            -- Cần đủ 3 trigger
+            if #triggers == 3 then
+
+                -- Kiểm tra bằng cách đọc Value (cách bạn muốn)
+                if isRealPC(model) then
                     table.insert(found, {
                         computer = model,
                         triggers = triggers
                     })
+                else
+                    --print("PC fake bị loại:", model.Name)
                 end
             end
         end
     end
 
-    -- Gán ID cho PC thật
+    -- Gán ID
     for i, pc in ipairs(found) do
         pc.id = i
-        print("PC ID:", pc.id, "Name:", pc.computer.Name)
     end
 
     return found
