@@ -310,41 +310,35 @@ end
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
 local function findAllPCs()
-    local found = {}
-    local groups = {}
+    local pcGroups = {}
+    local allPCs = {}
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        
-        -- Tìm trigger PC thực tế (game FTF 2024–2025)
-        if obj:IsA("BasePart") then
+        if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger") then
             
-            if obj.Name == "ComputerTrigger"
-            or obj.Name:find("ComputerTrigger")
-            or obj.Name == "Trigger"
-            or obj.Name == "Computer"
-            then
-                local pc = obj.Parent
-
-                -- PC phải có Screen (điểm nhận dạng đúng 100%)
-                if pc and pc:FindFirstChild("Screen") then
-                    
-                    groups[pc] = groups[pc] or { computer = pc, triggers = {} }
-                    table.insert(groups[pc].triggers, obj)
+            local computer = obj.Parent
+            if computer then
+                if not pcGroups[computer] then
+                    pcGroups[computer] = {computer = computer, triggers = {}}
                 end
+                table.insert(pcGroups[computer].triggers, obj)
             end
         end
     end
 
-    for pc, data in pairs(groups) do
-        if isHackablePC(pc) and not hackedPCs[pc] then
-            table.insert(found, data)
+    for comp, data in pairs(pcGroups) do
+        if isValidPC(comp) and not hackedPCs[comp] then
+            table.insert(allPCs, {
+                triggers = data.triggers,
+                computer = comp,
+                id = comp
+            })
         end
     end
-
-    warn("🔍 [DEBUG] Số PC tìm thấy (sau FIX):", #found)
-
-    return found
+    
+    return allPCs
 end
+
 
 
 local function antiCheatDelay()
