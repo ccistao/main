@@ -310,36 +310,60 @@ end
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
 local function findAllPCTriggers()
+    log("🔍 [DEBUG] Bắt đầu tìm PC...")
     local pcGroups = {}
     local allPCs = {}
-
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name:match("ComputerTrigger") then
+    local objectCount = 0
+    
+    local success, err = pcall(function()
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            objectCount = objectCount + 1
             
-            local computer = obj.Parent
-            if computer then
-                if not pcGroups[computer] then
-                    pcGroups[computer] = {computer = computer, triggers = {}}
+            -- Debug mỗi 500 objects
+            if objectCount % 500 == 0 then
+                log("🔍 [DEBUG] Đã quét " .. objectCount .. " objects...")
+                task.wait(0.01) -- Tránh freeze
+            end
+            
+            if obj:IsA("BasePart") and (obj.Name == "ComputerTrigger1" or obj.Name == "ComputerTrigger2" or obj.Name == "ComputerTrigger3") then
+                log("✓ [DEBUG] Tìm thấy trigger: " .. obj.Name)
+                local computer = obj.Parent
+                if computer then
+                    if not pcGroups[computer] then
+                        pcGroups[computer] = {computer = computer, triggers = {}}
+                        log("✓ [DEBUG] Tạo nhóm PC: " .. computer.Name)
+                    end
+                    table.insert(pcGroups[computer].triggers, obj)
                 end
-                table.insert(pcGroups[computer].triggers, obj)
             end
         end
+    end)
+    
+    if not success then
+        log("❌ [DEBUG] LỖI khi quét workspace: " .. tostring(err))
+        return {}
     end
-
+    
+    log("✓ [DEBUG] Quét xong " .. objectCount .. " objects")
+    log("✓ [DEBUG] Tìm thấy " .. #pcGroups .. " nhóm PC")
+    
     for comp, data in pairs(pcGroups) do
         if isValidPC(comp) and not hackedPCs[comp] then
+            local pcId = tostring(comp):gsub("%.%.", "_")
+            log("✓ [DEBUG] PC hợp lệ: " .. comp.Name .. " (ID: " .. pcId .. "), triggers: " .. #data.triggers)
             table.insert(allPCs, {
                 triggers = data.triggers, 
                 computer = comp, 
-                id = tostring(comp)
+                id = pcId
             })
+        else
+            log("⚠️ [DEBUG] PC không hợp lệ hoặc đã hack: " .. comp.Name)
         end
     end
     
+    log("✓ [DEBUG] Tổng PC có thể hack: " .. #allPCs)
     return allPCs
 end
-
-
 
 local function antiCheatDelay()
     log("🛡️ =================================")
@@ -431,10 +455,18 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 local function hackPC(pcData)
+    log("🔵 [DEBUG] hackPC() được gọi")
+    
     if not pcData or not pcData.computer then
+        log("❌ [DEBUG] pcData rỗng!")
         updateStatus("❌ pcData rỗng – bỏ qua")
         return false
     end
+    
+    local pcIdStr = tostring(pcData.id or "unknown")
+    local triggerCount = (pcData.triggers and #pcData.triggers) or 0
+    log("🔵 [DEBUG] PC: " .. pcIdStr .. ", triggers: " .. triggerCount)
+    log("🔵 [DEBUG] Computer name: " .. pcData.computer.Name)
 
     local chosenTrigger = findAvailableTrigger(pcData)
     if not chosenTrigger then
@@ -700,11 +732,15 @@ local function mainLoop()
                 log("Anti-cheat delay: " .. ANTI_CHEAT_DELAY .. "s")
 
                 updateStatus("🔍 Tìm PC...")
+                log("🔍 [DEBUG] Bắt đầu gọi findAllPCTriggers()...")
+
                 local allPCs = findAllPCTriggers()
+
+                log("✓ [DEBUG] findAllPCTriggers() trả về: " .. #allPCs .. " PC")
 
                 if #allPCs == 0 then
                     updateStatus("⚠️ Không có PC")
-                    log("⚠️ Không tìm thấy PC!")
+                    log("⚠️ [DEBUG] Không tìm thấy PC!")
                     task.wait(3)
                 else
                     updateStatus("Tìm thấy " .. #allPCs .. " PC")
