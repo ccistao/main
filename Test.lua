@@ -313,106 +313,57 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CurrentMap = ReplicatedStorage:WaitForChild("CurrentMap")
 
 local function findAllPCs()
-    print("==== FIND PC DEBUG START ====")
-
     local found = {}
 
-    print("[1] CurrentMap object = ", CurrentMap)
-    print("[2] CurrentMap.Value = ", CurrentMap.Value)
-
-    -------------------------------------------------------
-    -- DEBUG 1: Kiểm tra map đã load hay chưa
-    -------------------------------------------------------
     local map = CurrentMap.Value
     if not map then
-        print("[!] CurrentMap.Value = NIL -> map chưa load")
-        print("[!] Chờ map load bằng Changed...")
-
-        local connection
-        connection = CurrentMap:GetPropertyChangedSignal("Value"):Connect(function()
-            if CurrentMap.Value then
-                print("[+] Map đã load! CurrentMap.Value =", CurrentMap.Value)
-                map = CurrentMap.Value
-                connection:Disconnect()
-            end
-        end)
-
-        repeat task.wait(0.1) until map
-    end
-
-    print("[3] Map loaded =", map:GetFullName())
-
-    -------------------------------------------------------
-    -- DEBUG 2: Kiểm tra ComputerTable tồn tại không
-    -------------------------------------------------------
-    local computerFolder = map:FindFirstChild("ComputerTable")
-
-    print("[4] Tìm folder ComputerTable trong map...")
-    if computerFolder then
-        print("[5] Tìm thấy ComputerTable:", computerFolder:GetFullName())
-    else
-        print("[X] KHÔNG tìm thấy ComputerTable trong map:", map.Name)
-        print("==== FIND PC DEBUG END ====")
+        warn("CurrentMap.Value chưa load")
         return found
     end
 
-    -------------------------------------------------------
-    -- DEBUG 3: In toàn bộ con trong ComputerTable
-    -------------------------------------------------------
-    print("[6] Danh sách con trong ComputerTable:")
-    for _, obj in ipairs(computerFolder:GetChildren()) do
-        print("   -", obj.Name, "("..obj.ClassName..")")
+    local computerFolder = map:FindFirstChild("ComputerTable")
+    if not computerFolder then
+        warn("Không tìm thấy ComputerTable trong map")
+        return found
     end
 
-    -------------------------------------------------------
-    -- DEBUG 4: Bắt đầu quét PC
-    -------------------------------------------------------
-    for _, pcModel in ipairs(computerFolder:GetChildren()) do
-        print("-----")
-        print("[PC] Đang kiểm tra model:", pcModel.Name, pcModel.ClassName)
+    for _, pc in ipairs(computerFolder:GetChildren()) do
+        local triggers = {}
+        local screen = nil
 
-        if pcModel:IsA("Model") then
-            local triggers = {}
-            print("[PC] Quét trigger trong model...")
-
-            for _, t in ipairs(pcModel:GetDescendants()) do
-                if t:IsA("BasePart") then
-                    print("     + BasePart:", t.Name)
-
-                    if t.Name == "ComputerTrigger1" 
-                        or t.Name == "ComputerTrigger2" 
-                        or t.Name == "ComputerTrigger3" then
-
-                        print("     --> Trigger hợp lệ FOUND:", t.Name)
-                        table.insert(triggers, t)
-                    end
+        for _, t in ipairs(pc:GetDescendants()) do
+            if t:IsA("BasePart") then
+                if t.Name == "ComputerTrigger1" 
+                   or t.Name == "ComputerTrigger2" 
+                   or t.Name == "ComputerTrigger3" then
+                    table.insert(triggers, t)
+                elseif t.Name == "Screen" then
+                    screen = t
                 end
             end
+        end
 
-            print("[PC] Tổng trigger tìm thấy:", #triggers)
-
-            if #triggers == 3 then
-                print("[PC] ===> PC thật DETECTED:", pcModel.Name)
-                table.insert(found, {computer = pcModel, triggers = triggers})
-            else
-                print("[PC] ===> LOẠI (không đủ 3 trigger)")
-            end
-        else
-            print("[PC] Bỏ qua vì không phải Model")
+        -- Chỉ lấy những PC có đủ 3 trigger (và Screen nếu muốn check thêm)
+        if #triggers == 3 then
+            table.insert(found, {
+                computer = pc,
+                triggers = triggers,
+                screen = screen
+            })
         end
     end
 
-    -------------------------------------------------------
-    -- DEBUG 5: In danh sách PC cuối cùng
-    -------------------------------------------------------
-    print("==== KẾT QUẢ CUỐI ====")
     for i, pc in ipairs(found) do
-        print(string.format("PC #%d: %s", i, pc.computer:GetFullName()))
+        pc.id = i
+        print("PC ID:", i, "Tên:", pc.computer.Name)
     end
 
-    print("==== FIND PC DEBUG END ====")
     return found
 end
+
+-- Ví dụ gọi
+local pcs = findAllPCs()
+print("Tổng số PC tìm thấy:", #pcs)
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
     local statusFolder = Replicated:FindFirstChild("FTF_Status")
