@@ -329,9 +329,9 @@ local function findAllPCs()
     for comp, data in pairs(pcGroups) do
         if isValidPC(comp) and not hackedPCs[comp] then
             table.insert(allPCs, {
-                triggers = data.triggers,
-                computer = comp,
-                id = comp
+                triggers = data.triggers, 
+                computer = comp, 
+                id = tostring(comp)
             })
         end
     end
