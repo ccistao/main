@@ -186,14 +186,23 @@ end
 
 -- ⚡ HÀM KIỂM TRA PC HỢP LỆ + CÒN HACK ĐƯỢC
 local function isHackablePC(pc)
-    if not pc then return false end
+    -- Check pc có tồn tại không
+    if not pc then 
+        warn("[isHackablePC] pc is nil")
+        return false 
+    end
 
+    -- Log thông tin cơ bản của PC
+    print("[isHackablePC] Checking pc:", pc, "ClassName:", pc.ClassName)
+
+    -- Check tên pc
     local name = pc.Name:lower()
     if name:find("prefab") or name:find("dev") or name:find("test") then
+        print("[isHackablePC] pc excluded by name:", pc.Name)
         return false
     end
 
-    -- PC phải có ít nhất 1 trigger
+    -- Check trigger
     local hasTrigger = false
     for _, child in ipairs(pc:GetChildren()) do
         if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
@@ -202,14 +211,34 @@ local function isHackablePC(pc)
         end
     end
     if not hasTrigger then
+        warn("[isHackablePC] pc has no trigger:", pc)
         return false
     end
 
-    -- PC phải có progress < 100%
-    if getPCProgress({computer = pc}) >= 1 then
+    -- Check progress
+    local progress
+    local ok, result = pcall(function()
+        progress = getPCProgress({computer = pc})
+        return progress
+    end)
+    if not ok then
+        warn("[isHackablePC] getPCProgress error on pc:", pc, "Error:", result)
+        progress = 0
+    end
+
+    if progress == nil then
+        warn("[isHackablePC] getPCProgress returned nil for pc:", pc)
+        progress = 0
+    end
+
+    print("[isHackablePC] pc progress:", progress, pc)
+
+    if progress >= 1 then
+        print("[isHackablePC] pc already done:", pc)
         return false
     end
 
+    -- Nếu tất cả ok
     return true
 end
 
