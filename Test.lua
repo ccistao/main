@@ -315,32 +315,25 @@ local function findAllPCs()
     for _, model in ipairs(workspace:GetDescendants()) do
         if model:IsA("Model") then
             local triggers = {}
+
+            -- Tìm triggers
             for _, t in ipairs(model:GetDescendants()) do
                 if t:IsA("BasePart") and (t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3") then
                     table.insert(triggers, t)
                 end
             end
 
-            if #triggers == 3 then
-                -- Loại bỏ PC fake/admin
-                if not model:FindFirstChild("MainComputerScript") then goto skip end
-                local screen = model:FindFirstChild("Screen")
-                if not screen or not screen:IsA("BasePart") then goto skip end
-
-                -- Kiểm tra progress: nếu chưa có lastPercent → sẽ cập nhật trong hackPC
-                if lastPercent[model] == nil then
-                    lastPercent[model] = 0
-                end
-
+            -- Chỉ xử lý model hợp lệ: đủ 3 trigger và có MainComputerScript
+            if #triggers == 3 and model:FindFirstChild("MainComputerScript") and lastPercent[model] ~= nil then
                 table.insert(found, {
                     computer = model,
                     triggers = triggers
                 })
             end
         end
-        ::skip::
     end
 
+    -- Gán id cho từng PC
     for i, pc in ipairs(found) do
         pc.id = i
     end
