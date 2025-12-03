@@ -314,45 +314,55 @@ local CurrentMap = ReplicatedStorage:WaitForChild("CurrentMap")
 
 local function findAllPCs()
     local found = {}
-
     local map = CurrentMap.Value
+
     if not map then
-        warn("CurrentMap.Value chưa load")
+        warn("Map chưa load")
         return found
     end
 
-    local computerFolder = map:FindFirstChild("ComputerTable")
-    if not computerFolder then
-        warn("Không tìm thấy ComputerTable trong map")
-        return found
-    end
+    for _, obj in ipairs(map:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("Folder") then
+            
+            local nameLower = obj.Name:lower()
 
-    for _, pc in ipairs(computerFolder:GetChildren()) do
-        local triggers = {}
-        local screen = nil
+            -- phải chứa "computer"
+            if nameLower:find("computer") then
 
-        for _, t in ipairs(pc:GetDescendants()) do
-            if t:IsA("BasePart") then
-                if t.Name == "ComputerTrigger1" 
-                   or t.Name == "ComputerTrigger2" 
-                   or t.Name == "ComputerTrigger3" then
-                    table.insert(triggers, t)
-                elseif t.Name == "Screen" then
-                    screen = t
+                -- loại PC có chữ prefab (Prefab, PrefabComputerTable,...)
+                if nameLower:find("prefab") then
+                    print("Bỏ PC vì tên chứa 'prefab':", obj.Name)
+                else
+                    local triggers = {}
+
+                    -- tìm trigger
+                    for _, t in ipairs(obj:GetDescendants()) do
+                        if t:IsA("BasePart") then
+                            if t.Name == "ComputerTrigger1"
+                                or t.Name == "ComputerTrigger2"
+                                or t.Name == "ComputerTrigger3" then
+
+                                table.insert(triggers, t)
+                            end
+                        end
+                    end
+
+                    -- PC thật phải có đúng 3 trigger
+                    if #triggers == 3 then
+                        print("Tìm thấy PC thật:", obj.Name)
+                        table.insert(found, {
+                            computer = obj,
+                            triggers = triggers
+                        })
+                    else
+                        print("Bỏ vì trigger không đủ 3:", obj.Name)
+                    end
                 end
             end
         end
-
-        -- Chỉ lấy những PC có đủ 3 trigger (và Screen nếu muốn check thêm)
-        if #triggers == 3 then
-            table.insert(found, {
-                computer = pc,
-                triggers = triggers,
-                screen = screen
-            })
-        end
     end
 
+    -- gán ID
     for i, pc in ipairs(found) do
         pc.id = i
         print("PC ID:", i, "Tên:", pc.computer.Name)
@@ -360,10 +370,6 @@ local function findAllPCs()
 
     return found
 end
-
--- Ví dụ gọi
-local pcs = findAllPCs()
-print("Tổng số PC tìm thấy:", #pcs)
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
     local statusFolder = Replicated:FindFirstChild("FTF_Status")
