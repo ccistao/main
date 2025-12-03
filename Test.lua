@@ -220,12 +220,12 @@ local function isHackablePC(pc)
     return true
 end
 -- ⚡ TIẾN TRÌNH PC (progress)
-local function getPCProgress(data)
-    if not data or not data.computer then
+local function getPCProgress(pcData)
+    if not pcData or not pcData.computer then
         return 0
     end
 
-    local pc = data.computer
+    local pc = pcData.computer
     if not pc or not pc.Parent then
         return 0
     end
@@ -234,8 +234,10 @@ local function getPCProgress(data)
     local screen = pc:FindFirstChild("Screen")
     if screen and screen:IsA("BasePart") then
         local c = screen.Color
-        if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
-            return 1
+        if c and c.G and c.R and c.B then
+            if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
+                return 1
+            end
         end
     end
 
@@ -243,10 +245,9 @@ local function getPCProgress(data)
     local maxValue = 0
     for _, v in ipairs(pc:GetDescendants()) do
         if v and (v:IsA("IntValue") or v:IsA("NumberValue")) then
-            if (v.Name == "ActionProgress" or v.Name == "Value") and tonumber(v.Value) then
-                if v.Value > maxValue then
-                    maxValue = v.Value
-                end
+            local val = tonumber(v.Value) or 0
+            if (v.Name == "ActionProgress" or v.Name == "Value") and val > maxValue then
+                maxValue = val
             end
         end
     end
