@@ -163,22 +163,26 @@ local function waitForGameActive()
         return false
     end
 
-    -- Lấy IsGameActive
+    -- Flag IsGameActive
     local isActiveFlag = Replicated:WaitForChild("IsGameActive", 10)
 
-    -- Lặp kiểm tra
+    -- Loop chờ
     while true do
         task.wait(0.1)
 
-        -- Điều kiện 1: Hiện "15 SEC HEAD START"
+        -- Điều kiện 1: HEAD START xuất hiện
         if statusBox.Text and statusBox.Text:upper():find("15 SEC HEAD START") then
-            updateStatus("✓ HEAD START! Bắt đầu chạy script...")
+            updateStatus("✓ HEAD START xuất hiện... chờ PC load...")
+            task.wait(2) -- ⏳ thêm delay giúp map load PC hoàn toàn
+            updateStatus("✓ Game bắt đầu! Chạy script...")
             return true
         end
 
-        -- Điều kiện 2: Game active rồi
+        -- Điều kiện 2: isActiveFlag = true
         if isActiveFlag and isActiveFlag.Value == true then
-            updateStatus("✓ Game active! Bắt đầu chạy script...")
+            updateStatus("✓ Game Active! Chờ PC load...")
+            task.wait(2) -- bảo đảm PC đã spawn đủ
+            updateStatus("✓ Bắt đầu chạy script...")
             return true
         end
     end
