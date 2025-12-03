@@ -199,20 +199,24 @@ local function isHackablePC(pc)
     end
 
     -- Trigger check
-    local children = pc:GetChildren()
     local hasTrigger = false
-
-    for _, child in ipairs(children) do
+    for _, child in ipairs(pc:GetChildren()) do
         if child and child:IsA("BasePart") and child.Name:match("ComputerTrigger") then
             hasTrigger = true
             break
         end
     end
-
     if not hasTrigger then return false end
 
-    -- Progress check
-    local progress = getPCProgress({computer = pc})
+    -- Progress check an toàn
+    local progress = 0
+    local ok, result = pcall(function()
+        progress = getPCProgress({computer = pc})
+    end)
+    if not ok then
+        progress = 0
+    end
+
     if progress >= 1 then
         return false
     end
