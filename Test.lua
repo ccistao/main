@@ -318,8 +318,7 @@ local function findAllPCs()
             
             local nameLower = obj.Name:lower()
             local isNamedPC = (
-                nameLower:find("computer") or 
-                nameLower:find("computertable")
+                nameLower:find("ComputerTable")
             )
 
             local triggers = {}
