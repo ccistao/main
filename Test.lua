@@ -317,61 +317,38 @@ end
 
 
 -- ⚡ TÌM TẤT CẢ PC + TRIGGER VÀ GỘP DỮ LIỆU
+local function isValidPC(pc)
+    if not pc then return false end
+    local name = pc.Name:lower()
+    if name:find("prefab") or name:find("dev") or name:find("test") then return false end
+    for _, child in pairs(pc:GetChildren()) do
+        if child:IsA("BasePart") and child.Name:match("ComputerTrigger") then return true end
+    end
+    return false
+end
+
 local function findAllPCTriggers()
-    log("🔍 [DEBUG] Bắt đầu tìm PC...")
     local pcGroups = {}
     local allPCs = {}
-    local objectCount = 0
-    
-    local success, err = pcall(function()
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            objectCount = objectCount + 1
-            
-            -- Debug mỗi 500 objects
-            if objectCount % 500 == 0 then
-                log("🔍 [DEBUG] Đã quét " .. objectCount .. " objects...")
-                task.wait(0.01) -- Tránh freeze
-            end
-            
-            if obj:IsA("BasePart") and (obj.Name == "ComputerTrigger1" or obj.Name == "ComputerTrigger2" or obj.Name == "ComputerTrigger3") then
-                log("✓ [DEBUG] Tìm thấy trigger: " .. obj.Name)
-                local computer = obj.Parent
-                if computer then
-                    if not pcGroups[computer] then
-                        pcGroups[computer] = {computer = computer, triggers = {}}
-                        log("✓ [DEBUG] Tạo nhóm PC: " .. computer.Name)
-                    end
-                    table.insert(pcGroups[computer].triggers, obj)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (obj.Name == "ComputerTrigger1" or obj.Name == "ComputerTrigger2" or obj.Name == "ComputerTrigger3") then
+            local computer = obj.Parent
+            if computer then
+                if not pcGroups[computer] then
+                    pcGroups[computer] = {computer = computer, triggers = {}}
                 end
+                table.insert(pcGroups[computer].triggers, obj)
             end
         end
-    end)
-    
-    if not success then
-        log("❌ [DEBUG] LỖI khi quét workspace: " .. tostring(err))
-        return {}
     end
-    
-    log("✓ [DEBUG] Quét xong " .. objectCount .. " objects")
-    log("✓ [DEBUG] Tìm thấy " .. #pcGroups .. " nhóm PC")
-    
     for comp, data in pairs(pcGroups) do
-        if isHackablePC(comp) and not hackedPCs[comp] then
-            local pcId = tostring(comp):gsub("%.%.", "_")
-            log("✓ [DEBUG] PC hợp lệ: " .. comp.Name .. " (ID: " .. pcId .. "), triggers: " .. #data.triggers)
-            table.insert(allPCs, {
-                triggers = data.triggers, 
-                computer = comp, 
-                id = pcId
-            })
-        else
-            log("⚠️ [DEBUG] PC không hợp lệ hoặc đã hack: " .. comp.Name)
+        if isValidPC(comp) and not hackedPCs[comp] then
+            table.insert(allPCs, {triggers = data.triggers, computer = comp, id = comp})
         end
     end
-    
-    log("✓ [DEBUG] Tổng PC có thể hack: " .. #allPCs)
     return allPCs
 end
+
 
 local function antiCheatDelay()
     log("🛡️ =================================")
