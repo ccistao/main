@@ -312,38 +312,26 @@ end
 local function findAllPCs()
     local found = {}
 
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        repeat
-            if not obj:IsA("Model") then break end
-
-            local nameLower = obj.Name:lower()
-
-            if nameLower:find("prefabcomputertable") then
-                break
-            end
-
-            local isNamedPC = nameLower:find("computertable")
+    -- Lặp tất cả model trong workspace
+    for _, model in ipairs(workspace:GetDescendants()) do
+        if model:IsA("Model") then
             local triggers = {}
-
-            for _, child in ipairs(obj:GetDescendants()) do
-                if child:IsA("BasePart") and child.Name:match("^ComputerTrigger%d+$") then
-                    table.insert(triggers, child)
+            for _, t in ipairs(model:GetDescendants()) do
+                if t:IsA("BasePart") then
+                    if t.Name == "ComputerTrigger1" or t.Name == "ComputerTrigger2" or t.Name == "ComputerTrigger3" then
+                        table.insert(triggers, t)
+                    end
                 end
             end
 
-            if #triggers > 0 then
+            -- Nếu đủ 3 trigger → thêm vào danh sách PC
+            if #triggers == 3 then
                 table.insert(found, {
-                    computer = obj,
+                    computer = model,
                     triggers = triggers
                 })
-                break
             end
-
-            if isNamedPC then
-                warn("[PC] Model trông như PC nhưng thiếu trigger:", obj.Name)
-            end
-
-        until true
+        end
     end
 
     return found
