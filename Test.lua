@@ -321,8 +321,6 @@ local function findAllPCs()
         return found
     end
 
-    updateStatus("🔍 Đang tìm PC trong map...")
-
     for _, obj in ipairs(map:GetDescendants()) do
         if obj:IsA("Model") or obj:IsA("Folder") then
 
@@ -367,13 +365,10 @@ end
 
 -- 🔁 Auto scan mỗi 0.4s cho đến khi tìm được PC
 task.spawn(function()
-    updateStatus("⏳ Đang chờ map...")
-
     while true do
         local pcs = findAllPCs()
 
         if #pcs > 0 then
-            updateStatus("✅ Đã tìm thấy " .. #pcs .. " PC! Dừng quét.")
             break
         end
 
@@ -407,7 +402,6 @@ local function antiCheatDelay()
         task.wait(0.2)
     end
     
-    log("✓ Đã TP lên (50, 71, 50)")
     
     for i = ANTI_CHEAT_DELAY, 1, -1 do
         if not scriptEnabled then break end
@@ -417,8 +411,6 @@ local function antiCheatDelay()
     end
     
     updateStatus("✓ Delay xong!")
-    log("✓ Anti-cheat delay hoàn tất!")
-    log("🛡️ =================================")
 end
 
 -- AUTO PERFECT MINIGAME (NEVER FAIL)
@@ -752,7 +744,6 @@ local function mainLoop()
                 log("Hack Extra PC: " .. (hackExtraPC and "BẬT" or "TẮT"))
                 log("Anti-cheat delay: " .. ANTI_CHEAT_DELAY .. "s")
 
-                updateStatus("🔍 Tìm PC...")
                 local allPCs = findAllPCs()
 
                 if #allPCs == 0 then
