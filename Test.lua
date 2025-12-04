@@ -14,6 +14,7 @@ local hackDelay = 4
 local waitBeforeHack = 1
 local ANTI_CHEAT_DELAY = 8
 local currentPC = nil
+local skippedPCs = {}
 local isHacking = false
 local hackedPCs = {}
 local beast = nil
@@ -541,6 +542,7 @@ local function hackPC(pcData)
         task.wait(0.15)
 
         if isBeastNearby() then
+            skippedPCs[currentPC] = true
             updateStatus("🚨 Beast gần! Trốn...")
             isHacking = false
             currentPC = nil
@@ -548,6 +550,7 @@ local function hackPC(pcData)
             skipCurrentPC = true
             escapeBeast()
             task.wait(0.2)
+            skippedPCs = {} 
             allPCs = findAllPCs()
             return false
         end
