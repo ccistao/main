@@ -317,65 +317,63 @@ local function findAllPCs()
     local map = CurrentMap.Value
 
     if not map then
-        print("Map chưa load, thử lại...")
+        updateStatus("⏳ Đang chờ map load...")
         return found
     end
+
+    updateStatus("🔍 Đang tìm PC trong map...")
 
     for _, obj in ipairs(map:GetDescendants()) do
         if obj:IsA("Model") or obj:IsA("Folder") then
 
             local nameLower = obj.Name:lower()
 
-            -- phải chứa "computer"
+            -- tên phải chứa "computer"
             if nameLower:find("computer") then
 
-                -- loại PC prefab
-                if nameLower:find("prefab") then
-                    print("Bỏ PC prefab:", obj.Name)
-                else
+                -- loại prefab
+                if not nameLower:find("prefab") then
+                    
                     local triggers = {}
 
-                    -- tìm trigger 1-3
                     for _, t in ipairs(obj:GetDescendants()) do
                         if t:IsA("BasePart") then
                             if t.Name == "ComputerTrigger1"
-                                or t.Name == "ComputerTrigger2"
-                                or t.Name == "ComputerTrigger3" then
+                            or t.Name == "ComputerTrigger2"
+                            or t.Name == "ComputerTrigger3" then
                                 table.insert(triggers, t)
                             end
                         end
                     end
 
                     if #triggers == 3 then
-                        print("Tìm thấy PC thật:", obj.Name)
                         table.insert(found, {
                             computer = obj,
                             triggers = triggers
                         })
-                    else
-                        print("Bỏ vì trigger thiếu:", obj.Name)
                     end
                 end
             end
         end
     end
 
-    -- gán id
+    -- gán ID
     for i, pc in ipairs(found) do
         pc.id = i
-        print("PC ID:", i, "| Tên:", pc.computer.Name)
     end
 
     return found
 end
 
--- Auto scan mỗi 0.2s cho đến khi tìm được PC
+-- 🔁 Auto scan mỗi 0.4s cho đến khi tìm được PC
 task.spawn(function()
+    updateStatus("⏳ Đang chờ map...")
+
     while true do
         local pcs = findAllPCs()
 
         if #pcs > 0 then
-            print("==== ĐÃ PHÁT HIỆN PC, DỪNG QUÉT ====")
+            updateStatus("✅ Đã tìm thấy " .. #pcs .. " PC! Dừng quét.")
             break
         end
 
