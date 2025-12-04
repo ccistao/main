@@ -787,8 +787,6 @@ local function mainLoop()
                             hackPC(pcData)
                         end
 
-                    end
-
                     log("═══════════════════════════════")
                     log("✅ HOÀN TẤT TẤT CẢ PC")
                     log("═══════════════════════════════")
