@@ -511,8 +511,8 @@ local function hackPC(pcData)
     if doneByColor then
         updateStatus("💨 PC đã hoàn thành → bỏ qua anti-cheat")
     else
-        updateStatus("⚙ Đang chuẩn bị hack... (anti-cheat 9s)")
-        task.wait(9)
+        updateStatus("Đang hack pc")
+        task.wait(0.2)
     end
 
     pcall(function()
@@ -539,18 +539,21 @@ local function hackPC(pcData)
         task.wait(0.15)
 
         if isBeastNearby() then
-            skippedPCs[currentPC] = true
-            updateStatus("🚨 Beast gần! Trốn...")
-            isHacking = false
-            currentPC = nil
-            canAutoJump = false
-            skipCurrentPC = true
-            escapeBeast()
-            task.wait(0.2)
-            skippedPCs = {} 
-            allPCs = findAllPCs()
-            return false
+        updateStatus("🚨 Beast gần! Trốn...")
+        isHacking = false
+        currentPC = nil
+        canAutoJump = false
+        skipCurrentPC = true
+        
+        -- ⚠️ CHỈ SKIP PC HIỆN TẠI, KHÔNG XÓA TOÀN BỘ LIST
+        if pcData and pcData.id then
+            skippedPCs[pcData.id] = true
+            log("⏭️ Đã thêm PC " .. pcData.id .. " vào skip list")
         end
+        
+        escapeBeast()
+        return false  -- Thoát ngay, không reset skippedPCs
+    end
 
         if isTriggerBeingHacked(currentTrigger) then
             if canAutoJump then
@@ -739,6 +742,7 @@ local function mainLoop()
                 task.wait(10)
             else
                 hackedPCs = {}
+                skippedPCs = {}
                 updateStatus("🆕 Game mới!")
                 log("═══════════════════════════════")
                 log("🆕 GAME MỚI BẮT ĐẦU")
