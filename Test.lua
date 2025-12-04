@@ -92,7 +92,6 @@ local function escapeBeast()
     if not hidePlatform then createHidePlatform() end
     rootPart.CFrame = CFrame.new(50, 71, 50)
     task.wait(9)
-    skipCurrentPC = true
 end
 
 -- THAY THẾ: spawn block dùng ActionBox (an toàn, không block)
@@ -755,6 +754,7 @@ local function mainLoop()
                     log("✓ Tìm thấy " .. #allPCs .. " PC(s)")
 
                     for idx, pcData in ipairs(allPCs) do
+                        skipCurrentPC = false
                         if not scriptEnabled then break end
 
                         log("")
@@ -771,7 +771,10 @@ local function mainLoop()
                             end
                         end
 
-                        hackPC(pcData)
+                        if not skipCurrentPC then
+                            hackPC(pcData)
+                        end
+
                     end
 
                     log("═══════════════════════════════")
