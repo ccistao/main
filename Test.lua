@@ -756,12 +756,13 @@ local function mainLoop()
                     updateStatus("Tìm thấy " .. #allPCs .. " PC")
                     log("✓ Tìm thấy " .. #allPCs .. " PC(s)")
 
+                    -- CHỈ 1 VÒNG LẶP DUY NHẤT
                     for idx, pcData in ipairs(allPCs) do
                         skipCurrentPC = false
                         if not scriptEnabled then break end
-                        
+
                         log("")
-                        log("╔═══════════════════════════════╗")
+                        log("╔═══════════════════════════════╗")  
                         log("║  PC " .. idx .. "/" .. #allPCs)
                         log("╚═══════════════════════════════╝")
 
@@ -780,7 +781,7 @@ local function mainLoop()
                         elseif not skipCurrentPC then
                             hackPC(pcData)
                         end
-                    end
+                    end -- ĐÃ ĐÓNG VÒNG LẶP FOR
 
                     log("═══════════════════════════════")
                     log("✅ HOÀN TẤT TẤT CẢ PC")
