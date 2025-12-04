@@ -71,7 +71,7 @@ local function isBeastNearby()
     if not foundBeast or not beast or not beast.Character then return false end
     local beastRoot = beast.Character:FindFirstChild("HumanoidRootPart")
     if not beastRoot or not rootPart then return false end
-    return (rootPart.Position - beastRoot.Position).Magnitude <= 20
+    return (rootPart.Position - beastRoot.Position).Magnitude <= 23
 end
 
 local function createHidePlatform()
@@ -522,6 +522,7 @@ local function hackPC(pcData)
         isHacking = false
         currentPC = nil
         canAutoJump = false
+        skipCurrentPC = true
         escapeBeast()
         task.wait(0.2)
         allPCs = findAllPCs()
