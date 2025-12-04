@@ -162,7 +162,6 @@ local function waitForGameActive()
 
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
-    local Replicated = game:GetService("ReplicatedStorage")
     local statusBox = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
                          :WaitForChild("GameInfoFrame"):WaitForChild("GameStatusBox")
 
@@ -170,7 +169,7 @@ local function waitForGameActive()
         updateStatus("❌ Không tìm thấy GameStatusBox!")
         return false
     end
-    local isActiveFlag = Replicated:WaitForChild("IsGameActive", 10)
+    local isActiveFlag = ReplicatedStorage:WaitForChild("IsGameActive", 10)
 
     -- Loop chờ
     while true do
@@ -383,7 +382,7 @@ task.spawn(function()
 end)
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
-    local statusFolder = Replicated:FindFirstChild("FTF_Status")
+    local statusFolder = ReplicatedStorage:FindFirstChild("FTF_Status")
     if not statusFolder then return false end
 
     local phase = statusFolder:FindFirstChild("Phase")
@@ -519,7 +518,7 @@ local function hackPC(pcData)
     end
 
     pcall(function()
-        local hackRemote = Replicated:FindFirstChild("RemoteEvent")
+        local hackRemote = ReplicatedStorage:FindFirstChild("RemoteEvent")
         if hackRemote then
             hackRemote:FireServer("Input", "Action", true)
             task.wait(0.1)
@@ -568,7 +567,7 @@ local function hackPC(pcData)
         end
 
         pcall(function()
-            local remote = Replicated:FindFirstChild("RemoteEvent")
+            local remote = ReplicatedStorage:FindFirstChild("RemoteEvent")
             if remote then
                 remote:FireServer("Input", "Action", true)
             end
@@ -581,7 +580,7 @@ local function hackPC(pcData)
             if stuckCount > 10 then
                 updateStatus("Đang hack PC")
                 pcall(function()
-                    local r = Replicated:FindFirstChild("RemoteEvent")
+                    local r = ReplicatedStorage:FindFirstChild("RemoteEvent")
                     if r then
                         r:FireServer("Input", "Action", true)
                     end
@@ -596,7 +595,7 @@ local function hackPC(pcData)
             and pcData.computer.SkillCheckActive.Value then
             updateStatus("⚠️ Skill check! Auto perfect")
             pcall(function()
-                local hr = Replicated:FindFirstChild("RemoteEvent")
+                local hr = ReplicatedStorage:FindFirstChild("RemoteEvent")
                 if hr then
                     hr:FireServer("SkillCheck", true)
                 end
@@ -652,7 +651,7 @@ local function autoExitUnified()
 
     local function findExit()
         local exits = {}
-        local mapFolder = Replicated:FindFirstChild("CurrentMap")
+        local mapFolder = ReplicatedStorage:FindFirstChild("CurrentMap")
         local map = mapFolder and mapFolder.Value
         if not map then return exits end
 
@@ -674,7 +673,7 @@ local function autoExitUnified()
     end
 
     local function canGoExit()
-        local gameStatus = Replicated:FindFirstChild("GameStatus")
+        local gameStatus = ReplicatedStorage:FindFirstChild("GameStatus")
         local status = gameStatus and gameStatus.Value or ""
         status = tostring(status):upper()
         return status:find("EXIT") ~= nil
