@@ -760,26 +760,29 @@ local function mainLoop()
                         skipCurrentPC = false
                         if not scriptEnabled then break end
 
-                        -- ⭐ FIX: bỏ qua PC đang nằm trong skip list
-                        if skippedPCs[pcData.id] then
-                            log("⏭️ Bỏ qua PC " .. pcData.id .. " (đang trong skip list)")
-                        else
-                            if not skipCurrentPC then
-                                hackPC(pcData)
-                            end
-                        end
-                    end
-                        log("")
-                        log("╔═══════════════════════════════╗")
-                        log("║  PC " .. idx .. "/" .. #allPCs)
-                        log("╚═══════════════════════════════╝")
+                        for idx, pcData in ipairs(allPCs) do
+                            skipCurrentPC = false
+                            if not scriptEnabled then break end
+    
+                            log("")
+                            log("╔═══════════════════════════════╗")  
+                            log("║  PC " .. idx .. "/" .. #allPCs)
+                            log("╚═══════════════════════════════╝")
 
-                        if isFindExitPhase() then
-                            if hackExtraPC then
-                                log("⚠️ Find Exit! Nhưng Extra PC BẬT")
-                            else
-                                log("⚠️ Find Exit! Dừng hack")
-                                break
+                            if isFindExitPhase() then
+                                if hackExtraPC then
+                                    log("⚠️ Find Exit! Nhưng Extra PC BẬT")
+                                else
+                                    log("⚠️ Find Exit! Dừng hack")
+                                    break
+                                end
+                            end
+
+                            -- ⭐ Bỏ qua PC đang nằm trong skip list
+                            if skippedPCs[pcData.id] then
+                                log("⏭️ Bỏ qua PC " .. pcData.id .. " (đang trong skip list)")
+                            elseif not skipCurrentPC then
+                                hackPC(pcData)
                             end
                         end
 
