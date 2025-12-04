@@ -763,6 +763,15 @@ local function mainLoop()
                         skipCurrentPC = false
                         if not scriptEnabled then break end
 
+                        -- ⭐ FIX: bỏ qua PC đang nằm trong skip list
+                        if skippedPCs[pcData.id] then
+                            log("⏭️ Bỏ qua PC " .. pcData.id .. " (đang trong skip list)")
+                        else
+                            if not skipCurrentPC then
+                                hackPC(pcData)
+                            end
+                        end
+                    end
                         log("")
                         log("╔═══════════════════════════════╗")
                         log("║  PC " .. idx .. "/" .. #allPCs)
