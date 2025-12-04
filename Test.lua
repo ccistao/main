@@ -167,7 +167,7 @@ local function waitForGameActive()
         updateStatus("❌ Không tìm thấy GameStatusBox!")
         return false
     end
-    local isActiveFlag = ReplicatedStorage:WaitForChild("IsGameActive", 10)
+    local isActiveFlag = Replicated:WaitForChild("IsGameActive", 10)
 
     -- Loop chờ
     while true do
