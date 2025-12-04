@@ -48,12 +48,26 @@ local function findBeast()
                 task.wait(0.1)
             else                          
                 task.wait(0.1)
+
                 if foundBeast then
+                    -- ⛔ Beast rời game hoặc không còn là Beast
                     if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
+                        
+                        updateStatus("⚠️ Beast đã rời game — Reset hack")
+
+                        -- ⭐ RESET TRẠNG THÁI HACK
+                        isHacking = false
+                        currentPC = nil
+                        currentTrigger = nil
+                        skipCurrentPC = nil
+                        beastRoot = nil
+
+                        -- xoá Beast
                         beast, foundBeast = nil, false
                     end
                 end
 
+                -- 🔍 tìm Beast mới
                 if not foundBeast then
                     for _, p in ipairs(Players:GetPlayers()) do
                         if isBeast(p) then
@@ -67,6 +81,7 @@ local function findBeast()
         end
     end)
 end
+
 local function isBeastNearby()
     if not foundBeast or not beast or not beast.Character then return false end
     local beastRoot = beast.Character:FindFirstChild("HumanoidRootPart")
@@ -98,14 +113,12 @@ end
 spawn(function()
     if not scriptEnabled then return end
     local playerGui = player:WaitForChild("PlayerGui")
-    -- Thay vì chờ tên chung "ScreenGui", ta quan sát khi AutoHackGUI xuất hiện hoặc ChildAdded
     local function bindToScreenGui(screenGui)
         if not screenGui then return end
         local actionBox = screenGui:FindFirstChild("ActionBox")
         if actionBox then
             actionBox:GetPropertyChangedSignal("Visible"):Connect(function()
                 if scriptEnabled and actionBox.Visible and isHacking and currentPC then
-                    -- guard: đảm bảo RemoteEvent tồn tại
                     local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
                     if remote and remote.FireServer then
                         pcall(function()
@@ -114,8 +127,7 @@ spawn(function()
                     end
                 end
             end)
-        else
-            -- nếu chưa có ActionBox, lắng nghe ChildAdded để bind khi nó xuất hiện
+       else
             screenGui.ChildAdded:Connect(function(child)
                 if child.Name == "ActionBox" then
                     child:GetPropertyChangedSignal("Visible"):Connect(function()
@@ -132,8 +144,6 @@ spawn(function()
             end)
         end
     end
-
-    -- Nếu AutoHackGUI đã có (do createGUI được gọi sau), tìm nó; nếu chưa có, lắng nghe ChildAdded
     local existing = playerGui:FindFirstChild("AutoHackGUI")
     if existing then
         bindToScreenGui(existing)
@@ -152,8 +162,6 @@ local function waitForGameActive()
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
     local Replicated = game:GetService("ReplicatedStorage")
-
-    -- Lấy GameStatusBox
     local statusBox = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
                          :WaitForChild("GameInfoFrame"):WaitForChild("GameStatusBox")
 
@@ -161,8 +169,6 @@ local function waitForGameActive()
         updateStatus("❌ Không tìm thấy GameStatusBox!")
         return false
     end
-
-    -- Flag IsGameActive
     local isActiveFlag = Replicated:WaitForChild("IsGameActive", 10)
 
     -- Loop chờ
@@ -554,7 +560,7 @@ local function hackPC(pcData)
         if progress == lastProgress then
             stuckCount = stuckCount + 1
             if stuckCount > 10 then
-                updateStatus("⚠️ Stuck! Re-trigger...")
+                updateStatus("Đang hack PC")
 
                 -- auto jump vẫn chạy ở luồng riêng nên không cần ChangeState ở đây
                 pcall(function()
