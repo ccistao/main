@@ -759,36 +759,28 @@ local function mainLoop()
                     for idx, pcData in ipairs(allPCs) do
                         skipCurrentPC = false
                         if not scriptEnabled then break end
+                        
+                        log("")
+                        log("╔═══════════════════════════════╗")
+                        log("║  PC " .. idx .. "/" .. #allPCs)
+                        log("╚═══════════════════════════════╝")
 
-                        for idx, pcData in ipairs(allPCs) do
-                            skipCurrentPC = false
-                            if not scriptEnabled then break end
-    
-                            log("")
-                            log("╔═══════════════════════════════╗")  
-                            log("║  PC " .. idx .. "/" .. #allPCs)
-                            log("╚═══════════════════════════════╝")
-
-                            if isFindExitPhase() then
-                                if hackExtraPC then
-                                    log("⚠️ Find Exit! Nhưng Extra PC BẬT")
-                                else
-                                    log("⚠️ Find Exit! Dừng hack")
-                                    break
-                                end
-                            end
-
-                            -- ⭐ Bỏ qua PC đang nằm trong skip list
-                            if skippedPCs[pcData.id] then
-                                log("⏭️ Bỏ qua PC " .. pcData.id .. " (đang trong skip list)")
-                            elseif not skipCurrentPC then
-                                hackPC(pcData)
+                        if isFindExitPhase() then
+                            if hackExtraPC then
+                                log("⚠️ Find Exit! Nhưng Extra PC BẬT")
+                            else
+                                log("⚠️ Find Exit! Dừng hack")
+                                break
                             end
                         end
 
-                        if not skipCurrentPC then
+                        -- ⭐ Bỏ qua PC đang nằm trong skip list
+                        if skippedPCs[pcData.id] then
+                            log("⏭️ Bỏ qua PC " .. pcData.id .. " (đang trong skip list)")
+                        elseif not skipCurrentPC then
                             hackPC(pcData)
                         end
+                    end
 
                     log("═══════════════════════════════")
                     log("✅ HOÀN TẤT TẤT CẢ PC")
@@ -811,16 +803,15 @@ local function mainLoop()
                     updateStatus("✓ Find Exit!")
                     log("✓ Phát hiện Find Exit!")
                     task.wait(1)
-                    -- spawn để chạy song song, tránh block
                     task.spawn(autoExitUnified)
                 end
 
                 updateStatus("🎉 Round hoàn tất!")
                 log("🎉 ROUND HOÀN TẤT!")
-            end
-        end
-    end
-end
+            end -- đóng else của waitForGameActive
+        end -- đóng else của scriptEnabled
+    end -- đóng while true
+end -- đóng function mainLoop
 
 local function createGUI()
     local screenGui = Instance.new("ScreenGui")
