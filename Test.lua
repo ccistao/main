@@ -312,53 +312,62 @@ end
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CurrentMap = ReplicatedStorage:WaitForChild("CurrentMap")
 
-local function waitForMapReady()
-    local map = CurrentMap.Value
-    if map then
-        -- Nếu ComputerTable đã tồn tại, map sẵn sàng
-        if map:FindFirstChild("ComputerTable") then
-            return map
-        end
-    end
-    -- Nếu chưa có map/computertable, đợi tiếp
-    repeat
-        CurrentMap.Changed:Wait()
-    until CurrentMap.Value and CurrentMap.Value:FindFirstChild("ComputerTable")
-    return CurrentMap.Value
-end
-
 local function findAllPCs()
-    local found = {}
-    local map = waitForMapReady()
+    local result = {}
 
-    local computerFolder = map:FindFirstChild("ComputerTable")
-    for _, obj in ipairs(computerFolder:GetChildren()) do
-        -- Lọc tên chứa "computer" nếu muốn (không cần nếu ComputerTable chỉ chứa PC)
-        local lower = obj.Name:lower()
-        if lower:find("computer") then
+    local map = CurrentMap.Value
+    if not map then
+        warn("❗ Map chưa load, đợi CurrentMap.Value thay đổi...")
+        return result
+    end
+
+    local folder = map:FindFirstChild("ComputerTable")
+    if not folder then
+        warn("❗ Không tìm thấy ComputerTable trong map:", map.Name)
+        return result
+    end
+
+    for _, pc in ipairs(folder:GetChildren()) do
+        if not pc.Name:lower():find("prefab") then  -- loại prefab
             local triggers = {}
-            for _, t in ipairs(obj:GetDescendants()) do
-                if t:IsA("BasePart") and (
-                    t.Name == "ComputerTrigger1" or
-                    t.Name == "ComputerTrigger2" or
-                    t.Name == "ComputerTrigger3"
+
+            for _, d in ipairs(pc:GetDescendants()) do
+                if d:IsA("BasePart") and (
+                    d.Name == "ComputerTrigger1" or 
+                    d.Name == "ComputerTrigger2" or
+                    d.Name == "ComputerTrigger3"
                 ) then
-                    table.insert(triggers, t)
+                    table.insert(triggers, d)
                 end
             end
 
             if #triggers == 3 then
-                table.insert(found, { computer = obj, triggers = triggers })
+                table.insert(result, {
+                    computer = pc,
+                    triggers = triggers
+                })
             end
         end
     end
 
-    for i, pc in ipairs(found) do
-        pc.id = i
-        print("PC ID:", i, "Name:", pc.computer.Name)
+    for i,v in ipairs(result) do
+        v.id = i
+        print("🔍 PC:", i, "Tên:", v.computer.Name)
     end
-    return found
+
+    return result
 end
+
+-- 🔁 quét lại khi CurrentMap đổi (bắt đầu trận mới hoặc join vào giữa trận)
+CurrentMap.Changed:Connect(function()
+    task.wait(1) -- đợi assets load
+    print("📌 Map đổi → quét lại PC")
+    findAllPCs()
+end)
+
+-- chạy lần đầu
+task.wait(1)
+findAllPCs()
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
     local statusFolder = Replicated:FindFirstChild("FTF_Status")
