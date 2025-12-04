@@ -488,17 +488,34 @@ local function hackPC(pcData)
         updateStatus("⏭️ Không có trigger trống, skip PC " .. tostring(pcData.id))
         return false
     end
-   
+
     if chosenTrigger and rootPart then
         rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 0.5, 0)
         currentTrigger = chosenTrigger
         task.wait(0.1)
-        canAutoJump = true -- bật auto jump khi TP tới PC
+        canAutoJump = true
     end
-    
+
     isHacking = true
     currentPC = pcData
     updateStatus("🔵 Đang hack PC " .. tostring(pcData.computer and pcData.computer.Name or "Unknown"))
+
+    local screen = pcData.computer:FindFirstChild("Screen")
+    local doneByColor = false
+
+    if screen and screen:IsA("BasePart") then
+        local c = screen.Color
+        if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
+            doneByColor = true
+        end
+    end
+
+    if doneByColor then
+        updateStatus("💨 PC đã hoàn thành → bỏ qua anti-cheat")
+    else
+        updateStatus("⚙ Đang chuẩn bị hack... (anti-cheat 9s)")
+        task.wait(9)
+    end
 
     pcall(function()
         local hackRemote = Replicated:FindFirstChild("RemoteEvent")
@@ -521,55 +538,51 @@ local function hackPC(pcData)
     local stuckCount = 0
 
     while isHacking and scriptEnabled do
-    task.wait(0.15)
+        task.wait(0.15)
 
-    if isBeastNearby() then
-        updateStatus("🚨 Beast gần! Trốn...")
-        isHacking = false
-        currentPC = nil
-        canAutoJump = false
-        skipCurrentPC = true
-        escapeBeast()
-        task.wait(0.2)
-        allPCs = findAllPCs()
-        return false
-    end
-
-    -- 🆕 Nếu có người hack chung → tắt auto jump
-    if isTriggerBeingHacked(currentTrigger) then
-        if canAutoJump then
-            updateStatus("👥 Có người hack chung – tắt auto jump")
+        if isBeastNearby() then
+            updateStatus("🚨 Beast gần! Trốn...")
+            isHacking = false
+            currentPC = nil
+            canAutoJump = false
+            skipCurrentPC = true
+            escapeBeast()
+            task.wait(0.2)
+            allPCs = findAllPCs()
+            return false
         end
-        canAutoJump = false
-    end
-    
-    if not pcData.computer or not pcData.computer.Parent then
-        updateStatus("❌ PC biến mất – dừng hack")
-        break
-    end
 
-    pcall(function()
-        local remote = Replicated:FindFirstChild("RemoteEvent")
-        if remote then
-            remote:FireServer("Input", "Action", true)
+        if isTriggerBeingHacked(currentTrigger) then
+            if canAutoJump then
+                updateStatus("👥 Có người hack chung – tắt auto jump")
+            end
+            canAutoJump = false
         end
-    end)
+
+        if not pcData.computer or not pcData.computer.Parent then
+            updateStatus("❌ PC biến mất – dừng hack")
+            break
+        end
+
+        pcall(function()
+            local remote = Replicated:FindFirstChild("RemoteEvent")
+            if remote then
+                remote:FireServer("Input", "Action", true)
+            end
+        end)
 
         local progress = getPlayerActionProgress()
-        
+
         if progress == lastProgress then
             stuckCount = stuckCount + 1
             if stuckCount > 10 then
                 updateStatus("Đang hack PC")
-
-                -- auto jump vẫn chạy ở luồng riêng nên không cần ChangeState ở đây
                 pcall(function()
                     local r = Replicated:FindFirstChild("RemoteEvent")
                     if r then
                         r:FireServer("Input", "Action", true)
                     end
                 end)
-                
                 stuckCount = 0
             end
         else
@@ -587,24 +600,20 @@ local function hackPC(pcData)
             end)
         end
 
-        -- Lấy screen PC
         local screen = pcData.computer:FindFirstChild("Screen")
+        local doneByColor2 = false
 
-        -- Check 1: dựa vào màu xanh lá
-        local doneByColor = false
         if screen and screen:IsA("BasePart") then
             local c = screen.Color
             if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
-                doneByColor = true
+                doneByColor2 = true
             end
         end
 
-        -- Check 2: dựa vào progress value >=0.999
-        if doneByColor or progress >= 0.999 then
+        if doneByColor2 or progress >= 0.999 then
             updateStatus("✔️ Hack xong PC " .. tostring(pcData.id))
             hackedPCs[pcData.id] = true
             allPCs = findAllPCs()
-
             isHacking = false
             currentPC = nil
             canAutoJump = false
@@ -615,21 +624,8 @@ local function hackPC(pcData)
                     local hrp = char:FindFirstChild("HumanoidRootPart")
                     local hum = char:FindFirstChild("Humanoid")
                     if hrp and hum then
-                        local safePos = Vector3.new(50, 73, 50) -- tọa độ mới
-
-                        -- Freeze nhân vật
-                        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
-                        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                        hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-
-                        -- Teleport 1 lần
+                        local safePos = Vector3.new(50, 73, 50)
                         char:PivotTo(CFrame.new(safePos))
-
-                        -- Chờ ổn định physics
-                        task.wait(0.05)
-
-                        -- Unfreeze
-                        hum:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
                     end
                 end
             end)
