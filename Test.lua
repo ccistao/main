@@ -790,7 +790,7 @@ local function mainLoop()
                         end
 
                         if skippedPCs[pcData.id] then
-                            log("⏭️ PC " .. pcData.id .. " đang trong skip list")1
+                            log("⏭️ PC " .. pcData.id .. " đang trong skip list")
                               
                             skippedPCs[pcData.id] = nil
                             log("♻️ Đã xóa PC " .. pcData.id .. " khỏi skip list")
