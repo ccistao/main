@@ -119,7 +119,7 @@ spawn(function()
         if actionBox then
             actionBox:GetPropertyChangedSignal("Visible"):Connect(function()
                 if scriptEnabled and actionBox.Visible and isHacking and currentPC then
-                    local remote = remote:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+                    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
                     if remote and remote.FireServer then
                         pcall(function()
                             remote:FireServer("Input", "Action", true)
@@ -846,7 +846,7 @@ local function mainLoop()
                     log("═══════════════════════════════")
                     log("✅ HOÀN TẤT TẤT CẢ PC")
                     log("═══════════════════════════════")
-
+                end
                 if hackExtraPC then
                     task.wait(2)
                 end
