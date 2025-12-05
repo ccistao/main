@@ -10,6 +10,8 @@ local Replicated = game:GetService("ReplicatedStorage")
 -- Settings
 local scriptEnabled = false
 local hackExtraPC = false
+local currentTrigger = nil
+local beastRoot = nil
 local ANTI_CHEAT_DELAY = 8
 local currentPC = nil
 local skippedPCs = {}
