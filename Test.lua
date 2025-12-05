@@ -789,13 +789,16 @@ local function mainLoop()
                             end
                         end
 
-                        -- ⭐ Bỏ qua PC đang nằm trong skip list
                         if skippedPCs[pcData.id] then
                             log("⏭️ Bỏ qua PC " .. pcData.id .. " (đang trong skip list)")
+                              
+                            skippedPCs[pcData.id] = nil
+                            log("♻️ Đã xóa PC " .. pcData.id .. " khỏi skip list")
+                            
                         elseif not skipCurrentPC then
                             hackPC(pcData)
                         end
-                    end -- ĐÃ ĐÓNG VÒNG LẶP FOR
+                    end
 
                     log("═══════════════════════════════")
                     log("✅ HOÀN TẤT TẤT CẢ PC")
@@ -823,10 +826,10 @@ local function mainLoop()
 
                 updateStatus("🎉 Round hoàn tất!")
                 log("🎉 ROUND HOÀN TẤT!")
-            end -- đóng else của waitForGameActive
-        end -- đóng else của scriptEnabled
-    end -- đóng while true
-end -- đóng function mainLoop
+            end
+        end
+    end
+end
 
 local function createGUI()
     local screenGui = Instance.new("ScreenGui")
