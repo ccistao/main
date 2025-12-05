@@ -655,17 +655,15 @@ local function autoExitUnified()
         local mapFolder = ReplicatedStorage:FindFirstChild("CurrentMap")
         local map = mapFolder and mapFolder.Value
         if not map then return exits end
-
         for _, obj in ipairs(map:GetDescendants()) do
             if obj:IsA("Model") and obj.Name == "ExitDoor" then
-                local doorTrigger = obj:FindFirstChild("ExitDoorTrigger")
-                local exitArea = obj:FindFirstChild("ExitArea") or doorTrigger
-
-                if exitArea then
+                local trig = obj:FindFirstChild("ExitDoorTrigger", true)
+                local area = obj:FindFirstChild("ExitArea", true)
+                if trig then
                     table.insert(exits, {
                         model = obj,
-                        trigger = doorTrigger or nil,
-                        area = exitArea
+                        trigger = trig,
+                        area = area or trig
                     })
                 end
             end
@@ -674,54 +672,66 @@ local function autoExitUnified()
     end
 
     local function canGoExit()
-        local gameStatus = ReplicatedStorage:FindFirstChild("GameStatus")
-        local status = gameStatus and gameStatus.Value or ""
-        status = tostring(status):upper()
-        return status:find("EXIT") ~= nil
+        local statusFolder = ReplicatedStorage:FindFirstChild("FTF_Status")
+        if not statusFolder then return false end
+        local phase = statusFolder:FindFirstChild("Phase")
+        if not phase then return false end
+        return tostring(phase.Value):lower():find("exit") ~= nil
     end
 
-    local function openExit(exitData)
-        local trig = exitData.trigger
+    local function tpFront(trigger)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if trig and root then
-            pcall(function()
-                firetouchinterest(root, trig, 0)
-                task.wait(0.1)
-                firetouchinterest(root, trig, 1)
-            end)
-        end
+        if not root then return end
+        local front = trigger.CFrame.LookVector
+        root.CFrame = CFrame.new(trigger.Position + front * 3 + Vector3.new(0, 2, 0))
     end
 
-    local function escapeExit(exitData)
-        local area = exitData.area
+    local function startOpening(trigger)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if area and root then
-            pcall(function()
-                root.CFrame = area.CFrame + Vector3.new(0, 2, 0)
-            end)
-        end
+        if not root then return end
+        firetouchinterest(root, trigger, 0)
+        task.wait(0.1)
+        firetouchinterest(root, trigger, 1)
     end
 
-    while task.wait(0.3) do
+    local function waitDoorOpened()
+        local stats = player:WaitForChild("TempPlayerStatsModule", 4)
+        if not stats then return end
+        local progress = stats:WaitForChild("ActionProgress", 4)
+        if not progress then return end
+        progress.Changed:Connect(function(v)
+            if v >= 0.999 then
+            end
+        end)
+    end
+
+    local function escape(exitData)
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not root or not exitData.area then return end
+        root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
+    end
+
+    while task.wait(0.2) do
         if canGoExit() then
             local exits = findExit()
             if #exits > 0 then
                 for _, exitData in ipairs(exits) do
                     if exitData ~= lastExitUsed then
-                        if exitData.trigger then
-                            openExit(exitData)
-                            task.wait(10.5) -- chờ cửa mở
-                        end
-                        escapeExit(exitData)
+                        tpFront(exitData.trigger)
+                        task.wait(0.4)
+                        startOpening(exitData.trigger)
+                        waitDoorOpened()
+                        task.wait(2)
+                        escape(exitData)
                         lastExitUsed = exitData
                         task.wait(1)
                     end
                 end
             else
-                task.wait(0.5) -- chưa load exit, chờ
+                task.wait(0.5)
             end
         else
-            task.wait(0.5) -- chưa tới phase exit, chờ
+            task.wait(0.5)
         end
     end
 end
