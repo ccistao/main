@@ -25,7 +25,7 @@ local statusLabel = nil
 local function log(message)
     print("[AUTO HACK] " .. tostring(message))
 end
-
+log("ver 0.0.2")
 local function updateStatus(status)
     if statusLabel then
         statusLabel.Text = "Status: " .. tostring(status)
