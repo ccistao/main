@@ -118,7 +118,7 @@ spawn(function()
         if actionBox then
             actionBox:GetPropertyChangedSignal("Visible"):Connect(function()
                 if scriptEnabled and actionBox.Visible and isHacking and currentPC then
-                    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+                    local remote = remote:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
                     if remote and remote.FireServer then
                         pcall(function()
                             remote:FireServer("Input", "Action", true)
@@ -176,16 +176,14 @@ local function waitForGameActive()
         -- Điều kiện 1: HEAD START xuất hiện
         if statusBox.Text and statusBox.Text:upper():find("15 SEC HEAD START") then
             updateStatus("✓ HEAD START xuất hiện... chờ PC load...")
-            task.wait(2) -- ⏳ thêm delay giúp map load PC hoàn toàn
-            updateStatus("✓ Game bắt đầu! Chạy script...")
+            task.wait(2) -- ⏳ thêm delay giúp map load PC hoàn toà
             return true
         end
 
         -- Điều kiện 2: isActiveFlag = true
         if isActiveFlag and isActiveFlag.Value == true then
             updateStatus("✓ Game Active! Chờ PC load...")
-            task.wait(2) -- bảo đảm PC đã spawn đủ
-            updateStatus("✓ Bắt đầu chạy script...")
+            task.wait(2)
             return true
         end
     end
@@ -412,8 +410,6 @@ local function antiCheatDelay()
         log("⏳ Chờ " .. i .. "s...")
         task.wait(1)
     end
-    
-    updateStatus("✓ Delay xong!")
 end
 
 -- AUTO PERFECT MINIGAME (NEVER FAIL)
@@ -511,7 +507,6 @@ local function hackPC(pcData)
     if doneByColor then
         updateStatus("💨 PC đã hoàn thành → bỏ qua anti-cheat")
     else
-        updateStatus("Đang hack pc")
         task.wait(0.2)
     end
 
@@ -772,10 +767,11 @@ local function mainLoop()
 
                     -- ✅ CHO PHÉP THỬ LẠI PC BỊ SKIP
                     local totalAttempts = 0
-                    local maxAttempts = #allPCs * 2  -- Thử tối đa 2 lần mỗi PC
+                    local maxAttempts = #allPCs * 3  -- Thử tối đa 3 lần mỗi PC
 
                     while totalAttempts < maxAttempts do
                         local hasSkippedPC = false
+                        local allCompleted = true  -- ✅ BIẾN MỚI: kiểm tra tất cả PC đã xong
                         
                         for idx, pcData in ipairs(allPCs) do
                             skipCurrentPC = false
@@ -801,40 +797,54 @@ local function mainLoop()
                             
                             -- ✅ PC BỊ SKIP
                             elseif skippedPCs[pcData.id] then
+                                allCompleted = false  -- ✅ CÒN PC CHƯA XONG
                                 if not isBeastNearby() then
                                     log("♻️ Beast đi xa - Thử lại PC " .. pcData.id)
                                     skippedPCs[pcData.id] = nil
-                                    hackPC(pcData)
+                                    local success = hackPC(pcData)
+                                    if not success then
+                                        hasSkippedPC = true  -- ✅ Nếu fail thì vẫn còn skip
+                                    end
                                 else
                                     log("⏭️ PC " .. pcData.id .. " bị skip - Beast vẫn gần")
                                     hasSkippedPC = true
                                 end
                             
                             -- ✅ PC CHƯA HACK
-                            elseif not skipCurrentPC then
-                                hackPC(pcData)
+                            else
+                                allCompleted = false  -- ✅ CÒN PC CHƯA XONG
+                                if not skipCurrentPC then
+                                    hackPC(pcData)
+                                end
                             end
                         end
 
                         totalAttempts = totalAttempts + 1
 
-                        -- ✅ KHÔNG CÒN PC BỊ SKIP → THOÁT
-                        if not hasSkippedPC then
+                        -- ✅ KIỂM TRA: TẤT CẢ PC ĐÃ HOÀN THÀNH?
+                        local remainingCount = 0
+                        for id, _ in pairs(skippedPCs) do
+                            remainingCount = remainingCount + 1
+                        end
+                        
+                        if allCompleted and remainingCount == 0 then
                             log("✅ Tất cả PC đã xử lý!")
                             break
                         end
 
-                        -- ✅ CHỜ 3S TRƯỚC KHI THỬ LẠI
-                        if hasSkippedPC then
-                            log("⏳ Chờ 3s rồi thử lại...")
+                        -- ✅ CHỜ 5S TRƯỚC KHI THỬ LẠI
+                        if hasSkippedPC and remainingCount > 0 then
+                            log("⏳ Còn " .. remainingCount .. " PC bị skip - Chờ 5s rồi thử lại...")
                             task.wait(3)
+                        elseif remainingCount == 0 then
+                            log("✅ Không còn PC bị skip!")
+                            break
                         end
                     end
 
                     log("═══════════════════════════════")
                     log("✅ HOÀN TẤT TẤT CẢ PC")
                     log("═══════════════════════════════")
-                end
 
                 if hackExtraPC then
                     task.wait(2)
@@ -1016,8 +1026,7 @@ end
 log("═══════════════════════════════════════")
 log("AUTO HACK PC - FLEE THE FACILITY")
 log("═══════════════════════════════════════")
-log("✓ Anti-cheat delay: " .. ANTI_CHEAT_DELAY .. "s")
-log("✓ Force TP sau mỗi PC")
+createHidePlatform()
 createGUI()
 findBeast()
 task.spawn(mainLoop)
