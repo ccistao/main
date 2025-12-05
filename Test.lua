@@ -506,7 +506,9 @@ local function hackPC(pcData)
         end
     end
 
+    local skipAnti = false
     if doneByColor then
+        skipAnti = true
         updateStatus("💨 PC đã hoàn thành → bỏ qua anti-cheat")
     else
         task.wait(0.2)
@@ -629,7 +631,9 @@ local function hackPC(pcData)
                     end
                 end
             end)
-
+            if skipAnti then 
+                return true
+            end
             updateStatus("⏳ Chờ " .. delayAfterHack .. "s tránh anti-cheat")
             task.wait(delayAfterHack)
             return true
