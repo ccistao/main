@@ -770,33 +770,64 @@ local function mainLoop()
                     updateStatus("Tìm thấy " .. #allPCs .. " PC")
                     log("✓ Tìm thấy " .. #allPCs .. " PC(s)")
 
-                    -- CHỈ 1 VÒNG LẶP DUY NHẤT
-                    for idx, pcData in ipairs(allPCs) do
-                        skipCurrentPC = false
-                        if not scriptEnabled then break end
+                    -- ✅ CHO PHÉP THỬ LẠI PC BỊ SKIP
+                    local totalAttempts = 0
+                    local maxAttempts = #allPCs * 2  -- Thử tối đa 2 lần mỗi PC
 
-                        log("")
-                        log("╔═══════════════════════════════╗")  
-                        log("║  PC " .. idx .. "/" .. #allPCs)
-                        log("╚═══════════════════════════════╝")
+                    while totalAttempts < maxAttempts do
+                        local hasSkippedPC = false
+                        
+                        for idx, pcData in ipairs(allPCs) do
+                            skipCurrentPC = false
+                            if not scriptEnabled then break end
 
-                        if isFindExitPhase() then
-                            if hackExtraPC then
-                                log("⚠️ Find Exit! Nhưng Extra PC BẬT")
-                            else
-                                log("⚠️ Find Exit! Dừng hack")
-                                break
+                            log("")
+                            log("╔═══════════════════════════════╗")  
+                            log("║  PC " .. idx .. "/" .. #allPCs .. " (Lần: " .. (totalAttempts + 1) .. ")")
+                            log("╚═══════════════════════════════╝")
+
+                            if isFindExitPhase() then
+                                if hackExtraPC then
+                                    log("⚠️ Find Exit! Nhưng Extra PC BẬT")
+                                else
+                                    log("⚠️ Find Exit! Dừng hack")
+                                    break
+                                end
+                            end
+
+                            -- ✅ PC ĐÃ HACK XONG
+                            if hackedPCs[pcData.id] then
+                                log("✓ PC " .. pcData.id .. " đã hoàn thành")
+                            
+                            -- ✅ PC BỊ SKIP
+                            elseif skippedPCs[pcData.id] then
+                                if not isBeastNearby() then
+                                    log("♻️ Beast đi xa - Thử lại PC " .. pcData.id)
+                                    skippedPCs[pcData.id] = nil
+                                    hackPC(pcData)
+                                else
+                                    log("⏭️ PC " .. pcData.id .. " bị skip - Beast vẫn gần")
+                                    hasSkippedPC = true
+                                end
+                            
+                            -- ✅ PC CHƯA HACK
+                            elseif not skipCurrentPC then
+                                hackPC(pcData)
                             end
                         end
 
-                        if skippedPCs[pcData.id] then
-                            log("⏭️ PC " .. pcData.id .. " đang trong skip list")
-                              
-                            skippedPCs[pcData.id] = nil
-                            log("♻️ Đã xóa PC " .. pcData.id .. " khỏi skip list")
-                            
-                        elseif not skipCurrentPC then
-                            hackPC(pcData)
+                        totalAttempts = totalAttempts + 1
+
+                        -- ✅ KHÔNG CÒN PC BỊ SKIP → THOÁT
+                        if not hasSkippedPC then
+                            log("✅ Tất cả PC đã xử lý!")
+                            break
+                        end
+
+                        -- ✅ CHỜ 3S TRƯỚC KHI THỬ LẠI
+                        if hasSkippedPC then
+                            log("⏳ Chờ 3s rồi thử lại...")
+                            task.wait(3)
                         end
                     end
 
