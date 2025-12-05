@@ -1,4 +1,3 @@
-log("ver 0.0.2")
 -- Auto Hack PC Script for Flee the Facility
 -- FIXED V2: Force Anti-Cheat Delay
 
