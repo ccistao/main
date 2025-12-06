@@ -773,11 +773,11 @@ local function mainLoop()
 
                     -- ✅ CHO PHÉP THỬ LẠI PC BỊ SKIP
                     local totalAttempts = 0
-                    local maxAttempts = #allPCs * 3  -- Thử tối đa 3 lần mỗi PC
+                    local maxAttempts = #allPCs * 3
 
                     while totalAttempts < maxAttempts do
                         local hasSkippedPC = false
-                        local allCompleted = true  -- ✅ BIẾN MỚI: kiểm tra tất cả PC đã xong
+                        local allCompleted = true
                         
                         for idx, pcData in ipairs(allPCs) do
                             skipCurrentPC = false
@@ -797,28 +797,23 @@ local function mainLoop()
                                 end
                             end
 
-                            -- ✅ PC ĐÃ HACK XONG
                             if hackedPCs[pcData.id] then
                                 log("✓ PC " .. pcData.id .. " đã hoàn thành")
-                            
-                            -- ✅ PC BỊ SKIP
                             elseif skippedPCs[pcData.id] then
-                                allCompleted = false  -- ✅ CÒN PC CHƯA XONG
+                                allCompleted = false
                                 if not isBeastNearby() then
                                     log("♻️ Beast đi xa - Thử lại PC " .. pcData.id)
                                     skippedPCs[pcData.id] = nil
                                     local success = hackPC(pcData)
                                     if not success then
-                                        hasSkippedPC = true  -- ✅ Nếu fail thì vẫn còn skip
+                                        hasSkippedPC = true
                                     end
                                 else
                                     log("⏭️ PC " .. pcData.id .. " bị skip - Beast vẫn gần")
                                     hasSkippedPC = true
                                 end
-                            
-                            -- ✅ PC CHƯA HACK
                             else
-                                allCompleted = false  -- ✅ CÒN PC CHƯA XONG
+                                allCompleted = false
                                 if not skipCurrentPC then
                                     hackPC(pcData)
                                 end
@@ -827,7 +822,6 @@ local function mainLoop()
 
                         totalAttempts = totalAttempts + 1
 
-                        -- ✅ KIỂM TRA: TẤT CẢ PC ĐÃ HOÀN THÀNH?
                         local remainingCount = 0
                         for id, _ in pairs(skippedPCs) do
                             remainingCount = remainingCount + 1
@@ -838,10 +832,9 @@ local function mainLoop()
                             break
                         end
 
-                        -- ✅ CHỜ 5S TRƯỚC KHI THỬ LẠI
                         if hasSkippedPC and remainingCount > 0 then
                             log("⏳ Còn " .. remainingCount .. " PC bị skip - Chờ 5s rồi thử lại...")
-                            task.wait(3)
+                            task.wait(5)
                         elseif remainingCount == 0 then
                             log("✅ Không còn PC bị skip!")
                             break
@@ -852,6 +845,7 @@ local function mainLoop()
                     log("✅ HOÀN TẤT TẤT CẢ PC")
                     log("═══════════════════════════════")
                 end
+
                 if hackExtraPC then
                     task.wait(2)
                 end
