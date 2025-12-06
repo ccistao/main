@@ -380,13 +380,17 @@ task.spawn(function()
 end)
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
-    local statusFolder = ReplicatedStorage:FindFirstChild("FTF_Status")
-    if not statusFolder then return false end
-
-    local phase = statusFolder:FindFirstChild("Phase")
-    if not phase then return false end
-
-    return tostring(phase.Value):lower():find("exit") ~= nil
+    -- ✅ KIỂM TRA GameStatus
+    local gameStatus = ReplicatedStorage:FindFirstChild("GameStatus")
+    if gameStatus then
+        local statusText = tostring(gameStatus.Value):upper()
+        if statusText:find("FIND") and statusText:find("EXIT") then
+            log("🚪 Phát hiện Find Exit: " .. statusText)
+            return true
+        end
+    end
+    
+    return false
 end
 
 local function antiCheatDelay()
@@ -647,7 +651,7 @@ local function hackPC(pcData)
     canAutoJump = false
     return false
 end
-    
+
 local function autoExitUnified()
     local lastExitUsed = nil
 
@@ -673,11 +677,14 @@ local function autoExitUnified()
     end
 
     local function canGoExit()
-        local statusFolder = ReplicatedStorage:FindFirstChild("FTF_Status")
-        if not statusFolder then return false end
-        local phase = statusFolder:FindFirstChild("Phase")
-        if not phase then return false end
-        return tostring(phase.Value):lower():find("exit") ~= nil
+        local gameStatus = ReplicatedStorage:FindFirstChild("GameStatus")
+        if gameStatus then
+            local statusText = tostring(gameStatus.Value):upper()
+            if statusText:find("FIND") and statusText:find("EXIT") then
+                return true
+            end
+        end
+        return false
     end
 
     local function tpFront(trigger)
@@ -689,55 +696,97 @@ local function autoExitUnified()
 
     local function startOpening(trigger)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not root then return end
+        if not root then return false end
+        
+        -- ✅ BẮT ĐẦU MỞ CỬA
         firetouchinterest(root, trigger, 0)
         task.wait(0.1)
         firetouchinterest(root, trigger, 1)
-    end
-
-    local function waitDoorOpened()
-        local stats = player:WaitForChild("TempPlayerStatsModule", 4)
-        if not stats then return end
-        local progress = stats:WaitForChild("ActionProgress", 4)
-        if not progress then return end
-        progress.Changed:Connect(function(v)
-            if v >= 0.999 then
+        
+        -- ✅ CHỜ VÀ KIỂM TRA BEAST TRONG KHI MỞ CỬA
+        local openingTime = 0
+        local maxOpenTime = 3 -- Tối đa 3 giây để mở cửa
+        
+        while openingTime < maxOpenTime do
+            task.wait(0.2)
+            openingTime = openingTime + 0.2
+            
+            -- ✅ NẾU BEAST GẦN → HỦY MỞ CỬA
+            if isBeastNearby() then
+                log("🚨 Beast gần Exit! Chuyển cửa khác...")
+                return false
             end
-        end)
+            
+            -- ✅ KIỂM TRA XEM CỬA ĐÃ MỞ CHƯA
+            local stats = player:FindFirstChild("TempPlayerStatsModule")
+            if stats then
+                local progress = stats:FindFirstChild("ActionProgress")
+                if progress and progress.Value >= 0.999 then
+                    log("✅ Cửa đã mở!")
+                    return true
+                end
+            end
+        end
+        
+        return true -- Timeout nhưng vẫn thử escape
     end
 
     local function escape(exitData)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root or not exitData.area then return end
+        
+        -- ✅ TP VÀO VÙNG THOÁT
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
+        log("🎉 Đã thoát qua Exit!")
     end
 
     while task.wait(0.2) do
         if canGoExit() then
             local exits = findExit()
-            if #exits > 0 then
+            
+            if #exits == 0 then
+                task.wait(0.5)
+            else
+                log("🚪 Tìm thấy " .. #exits .. " Exit")
+                
+                -- ✅ THỬ MỞ TỪNG EXIT
                 for _, exitData in ipairs(exits) do
-                    if exitData ~= lastExitUsed then
+                    if not scriptEnabled then break end
+                    
+                    -- ✅ BỎ QUA EXIT ĐÃ DÙNG (nếu có)
+                    if exitData == lastExitUsed then
+                        log("⏭️ Bỏ qua Exit đã dùng")
+                    else
+                        log("🚪 Thử mở Exit...")
+                        
+                        -- ✅ TP ĐẾN EXIT
                         tpFront(exitData.trigger)
                         task.wait(0.4)
-                        startOpening(exitData.trigger)
-                        waitDoorOpened()
-                        task.wait(2)
-                        escape(exitData)
-                        lastExitUsed = exitData
-                        task.wait(1)
+                        
+                        -- ✅ BẮT ĐẦU MỞ CỬA (trả về false nếu Beast gần)
+                        local success = startOpening(exitData.trigger)
+                        
+                        if success then
+                            -- ✅ CỬA MỞ THÀNH CÔNG → THOÁT
+                            task.wait(1)
+                            escape(exitData)
+                            lastExitUsed = exitData
+                            task.wait(1)
+                            break -- ✅ ĐÃ THOÁT, DỪNG VÒNG LẶP
+                        else
+                            -- ✅ BEAST GẦN → THỬ EXIT TIẾP THEO
+                            log("⚠️ Beast chặn Exit này, thử Exit khác...")
+                            task.wait(0.5)
+                            -- Tiếp tục vòng lặp sang Exit tiếp theo
+                        end
                     end
                 end
-            else
-                task.wait(0.5)
             end
         else
             task.wait(0.5)
         end
     end
 end
-
-task.spawn(autoExitUnified)
 
 local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
