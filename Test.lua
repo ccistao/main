@@ -910,8 +910,6 @@ local function mainLoop()
                 if isFindExitPhase() then
                     updateStatus("✓ Find Exit!")
                     log("✓ Phát hiện Find Exit!")
-                    task.wait(1)
-                    task.spawn(autoExitUnified)
                 end
 
                 updateStatus("🎉 Round hoàn tất!")
@@ -1078,5 +1076,6 @@ log("═════════════════════════
 createHidePlatform()
 createGUI()
 findBeast()
+task.spawn(autoExitUnified) 
 task.spawn(mainLoop)
 log("✓ Script loaded!")
