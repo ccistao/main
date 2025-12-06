@@ -10,6 +10,7 @@ local Replicated = game:GetService("ReplicatedStorage")
 -- Settings
 local scriptEnabled = false
 local hackExtraPC = false
+local autointeracttoggle = true
 local currentTrigger = nil
 local beastRoot = nil
 local ANTI_CHEAT_DELAY = 8
@@ -112,19 +113,20 @@ end
 
 -- THAY THẾ: spawn block dùng ActionBox (an toàn, không block)
 spawn(function()
-    if not scriptEnabled then return end
     local playerGui = player:WaitForChild("PlayerGui")
     local function bindToScreenGui(screenGui)
         if not screenGui then return end
         local actionBox = screenGui:FindFirstChild("ActionBox")
         if actionBox then
             actionBox:GetPropertyChangedSignal("Visible"):Connect(function()
-                if scriptEnabled and actionBox.Visible and isHacking and currentPC then
-                    local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
-                    if remote and remote.FireServer then
-                        pcall(function()
-                            remote:FireServer("Input", "Action", true)
-                        end)
+                if actionBox.Visible then
+                    if (scriptEnabled and isHacking and currentPC) or autointeracttoggle then
+                        local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+                        if remote and remote.FireServer then
+                            pcall(function()
+                                remote:FireServer("Input", "Action", true)
+                            end)
+                        end
                     end
                 end
             end)
@@ -132,12 +134,14 @@ spawn(function()
             screenGui.ChildAdded:Connect(function(child)
                 if child.Name == "ActionBox" then
                     child:GetPropertyChangedSignal("Visible"):Connect(function()
-                        if scriptEnabled and child.Visible and isHacking and currentPC then
-                            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
-                            if remote and remote.FireServer then
-                                pcall(function()
-                                    remote:FireServer("Input", "Action", true)
-                                end)
+                        if child.Visible then
+                            if (scriptEnabled and isHacking and currentPC) or autointeracttoggle then
+                                local remote = game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvent")
+                                if remote and remote.FireServer then
+                                    pcall(function()
+                                        remote:FireServer("Input", "Action", true)
+                                    end)
+                                end
                             end
                         end
                     end)
@@ -145,18 +149,10 @@ spawn(function()
             end)
         end
     end
-    local existing = playerGui:FindFirstChild("AutoHackGUI")
-    if existing then
-        bindToScreenGui(existing)
-    else
-        playerGui.ChildAdded:Connect(function(child)
-            if child.Name == "AutoHackGUI" then
-                bindToScreenGui(child)
-            end
-        end)
-    end
+    
+    local screenGui = playerGui:WaitForChild("ScreenGui")
+    bindToScreenGui(screenGui)
 end)
-
 local function waitForGameActive()
     updateStatus("⏳ Chờ game chuẩn bị...")
 
@@ -357,16 +353,12 @@ local function findAllPCs()
             end
         end
     end
-
-    -- gán ID
     for i, pc in ipairs(found) do
         pc.id = i
     end
 
     return found
 end
-
--- 🔁 Auto scan mỗi 0.4s cho đến khi tìm được PC
 task.spawn(function()
     while true do
         local pcs = findAllPCs()
@@ -380,7 +372,6 @@ task.spawn(function()
 end)
 -- ===== GLOBAL isFindExitPhase() =====
 local function isFindExitPhase()
-    -- ✅ KIỂM TRA GameStatus
     local gameStatus = ReplicatedStorage:FindFirstChild("GameStatus")
     if gameStatus then
         local statusText = tostring(gameStatus.Value):upper()
@@ -548,14 +539,13 @@ local function hackPC(pcData)
         canAutoJump = false
         skipCurrentPC = true
         
-        -- ⚠️ CHỈ SKIP PC HIỆN TẠI, KHÔNG XÓA TOÀN BỘ LIST
         if pcData and pcData.id then
             skippedPCs[pcData.id] = true
             log("⏭️ Đã thêm PC " .. pcData.id .. " vào skip list")
         end
         
         escapeBeast()
-        return false  -- Thoát ngay, không reset skippedPCs
+        return false
     end
 
         if isTriggerBeingHacked(currentTrigger) then
@@ -697,45 +687,45 @@ local function autoExitUnified()
     local function startOpening(trigger)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root then return false end
-        
-        -- ✅ BẮT ĐẦU MỞ CỬA
+    
+        autointeracttoggle = true
+    
         firetouchinterest(root, trigger, 0)
         task.wait(0.1)
         firetouchinterest(root, trigger, 1)
-        
-        -- ✅ CHỜ VÀ KIỂM TRA BEAST TRONG KHI MỞ CỬA
+    
         local openingTime = 0
-        local maxOpenTime = 3 -- Tối đa 3 giây để mở cửa
-        
+        local maxOpenTime = 11
+    
         while openingTime < maxOpenTime do
             task.wait(0.2)
             openingTime = openingTime + 0.2
-            
-            -- ✅ NẾU BEAST GẦN → HỦY MỞ CỬA
+        
             if isBeastNearby() then
                 log("🚨 Beast gần Exit! Chuyển cửa khác...")
+                autointeracttoggle = false
                 return false
             end
-            
-            -- ✅ KIỂM TRA XEM CỬA ĐÃ MỞ CHƯA
+        
             local stats = player:FindFirstChild("TempPlayerStatsModule")
             if stats then
                 local progress = stats:FindFirstChild("ActionProgress")
                 if progress and progress.Value >= 0.999 then
                     log("✅ Cửa đã mở!")
+                    autointeracttoggle = false
                     return true
                 end
             end
         end
-        
-        return true -- Timeout nhưng vẫn thử escape
+    
+        autointeracttoggle = false
+        return true
     end
 
     local function escape(exitData)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root or not exitData.area then return end
         
-        -- ✅ TP VÀO VÙNG THOÁT
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
         log("🎉 Đã thoát qua Exit!")
     end
