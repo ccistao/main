@@ -649,6 +649,7 @@ local function autoExitUnified()
     local openedExits = {}
     local hasEscaped = false
 
+    -- 🧭 Tìm toàn bộ Exit
     local function findExit()
         local exits = {}
         local mapFolder = ReplicatedStorage:FindFirstChild("CurrentMap")
@@ -670,17 +671,20 @@ local function autoExitUnified()
         return exits
     end
 
+    -- 🔎 Kiểm tra trạng thái game có cho escape chưa
     local function canGoExit()
         local gameStatus = ReplicatedStorage:FindFirstChild("GameStatus")
         if gameStatus then
             local statusText = tostring(gameStatus.Value):upper()
-            if statusText:find("FIND") and statusText:find("EXIT") then
+            -- 🔥 Fix: dùng “ESCAPE” thay vì chỉ “EXIT” để tránh trigger sớm
+            if statusText:find("FIND") and (statusText:find("EXIT") or statusText:find("ESCAPE")) then
                 return true
             end
         end
         return false
     end
 
+    -- 📍 Dịch chuyển đến phía trước cửa
     local function tpFront(trigger)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root then return end
@@ -688,6 +692,7 @@ local function autoExitUnified()
         root.CFrame = CFrame.new(trigger.Position + front * 3 + Vector3.new(0, 2, 0))
     end
 
+    -- 🟢 Kiểm tra cửa đã mở hoàn toàn chưa
     local function isExitOpened(exitData)
         local trigger = exitData.trigger
         if trigger then
@@ -698,9 +703,11 @@ local function autoExitUnified()
                 end
             end
         end
+        -- ❌ Không dùng openedExits vì dễ đánh dấu nhầm
         return false
     end
 
+    -- 🚪 Tiến trình mở cửa
     local function startOpening(trigger, exitData)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root then return false end
@@ -743,10 +750,9 @@ local function autoExitUnified()
                     log("✅ Cửa Exit đã mở hoàn toàn!")
 
                     autointeracttoggle = false
-                    task.wait(0.2)
+                    task.wait(0.25)
 
-                    openedExits[exitData] = true
-                    
+                    -- ⚠️ Không set openedExits ở đây (tránh trigger nhầm)
                     pcall(function()
                         local char = player.Character
                         if char then
@@ -777,27 +783,27 @@ local function autoExitUnified()
         return true
     end
 
+    -- 🏃 Escape
     local function escape(exitData)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root or not exitData.area then return end
         
         autointeracttoggle = false
-        
         log("🚀 Đang escape...")
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
         log("🎉 Đã thoát qua Exit!")
     end
 
+    -- 🔁 Vòng lặp chính
     while true do
         task.wait(0.2)
 
-        -- Nếu đã escape -> dừng
         if hasEscaped then
             log("✅ Đã escape, dừng autoExitUnified")
             break
         end
 
-        -- Nếu chưa vào phase FIND EXIT thì ngủ ngắn và quay lại (KHÔNG chạy phần auto-exit)
+        -- 🔥 Chỉ chạy khi thật sự vào phase FIND EXIT / ESCAPE
         if not canGoExit() then
             task.wait(0.3)
         else
@@ -829,10 +835,10 @@ local function autoExitUnified()
                             end)
 
                             task.wait(3)
-
                             escape(exitData)
                             lastExitUsed = exitData
                             hasEscaped = true
+                            scriptEnabled = false -- ✅ đảm bảo dừng toàn bộ
                             task.wait(1)
                             break
                         else
@@ -851,6 +857,7 @@ local function autoExitUnified()
                                     escape(exitData)
                                     lastExitUsed = exitData
                                     hasEscaped = true
+                                    scriptEnabled = false -- 🔥 tránh lặp status
                                     task.wait(1)
                                     break
                                 else
@@ -868,6 +875,7 @@ local function autoExitUnified()
             end
         end
     end
+end
 
 local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
