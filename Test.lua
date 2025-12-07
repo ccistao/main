@@ -84,11 +84,12 @@ local function findBeast()
     end)
 end
 
-local function isBeastNearby()
+local function isBeastNearby(distance)
+    distance = distance or 23  -- ✅ Mặc định 23, có thể tùy chỉnh
     if not foundBeast or not beast or not beast.Character then return false end
     local beastRoot = beast.Character:FindFirstChild("HumanoidRootPart")
     if not beastRoot or not rootPart then return false end
-    return (rootPart.Position - beastRoot.Position).Magnitude <= 23
+    return (rootPart.Position - beastRoot.Position).Magnitude <= distance
 end
 
 local function createHidePlatform()
@@ -644,6 +645,7 @@ end
 
 local function autoExitUnified()
     local lastExitUsed = nil
+    local openedExits = {}  -- ✅ THEO DÕI CỬA ĐÃ MỞ
 
     local function findExit()
         local exits = {}
@@ -683,41 +685,101 @@ local function autoExitUnified()
         local front = trigger.CFrame.LookVector
         root.CFrame = CFrame.new(trigger.Position + front * 3 + Vector3.new(0, 2, 0))
     end
-
-    local function startOpening(trigger)
-        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not root then return false end
     
-        autointeracttoggle = true
-    
-        firetouchinterest(root, trigger, 0)
-        task.wait(0.1)
-        firetouchinterest(root, trigger, 1)
-    
-        local openingTime = 0
-        local maxOpenTime = 11
-    
-        while openingTime < maxOpenTime do
-            task.wait(0.2)
-            openingTime = openingTime + 0.2
-        
-            if isBeastNearby() then
-                log("🚨 Beast gần Exit! Chuyển cửa khác...")
-                autointeracttoggle = false
-                return false
-            end
-        
-            local stats = player:FindFirstChild("TempPlayerStatsModule")
-            if stats then
-                local progress = stats:FindFirstChild("ActionProgress")
-                if progress and progress.Value >= 0.999 then
-                    log("✅ Cửa đã mở!")
-                    autointeracttoggle = false
+    -- ✅ KIỂM TRA CỬA ĐÃ MỞ CHƯA
+    local function isExitOpened(exitData)
+        -- Cách 1: Kiểm tra ActionProgress của cửa
+        local trigger = exitData.trigger
+        if trigger and trigger.Parent then
+            local progress = trigger.Parent:FindFirstChild("ActionProgress", true)
+            if progress and (progress:IsA("IntValue") or progress:IsA("NumberValue")) then
+                if progress.Value >= 0.999 then
                     return true
                 end
             end
         end
+        
+        -- Cách 2: Kiểm tra trong openedExits
+        if openedExits[exitData] then
+            return true
+        end
+        
+        return false
+    end
+
+    local function startOpening(trigger, exitData)
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not root then return false end
     
+        log("🔵 Bắt đầu mở cửa Exit...")
+        autointeracttoggle = true
+    
+        -- ✅ KÍCH HOẠT TRIGGER
+        pcall(function()
+            firetouchinterest(root, trigger, 0)
+            task.wait(0.1)
+            firetouchinterest(root, trigger, 1)
+        end)
+    
+        task.wait(0.3)
+    
+        local openingTime = 0
+        local maxOpenTime = 10
+    
+        while openingTime < maxOpenTime do
+            task.wait(0.15)
+            openingTime = openingTime + 0.15
+        
+            -- ✅ SPAM REMOTE EVENT
+            pcall(function()
+                local remote = ReplicatedStorage:FindFirstChild("RemoteEvent")
+                if remote then
+                    remote:FireServer("Input", "Action", true)
+                end
+            end)
+        
+            if isBeastNearby(40) then
+                log("🚨 Beast gần Exit (40 studs)! Chuyển cửa khác...")
+                autointeracttoggle = false
+                return false
+            end
+        
+            -- ✅ KIỂM TRA TIẾN TRÌNH
+            local stats = player:FindFirstChild("TempPlayerStatsModule")
+            if stats then
+                local progress = stats:FindFirstChild("ActionProgress")
+                if progress and progress.Value >= 0.999 then
+                    log("✅ Cửa Exit đã mở hoàn toàn!")
+                    autointeracttoggle = false
+                    
+                    -- ✅ ĐÁNH DẤU CỬA ĐÃ MỞ
+                    openedExits[exitData] = true
+                    
+                    -- ✅ TP LÊN SAFE POS NGAY LẬP TỨC
+                    pcall(function()
+                        local char = player.Character
+                        if char then
+                            local hrp = char:FindFirstChild("HumanoidRootPart")
+                            if hrp then
+                                local safePos = Vector3.new(50, 73, 50)
+                                char:PivotTo(CFrame.new(safePos))
+                                log("🛡️ TP lên safe pos, chờ 3s...")
+                            end
+                        end
+                    end)
+                    
+                    task.wait(3)  -- ✅ CHỜ 3S TRÊN TRỜI
+                    return true
+                elseif progress and progress.Value > 0 then
+                    local percent = math.floor(progress.Value * 100)
+                    if percent % 20 == 0 and percent > 0 then
+                        log("   📊 Đang mở cửa: " .. percent .. "%")
+                    end
+                end
+            end
+        end
+    
+        log("⏱️ Timeout - Thử escape...")
         autointeracttoggle = false
         return true
     end
@@ -726,6 +788,9 @@ local function autoExitUnified()
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root or not exitData.area then return end
         
+        log("🚀 Đang escape...")
+        
+        -- ✅ TP VÀO EXIT AREA
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
         log("🎉 Đã thoát qua Exit!")
     end
@@ -739,35 +804,62 @@ local function autoExitUnified()
             else
                 log("🚪 Tìm thấy " .. #exits .. " Exit")
                 
-                -- ✅ THỬ MỞ TỪNG EXIT
                 for _, exitData in ipairs(exits) do
                     if not scriptEnabled then break end
                     
-                    -- ✅ BỎ QUA EXIT ĐÃ DÙNG (nếu có)
                     if exitData == lastExitUsed then
                         log("⏭️ Bỏ qua Exit đã dùng")
                     else
-                        log("🚪 Thử mở Exit...")
-                        
-                        -- ✅ TP ĐẾN EXIT
-                        tpFront(exitData.trigger)
-                        task.wait(0.4)
-                        
-                        -- ✅ BẮT ĐẦU MỞ CỬA (trả về false nếu Beast gần)
-                        local success = startOpening(exitData.trigger)
-                        
-                        if success then
-                            -- ✅ CỬA MỞ THÀNH CÔNG → THOÁT
-                            task.wait(1)
+                        -- ✅ KIỂM TRA CỬA ĐÃ MỞ CHƯA
+                        if isExitOpened(exitData) then
+                            log("🟢 Cửa đã mở sẵn! Escape luôn...")
+                            
+                            -- ✅ TP LÊN SAFE POS
+                            pcall(function()
+                                local char = player.Character
+                                if char then
+                                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                                    if hrp then
+                                        local safePos = Vector3.new(50, 73, 50)
+                                        char:PivotTo(CFrame.new(safePos))
+                                        log("🛡️ TP lên safe pos, chờ 3s...")
+                                    end
+                                end
+                            end)
+                            
+                            task.wait(3)
+                            
+                            -- ✅ ESCAPE LUÔN
                             escape(exitData)
                             lastExitUsed = exitData
                             task.wait(1)
-                            break -- ✅ ĐÃ THOÁT, DỪNG VÒNG LẶP
+                            break
                         else
-                            -- ✅ BEAST GẦN → THỬ EXIT TIẾP THEO
-                            log("⚠️ Beast chặn Exit này, thử Exit khác...")
-                            task.wait(0.5)
-                            -- Tiếp tục vòng lặp sang Exit tiếp theo
+                            log("🚪 Thử mở Exit...")
+                            
+                            -- ✅ TP ĐẾN EXIT
+                            tpFront(exitData.trigger)
+                            task.wait(0.4)
+                            
+                            -- ✅ KIỂM TRA BEAST TRƯỚC KHI MỞ
+                            if isBeastNearby(40) then
+                                log("⚠️ Beast gần Exit này, thử Exit khác...")
+                                task.wait(0.5)
+                            else
+                                -- ✅ BẮT ĐẦU MỞ CỬA (đã bao gồm TP safe pos + wait 3s)
+                                local success = startOpening(exitData.trigger, exitData)
+                            
+                                if success then
+                                    -- ✅ ESCAPE SAU KHI CHỜ 3S
+                                    escape(exitData)
+                                    lastExitUsed = exitData
+                                    task.wait(1)
+                                    break
+                                else
+                                    log("⚠️ Beast chặn Exit này, thử Exit khác...")
+                                    task.wait(0.5)
+                                end
+                            end
                         end
                     end
                 end
@@ -777,6 +869,7 @@ local function autoExitUnified()
         end
     end
 end
+
 
 local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
