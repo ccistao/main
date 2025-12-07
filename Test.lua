@@ -789,6 +789,8 @@ local function autoExitUnified()
     
         log("⏱️ Timeout - Thử escape...")
         autointeracttoggle = false
+        hasEscaped = true 
+        scriptEnabled = false 
         return true
     end
 
@@ -797,6 +799,8 @@ local function autoExitUnified()
         if not root or not exitData.area then return end
         
         autointeracttoggle = false
+        hasEscaped = true 
+        scriptEnabled = false 
         log("🚀 Đang escape...")
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
         log("🎉 Đã thoát qua Exit!")
@@ -887,6 +891,11 @@ local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
 
     while true do
+        if hasEscaped then
+            updateStatus("🎉 Đã escape – dừng toàn bộ script")
+            log("🎉 ĐÃ ESCAPE → MAIN LOOP DỪNG")
+            break
+        end
         if not scriptEnabled then
             updateStatus("Script TẮT")
             task.wait(0.5)
@@ -976,8 +985,8 @@ local function mainLoop()
                         end
 
                         if hasSkippedPC and remainingCount > 0 then
-                            log("⏳ Còn " .. remainingCount .. " PC bị skip - Chờ 5s rồi thử lại...")
-                            task.wait(5)
+                            log("⏳ Còn " .. remainingCount .. " PC bị skip - Chờ 3s rồi thử lại...")
+                            task.wait(3)
                         elseif remainingCount == 0 then
                             log("✅ Không còn PC bị skip!")
                             break
