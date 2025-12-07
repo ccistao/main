@@ -788,84 +788,86 @@ local function autoExitUnified()
         log("🎉 Đã thoát qua Exit!")
     end
 
-    while task.wait(0.2) do
-        
-        if not canGoExit() then
-            task.wait(0.3)
-            continue
-        end
+    while true do
+        task.wait(0.2)
 
+        -- Nếu đã escape -> dừng
         if hasEscaped then
             log("✅ Đã escape, dừng autoExitUnified")
             break
         end
-        
-        local exits = findExit()
-        if #exits == 0 then
-            task.wait(0.5)
+
+        -- Nếu chưa vào phase FIND EXIT thì ngủ ngắn và quay lại (KHÔNG chạy phần auto-exit)
+        if not canGoExit() then
+            task.wait(0.3)
         else
-            log("🚪 Tìm thấy " .. #exits .. " Exit")
-            
-            for _, exitData in ipairs(exits) do
-                if not scriptEnabled then break end
-                
-                if exitData == lastExitUsed then
-                    log("⏭️ Bỏ qua Exit đã dùng")
-                else
-                    if isExitOpened(exitData) then
-                        log("🟢 Cửa đã mở sẵn! Escape luôn...")
-                        
-                        pcall(function()
-                            local char = player.Character
-                            if char then
-                                local hrp = char:FindFirstChild("HumanoidRootPart")
-                                if hrp then
-                                    local safePos = Vector3.new(50, 73, 50)
-                                    char:PivotTo(CFrame.new(safePos))
-                                    log("🛡️ TP lên safe pos, chờ 3s...")
-                                end
-                            end
-                        end)
-                        
-                        task.wait(3)
-                        
-                        escape(exitData)
-                        lastExitUsed = exitData
-                        hasEscaped = true
-                        task.wait(1)
-                        break
+            local exits = findExit()
+            if #exits == 0 then
+                task.wait(0.5)
+            else
+                log("🚪 Tìm thấy " .. #exits .. " Exit")
+
+                for _, exitData in ipairs(exits) do
+                    if not scriptEnabled then break end
+
+                    if exitData == lastExitUsed then
+                        log("⏭️ Bỏ qua Exit đã dùng")
                     else
-                        log("🚪 Thử mở Exit...")
-                        
-                        tpFront(exitData.trigger)
-                        task.wait(0.4)
-                        
-                        if isBeastNearby(40) then
-                            log("⚠️ Beast gần Exit này, thử Exit khác..")
-                            task.wait(0.5)
+                        if isExitOpened(exitData) then
+                            log("🟢 Cửa đã mở sẵn! Escape luôn...")
+
+                            pcall(function()
+                                local char = player.Character
+                                if char then
+                                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                                    if hrp then
+                                        local safePos = Vector3.new(50, 73, 50)
+                                        char:PivotTo(CFrame.new(safePos))
+                                        log("🛡️ TP lên safe pos, chờ 3s...")
+                                    end
+                                end
+                            end)
+
+                            task.wait(3)
+
+                            escape(exitData)
+                            lastExitUsed = exitData
+                            hasEscaped = true
+                            task.wait(1)
+                            break
                         else
-                            local success = startOpening(exitData.trigger, exitData)
-                        
-                            if success then
-                                escape(exitData)
-                                lastExitUsed = exitData
-                                hasEscaped = true
-                                task.wait(1)
-                                break
-                            else
-                                log("⚠️ Beast chặn Exit này, thử Exit khác...")
+                            log("🚪 Thử mở Exit...")
+
+                            tpFront(exitData.trigger)
+                            task.wait(0.4)
+
+                            if isBeastNearby(40) then
+                                log("⚠️ Beast gần Exit này, thử Exit khác..")
                                 task.wait(0.5)
+                            else
+                                local success = startOpening(exitData.trigger, exitData)
+
+                                if success then
+                                    escape(exitData)
+                                    lastExitUsed = exitData
+                                    hasEscaped = true
+                                    task.wait(1)
+                                    break
+                                else
+                                    log("⚠️ Beast chặn Exit này, thử Exit khác...")
+                                    task.wait(0.5)
+                                end
                             end
                         end
                     end
                 end
-            end
-            if hasEscaped then
-                break
+
+                if hasEscaped then
+                    break
+                end
             end
         end
     end
-end
 
 local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
