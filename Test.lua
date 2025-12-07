@@ -645,7 +645,8 @@ end
 
 local function autoExitUnified()
     local lastExitUsed = nil
-    local openedExits = {}  -- ✅ THEO DÕI CỬA ĐÃ MỞ
+    local openedExits = {}
+    local hasEscaped = false  -- ✅ FLAG ĐỂ DỪNG VÒNG LẶP
 
     local function findExit()
         local exits = {}
@@ -686,9 +687,7 @@ local function autoExitUnified()
         root.CFrame = CFrame.new(trigger.Position + front * 3 + Vector3.new(0, 2, 0))
     end
     
-    -- ✅ KIỂM TRA CỬA ĐÃ MỞ CHƯA
     local function isExitOpened(exitData)
-        -- Cách 1: Kiểm tra ActionProgress của cửa
         local trigger = exitData.trigger
         if trigger and trigger.Parent then
             local progress = trigger.Parent:FindFirstChild("ActionProgress", true)
@@ -699,7 +698,6 @@ local function autoExitUnified()
             end
         end
         
-        -- Cách 2: Kiểm tra trong openedExits
         if openedExits[exitData] then
             return true
         end
@@ -714,7 +712,6 @@ local function autoExitUnified()
         log("🔵 Bắt đầu mở cửa Exit...")
         autointeracttoggle = true
     
-        -- ✅ KÍCH HOẠT TRIGGER
         pcall(function()
             firetouchinterest(root, trigger, 0)
             task.wait(0.1)
@@ -730,7 +727,6 @@ local function autoExitUnified()
             task.wait(0.15)
             openingTime = openingTime + 0.15
         
-            -- ✅ SPAM REMOTE EVENT
             pcall(function()
                 local remote = ReplicatedStorage:FindFirstChild("RemoteEvent")
                 if remote then
@@ -744,18 +740,20 @@ local function autoExitUnified()
                 return false
             end
         
-            -- ✅ KIỂM TRA TIẾN TRÌNH
             local stats = player:FindFirstChild("TempPlayerStatsModule")
             if stats then
                 local progress = stats:FindFirstChild("ActionProgress")
                 if progress and progress.Value >= 0.999 then
                     log("✅ Cửa Exit đã mở hoàn toàn!")
+                    
+                    -- ✅ TẮT AUTO INTERACT NGAY
                     autointeracttoggle = false
                     
-                    -- ✅ ĐÁNH DẤU CỬA ĐÃ MỞ
+                    -- ✅ CHỜ 0.5S ĐỂ ActionBox BIẾN MẤT
+                    task.wait(0.2)
+                    
                     openedExits[exitData] = true
                     
-                    -- ✅ TP LÊN SAFE POS NGAY LẬP TỨC
                     pcall(function()
                         local char = player.Character
                         if char then
@@ -768,7 +766,7 @@ local function autoExitUnified()
                         end
                     end)
                     
-                    task.wait(3)  -- ✅ CHỜ 3S TRÊN TRỜI
+                    task.wait(3)
                     return true
                 elseif progress and progress.Value > 0 then
                     local percent = math.floor(progress.Value * 100)
@@ -788,14 +786,21 @@ local function autoExitUnified()
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root or not exitData.area then return end
         
-        log("🚀 Đang escape...")
+        -- ✅ ĐẢM BẢO TẮT AUTO INTERACT
+        autointeracttoggle = false
         
-        -- ✅ TP VÀO EXIT AREA
+        log("🚀 Đang escape...")
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
         log("🎉 Đã thoát qua Exit!")
     end
 
     while task.wait(0.2) do
+        -- ✅ NẾU ĐÃ ESCAPE → DỪNG VÒNG LẶP
+        if hasEscaped then
+            log("✅ Đã escape, dừng autoExitUnified")
+            break
+        end
+        
         if canGoExit() then
             local exits = findExit()
             
@@ -810,11 +815,9 @@ local function autoExitUnified()
                     if exitData == lastExitUsed then
                         log("⏭️ Bỏ qua Exit đã dùng")
                     else
-                        -- ✅ KIỂM TRA CỬA ĐÃ MỞ CHƯA
                         if isExitOpened(exitData) then
                             log("🟢 Cửa đã mở sẵn! Escape luôn...")
                             
-                            -- ✅ TP LÊN SAFE POS
                             pcall(function()
                                 local char = player.Character
                                 if char then
@@ -829,30 +832,27 @@ local function autoExitUnified()
                             
                             task.wait(3)
                             
-                            -- ✅ ESCAPE LUÔN
                             escape(exitData)
                             lastExitUsed = exitData
+                            hasEscaped = true  -- ✅ ĐÁNH DẤU ĐÃ ESCAPE
                             task.wait(1)
                             break
                         else
                             log("🚪 Thử mở Exit...")
                             
-                            -- ✅ TP ĐẾN EXIT
                             tpFront(exitData.trigger)
                             task.wait(0.4)
                             
-                            -- ✅ KIỂM TRA BEAST TRƯỚC KHI MỞ
                             if isBeastNearby(40) then
-                                log("⚠️ Beast gần Exit này, thử Exit khác...")
+                                log("⚠️ Beast gần Exit này, thử Exit khác..LẶ)
                                 task.wait(0.5)
                             else
-                                -- ✅ BẮT ĐẦU MỞ CỬA (đã bao gồm TP safe pos + wait 3s)
                                 local success = startOpening(exitData.trigger, exitData)
                             
                                 if success then
-                                    -- ✅ ESCAPE SAU KHI CHỜ 3S
                                     escape(exitData)
                                     lastExitUsed = exitData
+                                    hasEscaped = true  -- ✅ ĐÁNH DẤU ĐÃ ESCAPE
                                     task.wait(1)
                                     break
                                 else
@@ -863,13 +863,15 @@ local function autoExitUnified()
                         end
                     end
                 end
+                if hasEscaped then
+                    break
+                end
             end
         else
             task.wait(0.5)
         end
     end
 end
-
 
 local function mainLoop()
     log("🚀 AUTO HACK ĐANG CHẠY!")
