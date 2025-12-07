@@ -683,10 +683,26 @@ local function autoExitUnified()
     end
 
     local function tpFront(trigger)
-        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local char = player.Character
+        if not char then return end
+
+        local root = char:FindFirstChild("HumanoidRootPart")
         if not root then return end
-        local front = trigger.CFrame.LookVector
-        root.CFrame = CFrame.new(trigger.Position + front * 3 + Vector3.new(0, 2, 0))
+
+        root.CanCollide = false
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+        local pos = trigger.Position
+        local stickCFrame = CFrame.new(pos.X, pos.Y + 2.5, pos.Z)
+
+        root.CFrame = stickCFrame
+
+        task.delay(0.5, function()
+            if root then
+                root.CanCollide = true
+            end
+        end)
     end
 
     local function isExitOpened(exitData)
@@ -715,10 +731,10 @@ local function autoExitUnified()
             firetouchinterest(root, trigger, 1)
         end)
     
-        task.wait(0.3)
+        task.wait(0.15)
     
         local openingTime = 0
-        local maxOpenTime = 10
+        local maxOpenTime = 15
     
         while openingTime < maxOpenTime do
             task.wait(0.15)
