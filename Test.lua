@@ -844,7 +844,7 @@ local function autoExitUnified()
                             task.wait(0.4)
                             
                             if isBeastNearby(40) then
-                                log("⚠️ Beast gần Exit này, thử Exit khác..LẶ)
+                                log("⚠️ Beast gần Exit này, thử Exit khác..")
                                 task.wait(0.5)
                             else
                                 local success = startOpening(exitData.trigger, exitData)
