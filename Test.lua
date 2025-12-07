@@ -425,7 +425,7 @@ task.spawn(function()
             and args[1] == "SetPlayerMinigameResult"
             and neverfailtoggle then
             
-            args[2] = true  -- luôn perfect
+            args[2] = true
             return old(self, unpack(args))
         end
 
@@ -454,9 +454,8 @@ RunService.Heartbeat:Connect(function(dt)
 
         if jumpTimer >= jumpInterval then
             pcall(function()
-                local backPos = rootPart.CFrame.Position - (rootPart.CFrame.LookVector * 2)
-
-                rootPart.CFrame = CFrame.new(backPos)
+                local upPos = rootPart.CFrame.Position + Vector3.new(0, 7, 0)
+                rootPart.CFrame = CFrame.new(upPos)
             end)
 
             task.wait(0.07)
@@ -464,10 +463,12 @@ RunService.Heartbeat:Connect(function(dt)
             pcall(function()
                 rootPart.CFrame = currentTrigger.CFrame + Vector3.new(0, 0.5, 0)
             end)
+
             jumpTimer = 0
         end
     end
 end)
+
 
 local function hackPC(pcData)
     if not pcData or not pcData.computer or not pcData.triggers or #pcData.triggers == 0 then
