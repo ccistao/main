@@ -690,19 +690,17 @@ local function autoExitUnified()
     
     local function isExitOpened(exitData)
         local trigger = exitData.trigger
-        if trigger and trigger.Parent then
-            local progress = trigger.Parent:FindFirstChild("ActionProgress", true)
-            if progress and (progress:IsA("IntValue") or progress:IsA("NumberValue")) then
-                if progress.Value >= 0.999 then
+        if trigger then
+            local sign = trigger:FindFirstChild("ActionSign")
+            if sign and (sign:IsA("IntValue") or sign:IsA("NumberValue")) then
+                if sign.Value >= 99 then
                     return true
                 end
             end
         end
-        
         if openedExits[exitData] then
             return true
         end
-        
         return false
     end
 
