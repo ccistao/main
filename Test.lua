@@ -741,18 +741,13 @@ local function autoExitUnified()
                 return false
             end
         
-            local stats = player:FindFirstChild("TempPlayerStatsModule")
-            if stats then
-                local progress = stats:FindFirstChild("ActionProgress")
-                if progress and progress.Value >= 0.999 then
-                    log("✅ Cửa Exit đã mở hoàn toàn!")
-                    
-                    -- ✅ TẮT AUTO INTERACT NGAY
+            local doorProgress = exitData.trigger:FindFirstChild("ActionSign")
+            if doorProgress and (doorProgress:IsA("IntValue") or doorProgress:IsA("NumberValue")) then
+                if doorProgress.Value >= 99 then
+                   log("✅ Cửa Exit đã mở hoàn toàn!")
+
                     autointeracttoggle = false
-                    
-                    -- ✅ CHỜ 0.5S ĐỂ ActionBox BIẾN MẤT
                     task.wait(0.2)
-                    
                     openedExits[exitData] = true
                     
                     pcall(function()
