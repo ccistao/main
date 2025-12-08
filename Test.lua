@@ -68,6 +68,19 @@ local function cleanupConnections()
     log("🧹 Cleanup connections")
 end
 
+local function createHidePlatform()
+    if hidePlatform then pcall(function() hidePlatform:Destroy() end) end
+    local platform = Instance.new("Part")
+    platform.Size = Vector3.new(30, 5, 30)
+    platform.Position = Vector3.new(50, 70, 50)
+    platform.Anchored = true
+    platform.Transparency = 0.4
+    platform.CanCollide = true
+    platform.Parent = workspace
+    hidePlatform = platform
+    return platform
+end
+
 local function resetGameState()
     log("═══════════════════════════════════════")
     log("🔄 RESET STATE")
@@ -150,19 +163,6 @@ local function isBeastNearby(distance)
     local beastRoot = beast.Character:FindFirstChild("HumanoidRootPart")
     if not beastRoot or not rootPart then return false end
     return (rootPart.Position - beastRoot.Position).Magnitude <= distance
-end
-
-local function createHidePlatform()
-    if hidePlatform then pcall(function() hidePlatform:Destroy() end) end
-    local platform = Instance.new("Part")
-    platform.Size = Vector3.new(30, 5, 30)
-    platform.Position = Vector3.new(50, 70, 50)
-    platform.Anchored = true
-    platform.Transparency = 0.4
-    platform.CanCollide = true
-    platform.Parent = workspace
-    hidePlatform = platform
-    return platform
 end
 
 local function escapeBeast()
