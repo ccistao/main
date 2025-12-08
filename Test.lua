@@ -797,12 +797,12 @@ local function autoExitUnified()
                             if hrp then
                                 local safePos = Vector3.new(50, 73, 50)
                                 char:PivotTo(CFrame.new(safePos))
-                                log("🛡️ TP safe, chờ 3s...")
+                                log("🛡️ TP safe, chờ 2s...")
                             end
                         end
                     end)
                     
-                    task.wait(3)
+                    task.wait(2)
                     return true
                 end
 
@@ -889,7 +889,6 @@ local function autoExitUnified()
                                 log("⚠️ Beast gần, thử Exit khác")
                                 task.wait(0.5)
                             else
-                                log("🔍 DEBUG: Beast xa, bắt đầu mở Exit...")
                                 local success = startOpening(exitData.trigger, exitData)
 
                                 if success then
