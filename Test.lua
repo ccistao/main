@@ -1029,12 +1029,16 @@ local function mainLoop()
                 if isFindExitPhase() then
                     updateStatus("✓ Find Exit!")
                     log("✓ Find exit")
-                    autoExitUnified()
                 end
 
-                updateStatus("🎉 Round xong!")
-                log("🎉 ROUND XONG!")
-                
+                updateStatus("🎉 Find Exit Bắt Đầu!")
+                log("🚪 BẮT ĐẦU AUTO EXIT!")
+                task.spawn(function()
+                     autoExitUnified()
+                end)
+                repeat task.wait(0.5) until hasEscaped or not scriptEnabled
+
+                log("🏁 AUTO EXIT DONE")
                 task.wait(3)
             end
         end
