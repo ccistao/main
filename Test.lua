@@ -153,7 +153,7 @@ local function findBeast()
                 end
             end
         end
-        dlog("🛑 Beast tracker stopped")
+        log("🛑 Beast tracker stopped")
     end)
 end
 
