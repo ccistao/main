@@ -161,14 +161,28 @@ local function isBeastNearby(distance)
     distance = distance or 23
     if not foundBeast or not beast or not beast.Character then return false end
     local beastRoot = beast.Character:FindFirstChild("HumanoidRootPart")
-    if not beastRoot or not rootPart then return false end
-    return (rootPart.Position - beastRoot.Position).Magnitude <= distance
+                    or beast.Character:FindFirstChild("UpperTorso")
+                    or beast.Character:FindFirstChild("Torso")
+
+    local myRoot = rootPart or (player.Character and player.Character:FindFirstChild("HumanoidRootPart"))
+
+    if not beastRoot or not myRoot then return false end
+
+    return (myRoot.Position - beastRoot.Position).Magnitude <= distance
 end
 
 local function escapeBeast()
     updateStatus("🚨 Trốn Beast!")
     if not hidePlatform then createHidePlatform() end
-    rootPart.CFrame = CFrame.new(50, 71, 50)
+    local char = player.Character
+    if not char then return end
+    local rp = char:FindFirstChild("HumanoidRootPart") 
+             or char:FindFirstChild("UpperTorso")
+             or char:FindFirstChild("Torso")
+    if not rp then return end
+    rp.CFrame = CFrame.new(50, 71, 50)
+    rp.AssemblyLinearVelocity = Vector3.zero
+    skipCurrentPC = true
     task.wait(9)
 end
 
@@ -964,7 +978,12 @@ local function mainLoop()
                         local hasSkippedPC = false
                         local allCompleted = true
                         
-                        for idx, pcData in ipairs(allPCs) do
+                        for idx, pcData in ipairs(allPCs) do 
+                            if isBeastNearby(23) then
+                               log("🚨 Beast gần! Trốn gấp!")
+                               escapeBeast()
+                               skipCurrentPC = true
+                            end
                             skipCurrentPC = false
                             if not scriptEnabled then break end
 
