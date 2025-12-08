@@ -157,33 +157,164 @@ local function findBeast()
     end)
 end
 
-local function isBeastNearby(distance)
-    distance = distance or 23
-    if not foundBeast or not beast or not beast.Character then return false end
-    local beastRoot = beast.Character:FindFirstChild("HumanoidRootPart")
-                    or beast.Character:FindFirstChild("UpperTorso")
-                    or beast.Character:FindFirstChild("Torso")
+-- === DEBUGGED VERSIONS ===
 
-    local myRoot = rootPart or (player.Character and player.Character:FindFirstChild("HumanoidRootPart"))
-
-    if not beastRoot or not myRoot then return false end
-
-    return (myRoot.Position - beastRoot.Position).Magnitude <= distance
+-- tiện lợi: short log function (giữ ít dòng để dễ đọc)
+local function dlog(...) 
+    local args = {...}
+    local s = ""
+    for i=1,#args do
+        s = s .. tostring(args[i])
+        if i<#args then s = s .. " " end
+    end
+    print("[DEBUG] " .. s)
 end
 
+-- isBeastNearby (debugged, nhiều fallback root parts, và log)
+local function isBeastNearby(distance)
+    distance = distance or 23
+    if not foundBeast or not beast or not beast.Character then
+        dlog("isBeastNearby => NO beast detected (foundBeast:", tostring(foundBeast), "beast:", tostring(beast), ")")
+        return false
+    end
+
+    -- tìm root cho beast (nhiều option)
+    local beastRoot = beast.Character:FindFirstChild("HumanoidRootPart")
+                  or beast.Character:FindFirstChild("UpperTorso")
+                  or beast.Character:FindFirstChild("Torso")
+                  or beast.Character:FindFirstChild("Humanoid") -- fallback
+
+    -- tìm root cho mình
+    local myRoot = rootPart
+    if not myRoot and player and player.Character then
+        myRoot = player.Character:FindFirstChild("HumanoidRootPart")
+             or player.Character:FindFirstChild("UpperTorso")
+             or player.Character:FindFirstChild("Torso")
+    end
+
+    if not beastRoot then
+        dlog("isBeastNearby => Beast root NIL for", tostring(beast and beast.Name or "nil"))
+        return false
+    end
+    if not myRoot then
+        dlog("isBeastNearby => My root NIL")
+        return false
+    end
+
+    -- compute distance and log it
+    local dist = (myRoot.Position - beastRoot.Position).Magnitude
+    dlog("isBeastNearby => dist=", string.format("%.2f", dist), "threshold=", tostring(distance),
+         "myRoot=", myRoot.Name, "beastRoot=", beastRoot.Name, "beast=", beast.Name)
+
+    if dist <= distance then
+        dlog("isBeastNearby => RETURN TRUE")
+        return true
+    else
+        dlog("isBeastNearby => RETURN FALSE")
+        return false
+    end
+end
+
+-- escapeBeast (debugged with more logs and safe pivot)
 local function escapeBeast()
+    dlog("escapeBeast called")
     updateStatus("🚨 Trốn Beast!")
-    if not hidePlatform then createHidePlatform() end
-    local char = player.Character
-    if not char then return end
-    local rp = char:FindFirstChild("HumanoidRootPart") 
-             or char:FindFirstChild("UpperTorso")
-             or char:FindFirstChild("Torso")
-    if not rp then return end
-    rp.CFrame = CFrame.new(50, 71, 50)
-    rp.AssemblyLinearVelocity = Vector3.zero
+    if not hidePlatform then
+        dlog("escapeBeast => creating hidePlatform")
+        createHidePlatform()
+    end
+
+    -- cập nhật refs
+    if player and player.Character then
+        local rp = player.Character:FindFirstChild("HumanoidRootPart")
+                or player.Character:FindFirstChild("UpperTorso")
+                or player.Character:FindFirstChild("Torso")
+        if rp then
+            dlog("escapeBeast => teleporting via rootPart:", rp.Name, "pos before:", tostring(rp.Position))
+            -- dùng pcall để tránh crash
+            local ok, err = pcall(function()
+                rp.CFrame = CFrame.new(50, 71, 50)
+                rp.AssemblyLinearVelocity = Vector3.new(0,0,0)
+            end)
+            if not ok then
+                dlog("escapeBeast => teleport FAILED:", err)
+            else
+                dlog("escapeBeast => teleported, pos after:", tostring(rp.Position))
+            end
+        else
+            dlog("escapeBeast => could NOT find my rootPart")
+        end
+    else
+        dlog("escapeBeast => no character available")
+    end
+
+    -- đảm bảo skip current PC
     skipCurrentPC = true
-    task.wait(9)
+    -- nhỏ delay (log từng giây để thấy alive)
+    for i=1,9 do
+        dlog("escapeBeast => waiting...", i, "/9")
+        task.wait(1)
+    end
+    dlog("escapeBeast => done wait")
+end
+
+-- monitor liên tục in dữ liệu trạng thái (không phá luồng, dùng task.spawn)
+local debugMonitorRunning = false
+local function startDebugMonitor()
+    if debugMonitorRunning then return end
+    debugMonitorRunning = true
+    task.spawn(function()
+        while debugMonitorRunning do
+            -- trạng thái cơ bản
+            local myPos = "nil"
+            if player and player.Character then
+                local mr = player.Character:FindFirstChild("HumanoidRootPart")
+                        or player.Character:FindFirstChild("UpperTorso")
+                        or player.Character:FindFirstChild("Torso")
+                if mr then myPos = ("%0.1f,%0.1f,%0.1f"):format(mr.Position.X, mr.Position.Y, mr.Position.Z) end
+            end
+
+            local beastName = "nil"
+            local beastPos = "nil"
+            local beastRootExists = false
+            if foundBeast and beast and beast.Character then
+                beastName = beast.Name
+                local br = beast.Character:FindFirstChild("HumanoidRootPart")
+                        or beast.Character:FindFirstChild("UpperTorso")
+                        or beast.Character:FindFirstChild("Torso")
+                if br then
+                    beastRootExists = true
+                    beastPos = ("%0.1f,%0.1f,%0.1f"):format(br.Position.X, br.Position.Y, br.Position.Z)
+                end
+            end
+
+            dlog("MONITOR => foundBeast=", tostring(foundBeast),
+                 "beast=", beastName,
+                 "beastRootExists=", tostring(beastRootExists),
+                 "myPos=", myPos,
+                 "beastPos=", beastPos)
+
+            -- nếu có cả 2 root, in khoảng cách
+            if beastRootExists and player and player.Character then
+                local br = beast.Character:FindFirstChild("HumanoidRootPart")
+                        or beast.Character:FindFirstChild("UpperTorso")
+                        or beast.Character:FindFirstChild("Torso")
+                local mr = player.Character:FindFirstChild("HumanoidRootPart")
+                        or player.Character:FindFirstChild("UpperTorso")
+                        or player.Character:FindFirstChild("Torso")
+                if br and mr then
+                    local d = (mr.Position - br.Position).Magnitude
+                    dlog("MONITOR => distance=", string.format("%.2f", d))
+                end
+            end
+
+            task.wait(0.25) -- check 4 lần/giây
+        end
+    end)
+end
+
+local function stopDebugMonitor()
+    debugMonitorRunning = false
 end
 
 spawn(function()
