@@ -674,7 +674,6 @@ local function hackPC(pcData)
 end
 
 local function autoExitUnified()
-    log("🔍 DEBUG: autoExitUnified() BẮT ĐẦU")
     local lastExitUsed = nil
 
     local function findExit()
@@ -746,10 +745,8 @@ local function autoExitUnified()
     end
 
     local function startOpening(trigger, exitData)
-        log("🔍 DEBUG: startOpening() được gọi")
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
         if not root then 
-            log("🔍 DEBUG: Không có root!")
             return false 
         end
     
@@ -839,7 +836,6 @@ local function autoExitUnified()
 
     while scriptEnabled do
         task.wait(0.2)
-        log("🔍 DEBUG: Loop autoExit, hasEscaped=" .. tostring(hasEscaped))
 
         if hasEscaped then
             log("✅ Escaped, stop autoExit")
@@ -847,25 +843,20 @@ local function autoExitUnified()
         end
 
         if not canGoExit() then
-            log("🔍 DEBUG: Chưa canGoExit, đợi...")
             task.wait(0.3)
         else
-            log("🔍 DEBUG: canGoExit = TRUE!")
             local exits = findExit()
-            log("🔍 DEBUG: Tìm được " .. #exits .. " exit")
             if #exits == 0 then
                 task.wait(0.5)
             else
                 log("🚪 " .. #exits .. " Exit")
 
                 for _, exitData in ipairs(exits) do
-                    log("🔍 DEBUG: Kiểm tra exit, lastExitUsed=" .. tostring(lastExitUsed ~= nil))
                     if not scriptEnabled then break end
 
                     if exitData == lastExitUsed then
                         log("⏭️ Skip Exit đã dùng")
                     else
-                        log("🔍 DEBUG: Kiểm tra Exit có mở chưa...")
                         if isExitOpened(exitData) then
                             log("🟢 Exit mở sẵn!")
 
@@ -890,11 +881,9 @@ local function autoExitUnified()
                             break
                         else
                             log("🚪 Thử mở Exit...")
-                            log("🔍 DEBUG: Trước khi tpFront")
 
                             tpFront(exitData.trigger)
                             task.wait(0.2)
-                            log("🔍 DEBUG: Sau tpFront, check Beast...")
 
                             if isBeastNearby(40) then
                                 log("⚠️ Beast gần, thử Exit khác")
@@ -902,7 +891,6 @@ local function autoExitUnified()
                             else
                                 log("🔍 DEBUG: Beast xa, bắt đầu mở Exit...")
                                 local success = startOpening(exitData.trigger, exitData)
-                                log("🔍 DEBUG: startOpening result = " .. tostring(success))
 
                                 if success then
                                     escape(exitData)
@@ -929,7 +917,6 @@ local function autoExitUnified()
 end
 
 local function mainLoop()
-    log("🚀 AUTO HACK CHẠY!")
     findBeast()
     while true do
         if not scriptEnabled then
@@ -941,10 +928,8 @@ local function mainLoop()
             if not waitForGameActive() then
                 task.wait(10)
             else
-                log("🔍 DEBUG: hasEscaped trước reset = " .. tostring(hasEscaped))
                 roundsPlayed = roundsPlayed + 1
                 resetGameState()
-                log("🔍 DEBUG: hasEscaped sau reset = " .. tostring(hasEscaped))
                 
                 updateStatus("🆕 Game mới!")
                 log("═══════════════════════════════")
