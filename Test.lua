@@ -935,8 +935,10 @@ local function mainLoop()
             if not waitForGameActive() then
                 task.wait(10)
             else
+                log("🔍 DEBUG: hasEscaped trước reset = " .. tostring(hasEscaped))
                 roundsPlayed = roundsPlayed + 1
                 resetGameState()
+                log("🔍 DEBUG: hasEscaped sau reset = " .. tostring(hasEscaped))
                 
                 updateStatus("🆕 Game mới!")
                 log("═══════════════════════════════")
@@ -1165,6 +1167,7 @@ local function createGUI()
             toggleButton.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
             toggleButton.Text = "BẬT"
             log("✓ AUTO HACK: BẬT")
+            hasEscaped = false
         else
             toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
             toggleButton.Text = "TẮT"
