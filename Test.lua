@@ -96,7 +96,7 @@ local function resetGameState()
         end)
         hidePlatform = nil
     end
-    
+    createHidePlatform()
     updateCharacterReferences()
     
     log("✓ State reset")
@@ -1028,7 +1028,8 @@ local function mainLoop()
 
                 if isFindExitPhase() then
                     updateStatus("✓ Find Exit!")
-                    log("✓ Find Exit!")
+                    log("✓ Find exit")
+                    autoExitUnified()
                 end
 
                 updateStatus("🎉 Round xong!")
@@ -1198,6 +1199,5 @@ updateCharacterReferences()
 createHidePlatform()
 createGUI()
 findBeast()
-task.spawn(autoExitUnified) 
 task.spawn(mainLoop)
 log("✓ Script loaded!")
