@@ -668,6 +668,7 @@ local function hackPC(pcData)
 end
 
 local function autoExitUnified()
+    log("🔍 DEBUG: autoExitUnified() BẮT ĐẦU")
     local lastExitUsed = nil
 
     local function findExit()
@@ -728,7 +729,7 @@ local function autoExitUnified()
     local function isExitOpened(exitData)
         local trigger = exitData.trigger
         if trigger then
-            local sign = trigger:FindFirstChild("ActionSign")
+            local sign = trigger:FindFirstChild("ActionProgress")
             if sign and (sign:IsA("IntValue") or sign:IsA("NumberValue")) then
                 if sign.Value == 100 then
                     return true
@@ -739,8 +740,12 @@ local function autoExitUnified()
     end
 
     local function startOpening(trigger, exitData)
+        log("🔍 DEBUG: startOpening() được gọi")
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not root then return false end
+        if not root then 
+            log("🔍 DEBUG: Không có root!")
+            return false 
+        end
     
         log("🔵 Mở Exit...")
         autointeracttoggle = true
@@ -773,7 +778,7 @@ local function autoExitUnified()
                 return false
             end
         
-            local doorProgress = exitData.trigger:FindFirstChild("ActionSign")
+            local doorProgress = exitData.trigger:FindFirstChild("ActionProgress")
             if doorProgress and (doorProgress:IsA("IntValue") or doorProgress:IsA("NumberValue")) then
                 
                 if doorProgress.Value == 100 then
@@ -828,6 +833,7 @@ local function autoExitUnified()
 
     while scriptEnabled do
         task.wait(0.2)
+        log("🔍 DEBUG: Loop autoExit, hasEscaped=" .. tostring(hasEscaped))
 
         if hasEscaped then
             log("✅ Escaped, stop autoExit")
@@ -835,20 +841,25 @@ local function autoExitUnified()
         end
 
         if not canGoExit() then
+            log("🔍 DEBUG: Chưa canGoExit, đợi...")
             task.wait(0.3)
         else
+            log("🔍 DEBUG: canGoExit = TRUE!")
             local exits = findExit()
+            log("🔍 DEBUG: Tìm được " .. #exits .. " exit")
             if #exits == 0 then
                 task.wait(0.5)
             else
                 log("🚪 " .. #exits .. " Exit")
 
                 for _, exitData in ipairs(exits) do
+                    log("🔍 DEBUG: Kiểm tra exit, lastExitUsed=" .. tostring(lastExitUsed ~= nil))
                     if not scriptEnabled then break end
 
                     if exitData == lastExitUsed then
                         log("⏭️ Skip Exit đã dùng")
                     else
+                        log("🔍 DEBUG: Kiểm tra Exit có mở chưa...")
                         if isExitOpened(exitData) then
                             log("🟢 Exit mở sẵn!")
 
@@ -873,15 +884,19 @@ local function autoExitUnified()
                             break
                         else
                             log("🚪 Thử mở Exit...")
+                            log("🔍 DEBUG: Trước khi tpFront")
 
                             tpFront(exitData.trigger)
-                            task.wait(0.4)
+                            task.wait(0.2)
+                            log("🔍 DEBUG: Sau tpFront, check Beast...")
 
                             if isBeastNearby(40) then
                                 log("⚠️ Beast gần, thử Exit khác")
                                 task.wait(0.5)
                             else
+                                log("🔍 DEBUG: Beast xa, bắt đầu mở Exit...")
                                 local success = startOpening(exitData.trigger, exitData)
+                                log("🔍 DEBUG: startOpening result = " .. tostring(success))
 
                                 if success then
                                     escape(exitData)
