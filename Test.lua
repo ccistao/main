@@ -129,6 +129,18 @@ local function isBeast(plr)
     return flag.Value == true
 end
 
+local function hasPlayerEscaped()
+    if not player then return false end
+    
+    local stats = player:FindFirstChild("TempPlayerStatsModule")
+    if not stats then return false end
+    
+    local escapedFlag = stats:FindFirstChild("Escaped")
+    if not escapedFlag then return false end
+    
+    return escapedFlag.Value == true
+end
+
 local function findBeast()
     task.spawn(function()
         while scriptEnabled do
@@ -1045,18 +1057,26 @@ local function mainLoop()
 
                 updateStatus("🎉 Find Exit Bắt Đầu!")
                 log("🚪 BẮT ĐẦU AUTO EXIT!")
+                -- ✅ THÊM MONITOR ĐỂ DEBUG
                 task.spawn(function()
-                     autoExitUnified()
-                end)
-                repeat task.wait(0.5) until hasEscaped or not scriptEnabled
-
-                log("🏁 AUTO EXIT DONE")
-                task.wait(3)
+                while scriptEnabled and not hasEscaped do
+                    task.wait(1)
+                    local escaped = hasPlayerEscaped()
+                    log("🔍 DEBUG: Player Escaped = " .. tostring(escaped))
+        
+                    if escaped then
+                        log("✅ Phát hiện Escaped = true từ game!")
+                        hasEscaped = true
+                        scriptEnabled = false
+                        break
+                    end
+                end
+            end)
+            task.spawn(function()
+                autoExitUnified()
+            end)
+           repeat task.wait(0.5) until hasEscaped or not scriptEnabled
             end
-        end
-    end
-end
-
 local function createGUI()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "AutoHackGUI"
