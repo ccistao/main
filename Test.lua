@@ -1272,12 +1272,37 @@ local function createGUI()
     end)
 end
 
+local function antiAFK()
+    log("🛡️ Anti-AFK khởi động!")
+    
+    task.spawn(function()
+        local VirtualUser = game:GetService("VirtualUser")
+        
+        player.Idled:Connect(function()
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+            log("⚡ Anti-AFK: Ngăn chặn kick!")
+        end)
+        
+        while true do
+            task.wait(600)
+            
+            pcall(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+                log("🔄 Anti-AFK: Gửi input định kỳ")
+            end)
+        end
+    end)
+end
+
 log("═══════════════════════════════════════")
 log("AUTO HACK PC V4 - RESET SYSTEM")
 log("═══════════════════════════════════════")
 updateCharacterReferences()
 createHidePlatform()
 createGUI()
+antiAFK()
 findBeast()
 task.spawn(mainLoop)
 log("✓ Script loaded!")
