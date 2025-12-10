@@ -232,36 +232,7 @@ spawn(function()
     bindToScreenGui(screenGui)
 end)
 
-local function waitForGameActive()
-    updateStatus("⏳ Chờ game...")
 
-    local Players = game:GetService("Players")
-    local player = Players.LocalPlayer
-    local statusBox = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
-                         :WaitForChild("GameInfoFrame"):WaitForChild("GameStatusBox")
-
-    if not statusBox or not statusBox:IsA("TextLabel") then
-        updateStatus("❌ Không tìm GameStatusBox!")
-        return false
-    end
-    local isActiveFlag = Replicated:WaitForChild("IsGameActive", 10)
-
-    while true do
-        task.wait(0.1)
-
-        if statusBox.Text and statusBox.Text:upper():find("15 SEC HEAD START") then
-            updateStatus("✓ HEAD START...")
-            task.wait(2)
-            return true
-        end
-
-        if isActiveFlag and isActiveFlag.Value == true then
-            updateStatus("✓ Game Active!")
-            task.wait(2)
-            return true
-        end
-    end
-end
 
 local function isHackablePC(pc)
     if not pc or not pc.Parent then return false end
@@ -859,7 +830,6 @@ local function autoExitUnified()
             if hasPlayerEscaped() then
                 log("✅ Game xác nhận: Escaped = true!")
                 hasEscaped = true
-                scriptEnabled = false
                 break
             end
         end
@@ -867,7 +837,6 @@ local function autoExitUnified()
         if not hasPlayerEscaped() then
             log("⚠️ Timeout - Giả định đã escape")
             hasEscaped = true
-            scriptEnabled = false
         end
         
         log("🎉 Hoàn tất escape!")
@@ -879,7 +848,6 @@ local function autoExitUnified()
         if hasPlayerEscaped() then
             log("✅ Game đã set Escaped = true! Dừng autoExit")
             hasEscaped = true
-            scriptEnabled = false
             break
         end
 
@@ -1099,7 +1067,6 @@ local function mainLoop()
                         if escaped then
                             log("✅ Phát hiện Escaped = true từ game!")
                             hasEscaped = true
-                            scriptEnabled = false
                             break
                         end
                     end
