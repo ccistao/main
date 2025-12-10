@@ -801,9 +801,15 @@ local function autoExitUnified()
             end)
         
             if isBeastNearby(40) then
-                log("🚨 Beast gần Exit!")
-                autointeracttoggle = false
-                return false
+               log("⚠️ Beast gần → Đổi qua cửa khác!")
+               autointeracttoggle = false
+               pcall(function()
+                   local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                   if root then
+                       root.CFrame = root.CFrame + Vector3.new(0, 5, 0)
+                   end
+               end)  
+               return false 
             end
         
             local doorProgress = exitData.trigger:FindFirstChild("ActionProgress")
@@ -859,7 +865,7 @@ local function autoExitUnified()
         log("🚀 Escape vào ExitArea...")
         autointeracttoggle = false
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
-        task.wait(0.5)
+        task.wait(1.5)
         
         log("⏳ Chờ game xác nhận escape...")
         local waitTime = 0
@@ -910,7 +916,7 @@ local function autoExitUnified()
                 for _, exitData in ipairs(exits) do
                     if not scriptEnabled then break end
 
-                    if exitData == lastExitUsed then
+                    if lastExitUsed and exitData.model == lastExitUsed then
                         log("⏭️ Skip Exit đã dùng")
                     else
                         if isExitOpened(exitData) then
@@ -930,7 +936,7 @@ local function autoExitUnified()
 
                             task.wait(3)
                             escape(exitData)
-                            lastExitUsed = exitData
+                            lastExitUsed = exitData.model
                             break
                         else
                             log("🚪 Thử mở Exit...")
