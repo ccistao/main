@@ -794,27 +794,27 @@ local function autoExitUnified()
             end
         
             local doorProgress = exitData.trigger:FindFirstChild("ActionProgress")
+            
             if doorProgress and (doorProgress:IsA("IntValue") or doorProgress:IsA("NumberValue")) then
+                log("🔍 DEBUG: Exit ActionProgress = " .. tostring(doorProgress.Value))
                 
                 if doorProgress.Value == 100 then
-                    log("✅ Exit mở!")
-
+                    log("✅ Exit mở xong!")
                     autointeracttoggle = false
-                    task.wait(0.25)
-
+                    
                     pcall(function()
                         local char = player.Character
                         if char then
                             local hrp = char:FindFirstChild("HumanoidRootPart")
                             if hrp then
                                 local safePos = Vector3.new(50, 73, 50)
-                                char:PivotTo(CFrame.new(safePos))
-                                log("🛡️ TP safe, chờ 2s...")
+                                hrp.CFrame = CFrame.new(safePos)
+                                log("🛡️ TP safe, chờ 5s...")
                             end
                         end
                     end)
                     
-                    task.wait(2)
+                    task.wait(5)
                     return true
                 end
 
@@ -827,30 +827,64 @@ local function autoExitUnified()
             end
         end
     
-        log("⏱️ Timeout")
+        log("⏱️ Timeout mở cửa")
         autointeracttoggle = false
-        hasEscaped = true 
-        scriptEnabled = false 
-        return true
+        return false
     end
 
     local function escape(exitData)
         local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not root or not exitData.area then return end
+        if not root or not exitData.area then 
+            log("❌ Không có root hoặc area!")
+            return 
+        end
         
+        log("🛡️ TP safe trước khi escape...")
+        root.CFrame = CFrame.new(50, 73, 50)
+        task.wait(3)
+        
+        log("🚀 Escape vào ExitArea...")
         autointeracttoggle = false
-        hasEscaped = true 
-        scriptEnabled = false 
-        log("🚀 Escape...")
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
-        log("🎉 Escaped!")
+        task.wait(0.5)
+        
+        log("⏳ Chờ game xác nhận escape...")
+        local waitTime = 0
+        local maxWait = 10
+        
+        while waitTime < maxWait do
+            task.wait(0.2)
+            waitTime = waitTime + 0.2
+            
+            if hasPlayerEscaped() then
+                log("✅ Game xác nhận: Escaped = true!")
+                hasEscaped = true
+                scriptEnabled = false
+                break
+            end
+        end
+        
+        if not hasPlayerEscaped() then
+            log("⚠️ Timeout - Giả định đã escape")
+            hasEscaped = true
+            scriptEnabled = false
+        end
+        
+        log("🎉 Hoàn tất escape!")
     end
 
     while scriptEnabled do
         task.wait(0.2)
+        
+        if hasPlayerEscaped() then
+            log("✅ Game đã set Escaped = true! Dừng autoExit")
+            hasEscaped = true
+            scriptEnabled = false
+            break
+        end
 
         if hasEscaped then
-            log("✅ Escaped, stop autoExit")
+            log("✅ Script flag hasEscaped, stop autoExit")
             break
         end
 
@@ -861,7 +895,7 @@ local function autoExitUnified()
             if #exits == 0 then
                 task.wait(0.5)
             else
-                log("🚪 " .. #exits .. " Exit")
+                log("🚪 Tìm thấy " .. #exits .. " Exit")
 
                 for _, exitData in ipairs(exits) do
                     if not scriptEnabled then break end
@@ -870,7 +904,7 @@ local function autoExitUnified()
                         log("⏭️ Skip Exit đã dùng")
                     else
                         if isExitOpened(exitData) then
-                            log("🟢 Exit mở sẵn!")
+                            log("🟢 Exit đã mở sẵn!")
 
                             pcall(function()
                                 local char = player.Character
@@ -878,7 +912,7 @@ local function autoExitUnified()
                                     local hrp = char:FindFirstChild("HumanoidRootPart")
                                     if hrp then
                                         local safePos = Vector3.new(50, 73, 50)
-                                        char:PivotTo(CFrame.new(safePos))
+                                        hrp.CFrame = CFrame.new(safePos)
                                         log("🛡️ TP safe, chờ 3s...")
                                     end
                                 end
@@ -887,9 +921,6 @@ local function autoExitUnified()
                             task.wait(3)
                             escape(exitData)
                             lastExitUsed = exitData
-                            hasEscaped = true
-                            scriptEnabled = false
-                            task.wait(1)
                             break
                         else
                             log("🚪 Thử mở Exit...")
@@ -906,9 +937,6 @@ local function autoExitUnified()
                                 if success then
                                     escape(exitData)
                                     lastExitUsed = exitData
-                                    hasEscaped = true
-                                    scriptEnabled = false
-                                    task.wait(1)
                                     break
                                 else
                                     log("⚠️ Beast chặn, thử Exit khác")
@@ -918,7 +946,6 @@ local function autoExitUnified()
                         end
                     end
                 end
-
                 if hasEscaped then
                     break
                 end
@@ -926,9 +953,11 @@ local function autoExitUnified()
         end
     end
 end
-
+        
 local function mainLoop()
+    log("🚀 AUTO HACK CHẠY!")
     findBeast()
+    
     while true do
         if not scriptEnabled then
             updateStatus("Script TẮT")
@@ -967,12 +996,15 @@ local function mainLoop()
                         local allCompleted = true
                         
                         for idx, pcData in ipairs(allPCs) do 
+                            -- ✅ CHECK BEAST TRƯỚC KHI HACK
                             if isBeastNearby(23) then
-                               log("🚨 Beast gần! Trốn gấp!")
-                               escapeBeast()
-                               skipCurrentPC = true
+                                log("🚨 Beast gần! Trốn gấp!")
+                                escapeBeast()
+                                skipCurrentPC = true
+                            else
+                                skipCurrentPC = false
                             end
-                            skipCurrentPC = false
+                            
                             if not scriptEnabled then break end
 
                             log("")
@@ -1052,31 +1084,42 @@ local function mainLoop()
 
                 if isFindExitPhase() then
                     updateStatus("✓ Find Exit!")
-                    log("✓ Find exit")
+                    log("✓ Phát hiện Find Exit phase")
                 end
 
                 updateStatus("🎉 Find Exit Bắt Đầu!")
                 log("🚪 BẮT ĐẦU AUTO EXIT!")
-                -- ✅ THÊM MONITOR ĐỂ DEBUG
+                
                 task.spawn(function()
-                while scriptEnabled and not hasEscaped do
-                    task.wait(1)
-                    local escaped = hasPlayerEscaped()
-                    log("🔍 DEBUG: Player Escaped = " .. tostring(escaped))
-        
-                    if escaped then
-                        log("✅ Phát hiện Escaped = true từ game!")
-                        hasEscaped = true
-                        scriptEnabled = false
-                        break
+                    while scriptEnabled and not hasEscaped do
+                        task.wait(1)
+                        local escaped = hasPlayerEscaped()
+                        log("🔍 DEBUG: Player Escaped (game) = " .. tostring(escaped))
+                        
+                        if escaped then
+                            log("✅ Phát hiện Escaped = true từ game!")
+                            hasEscaped = true
+                            scriptEnabled = false
+                            break
+                        end
                     end
-                end
-            end)
-            task.spawn(function()
-                autoExitUnified()
-            end)
-           repeat task.wait(0.5) until hasEscaped or not scriptEnabled
+                end)
+                
+                task.spawn(function()
+                    autoExitUnified()
+                end)
+                
+                repeat 
+                    task.wait(0.5) 
+                until hasEscaped or not scriptEnabled
+
+                log("🏁 AUTO EXIT DONE")
+                task.wait(3)
             end
+        end
+    end
+end
+
 local function createGUI()
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "AutoHackGUI"
