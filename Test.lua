@@ -812,12 +812,12 @@ local function autoExitUnified()
                return false 
             end
         
-            local doorProgress = exitData.trigger:FindFirstChild("ActionProgress")
+            local progress = getPlayerActionProgress()
             
             if doorProgress and (doorProgress:IsA("IntValue") or doorProgress:IsA("NumberValue")) then
                 log("🔍 DEBUG: Exit ActionProgress = " .. tostring(doorProgress.Value))
                 
-                if doorProgress.Value == 100 then
+                if progress >= 100 then
                     log("✅ Exit mở xong!")
                     autointeracttoggle = false
                     
