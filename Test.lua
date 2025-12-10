@@ -190,6 +190,26 @@ local function isBeastNearby(distance)
     return dist <= distance
 end
 
+local function escapeBeast()
+    updateStatus("🚨 Trốn Beast!")
+    if not hidePlatform then createHidePlatform() end
+    
+    pcall(function()
+        local char = player.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = CFrame.new(50, 73, 50)
+                log("🛡️ TP safe!")
+            end
+        end
+    end)
+    
+    task.wait(5)
+end
+
+local function waitForGameActive()
+
 spawn(function()
     local playerGui = player:WaitForChild("PlayerGui")
     local function bindToScreenGui(screenGui)
