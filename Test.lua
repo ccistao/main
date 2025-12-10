@@ -26,8 +26,8 @@ local jumpTimer = 0
 local hidePlatform = nil
 local statusLabel = nil
 
-local ANTI_CHEAT_DELAY = 8
-local delayAfterHack = 9
+local ANTI_CHEAT_DELAY = 10
+local delayAfterHack = 10
 local jumpInterval = 4
 local SAFE_POS = Vector3.new(50, 73, 50)
 
