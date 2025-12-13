@@ -148,19 +148,52 @@ local function findBeast()
 
             if foundBeast then
                 if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
-                    dlog("⚠️ Beast lost → reset")
+                    log("⚠️ Beast lost → RESET SCRIPT")
+                    
+                    -- ✅ RESET TẤT CẢ
                     beast = nil
                     foundBeast = false
+                    beastRoot = nil
+                    
+                    isHacking = false
+                    currentPC = nil
+                    canAutoJump = false
+                    hasEscaped = false
+                    
+                    -- Dừng mọi hành động
+                    task.wait(1)
+                    resetGameState()
                 end
             end
 
             if not foundBeast then
+                -- Tìm Beast mới
                 for _, p in ipairs(Players:GetPlayers()) do
                     if isBeast(p) then
                         beast = p
                         foundBeast = true
-                        dlog("👹 Beast detected:", p.Name)
+                        log("👹 Beast detected:", p.Name)
                         break
+                    end
+                end
+                
+                -- ✅ NÓT: Nếu không tìm thấy Beast nào sau 5s
+                if not foundBeast then
+                    local noticedTime = tick()
+                    task.wait(5)
+                    
+                    -- Vẫn không có Beast → Game đã kết thúc
+                    local stillNoBeast = true
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if isBeast(p) then
+                            stillNoBeast = false
+                            break
+                        end
+                    end
+                    
+                    if stillNoBeast then
+                        log("⚠️ Không còn Beast → RESET")
+                        resetGameState()
                     end
                 end
             end
@@ -977,6 +1010,10 @@ local function mainLoop()
     while true do
         if not scriptEnabled then
             updateStatus("Script TẮT")
+            isHacking = false
+            currentPC = nil
+            canAutoJump = false
+            hasEscaped = false
             task.wait(0.5)
         else
             updateStatus("⏳ Đợi game...")
