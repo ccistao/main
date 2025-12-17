@@ -92,7 +92,7 @@ local function createText(t,y,s)
 end
 
 local main = createText("script made by Kilo & Zero",-35,38)
-local sub = createText("ver 1.0.1",10,26)
+local sub = createText("ver 1.0.0",10,26)
 
 local function fade(lbl, a)
     if lbl and lbl.Parent then
