@@ -885,7 +885,7 @@ local skillDetected = false
 local SKILL_TIMES = {
     runner = {use = 3, cooldown = 22, total = 25},
     stalker = {use = 7, cooldown = 20, total = 27},
-    seer = {use = 0, cooldown = 29, total = 29}
+    seer = {use = 10, cooldown = 28.5, total = 28.5}
 }
 
 -- Tìm PowerProgressPercent khi tìm thấy Beast
