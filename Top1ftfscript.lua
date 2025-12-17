@@ -27,7 +27,7 @@ task.spawn(function()
     local data = {
         ["content"] = "**Username:** " .. username ..
                       "\n**Giờ VN:** " .. vn_time ..
-                      "\nNgười chơi đang sài script **Menu FTF**"
+                      "\nNgười chơi đang sài script **Menu FTF (Standard)**"
     }
 
     local req = (syn and syn.request)
@@ -91,7 +91,7 @@ local function createText(t,y,s)
     return l
 end
 
-local main = createText("script made by 2 devs",-35,38)
+local main = createText("script made by Kilo & Zero",-35,38)
 local sub = createText("ver 1.0.1",10,26)
 
 local function fade(lbl, a)
