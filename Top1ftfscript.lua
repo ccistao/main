@@ -574,10 +574,18 @@ function SelfMuting.stop()
     unmuteAll()
 
 end
-
--- ===== HÀM HỖ TRỢ BEAST TRACKER =====
+-- ===== HÀM HỖ TRỢ BEAST TRACKER (ĐÃ SỬA) =====
 local beastTrackerRunning = false
 local beastConnections = {}
+
+-- [MỚI] Hàm lấy tên Skill viết hoa (ví dụ: runner -> Runner)
+local skill = "Unknown" -- Khai báo biến skill ở phạm vi ngoài để dùng chung
+local function getDisplaySkill()
+    if skill and skill ~= "Unknown" then
+        return skill:gsub("^%l", string.upper) -- Viết hoa chữ cái đầu
+    end
+    return "Skill"
+end
 
 local function ensureCooldownUI()
     local existing = plr.PlayerGui:FindFirstChild("BeastCooldownUI")
@@ -767,7 +775,8 @@ local function setBeastTrackerVisible(state)
 end
 
 -- ===== BEAST TRACKER =====
-local beast, foundBeast, skill = nil, false, "Unknown"
+local beast, foundBeast = nil, false 
+-- [CHÚ Ý] Biến skill đã khai báo ở trên
 local cooldownStart, usedRunner, stalkerActive = nil, false, false
 local labelCooldown = nil
 
@@ -819,7 +828,9 @@ local function startBeastTracker()
             if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
 
             skill = tostring(power.Value):lower()
-            showBanner("Beast chose " .. skill, "SkillChosenBanner")
+            
+            -- [SỬA 1] Hiển thị Banner tên skill (Ví dụ: "Runner")
+            showBanner("Beast chose " ..getDisplaySkill(), "SkillChosenBanner")
 
             power:GetPropertyChangedSignal("Value"):Connect(function()
                 if foundBeast and beast and Players:FindFirstChild(beast.Name) then
@@ -857,7 +868,8 @@ local function startBeastTracker()
                         if labelCooldown then labelCooldown.Text = "Found beast!!!" end
                         task.delay(2.5, function()
                             if foundBeast and labelCooldown then
-                                labelCooldown.Text = "Cooldown: Perk Ready!!!"
+                                -- [SỬA 2] Đổi text thành "Runner/Stalker Ready!!!"
+                                labelCooldown.Text = getDisplaySkill() .. " Ready!!!"
                             end
                         end)
                         break
@@ -885,7 +897,7 @@ local skillDetected = false
 local SKILL_TIMES = {
     runner = {use = 3, cooldown = 22, total = 25},
     stalker = {use = 7, cooldown = 20, total = 27},
-    seer = {use = 10, cooldown = 28.5, total = 28.5}
+    seer = {use = 10, cooldown = 28.5, total = 38.5}
 }
 
 -- Tìm PowerProgressPercent khi tìm thấy Beast
@@ -940,16 +952,8 @@ _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
         usingTimeLeft = skillData.use
         cooldownTimeLeft = skillData.cooldown
         
-        -- Hiển thị banner
-        if skill == "runner" then
-            showBanner("Beast used Q (Runner) !!!", "RunnerUsedBanner")
-        elseif skill == "stalker" then
-            showBanner("Beast used Q (Stalker) !!!", "StalkerUsedBanner")
-        elseif skill == "seer" then
-            showBanner("Beast used Q (Seer) !!!", "SeerUsedBanner")
-        else
-            showBanner("Beast used Q !!!", "SkillUsedBanner")
-        end
+        -- [SỬA 3] Banner hiển thị ngắn gọn tên skill (Ví dụ: "Beast used Runner !!!")
+        showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
     end
     
     -- Reset skillDetected khi value về cao (skill ready trở lại)
@@ -961,15 +965,8 @@ _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
     if isUsingSkill then
         usingTimeLeft = math.max(0, usingTimeLeft - dt)
         
-        if skill == "runner" then
-            labelCooldown.Text = string.format("Using Runner: %.1fs", usingTimeLeft)
-        elseif skill == "stalker" then
-            labelCooldown.Text = string.format("Using Stalker: %.1fs", usingTimeLeft)
-        elseif skill == "seer" then
-            labelCooldown.Text = "Using Seer..."
-        else
-            labelCooldown.Text = string.format("Using Skill: %.1fs", usingTimeLeft)
-        end
+        -- [SỬA 4] Text hiển thị tên skill đang dùng
+        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
         
         -- Khi hết thời gian sử dụng, chuyển sang cooldown
         if usingTimeLeft <= 0 then
@@ -989,7 +986,8 @@ _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
         -- Khi hết cooldown
         if cooldownTimeLeft <= 0 then
             isCooldown = false
-            labelCooldown.Text = "Skill Ready!"
+            -- [SỬA 5] Text hiển thị khi hồi xong (Ví dụ: "Runner Ready!")
+            labelCooldown.Text = getDisplaySkill() .. " Ready!"
         end
         
         lastValue = currentValue
@@ -998,7 +996,8 @@ _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
     
     -- ===== HIỂN THỊ SKILL READY =====
     if currentValue >= 0.99 then
-        labelCooldown.Text = "Skill Ready!"
+        -- [SỬA 6] Text hiển thị sẵn sàng
+        labelCooldown.Text = getDisplaySkill() .. " Ready!"
     end
     
     lastValue = currentValue
