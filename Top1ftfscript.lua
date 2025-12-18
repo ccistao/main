@@ -574,15 +574,15 @@ function SelfMuting.stop()
     unmuteAll()
 
 end
--- ===== HÀM HỖ TRỢ BEAST TRACKER (ĐÃ SỬA) =====
+-- ===== HÀM HỖ TRỢ BEAST TRACKER (VERSION HOÀN CHỈNH) =====
 local beastTrackerRunning = false
 local beastConnections = {}
 
--- [MỚI] Hàm lấy tên Skill viết hoa (ví dụ: runner -> Runner)
-local skill = "Unknown" -- Khai báo biến skill ở phạm vi ngoài để dùng chung
+-- Hàm lấy tên Skill viết hoa (ví dụ: runner -> Runner)
+local skill = "Unknown"
 local function getDisplaySkill()
     if skill and skill ~= "Unknown" then
-        return skill:gsub("^%l", string.upper) -- Viết hoa chữ cái đầu
+        return skill:gsub("^%l", string.upper)
     end
     return "Skill"
 end
@@ -611,16 +611,17 @@ local function ensureCooldownUI()
     label.Font = Enum.Font.GothamBold
     label.Text = "Finding beast..."
     label.TextStrokeTransparency = 0.5
-    label.Active = true  -- Cho phép tương tác
-if isMobile() then
-    label.Position = UDim2.new(0.5, 0, 0.8, 0)
-end
+    label.Active = true
+    
+    if isMobile() then
+        label.Position = UDim2.new(0.5, 0, 0.8, 0)
+    end
     
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = label
     
-    -- ===== DRAG SYSTEM CHO CD UI =====
+    -- DRAG SYSTEM
     local dragging = false
     local dragInput
     local dragStart
@@ -661,12 +662,10 @@ end
             update(input)
         end
     end)
-    -- ===== END DRAG =====
     
     return label
 end
 
--- Hàm tạo viền rainbow
 local function createRainbowBorder(frame)
     local gradient = Instance.new("UIGradient")
     gradient.Color = ColorSequence.new({
@@ -690,7 +689,6 @@ local function createRainbowBorder(frame)
     end)
 end
 
--- Hàm hiển thị banner với rainbow border
 local function showBanner(text, name)
     local existing = plr.PlayerGui:FindFirstChild(name)
     if existing then 
@@ -714,7 +712,6 @@ local function showBanner(text, name)
     label.BorderSizePixel = 3
     label.BorderColor3 = Color3.new(1, 1, 1)
 
-    -- Thêm padding cho text
     local padding = Instance.new("UIPadding")
     padding.PaddingLeft = UDim.new(0, 10)
     padding.PaddingRight = UDim.new(0, 10)
@@ -722,15 +719,12 @@ local function showBanner(text, name)
     padding.PaddingBottom = UDim.new(0, 5)
     padding.Parent = label
 
-    -- Tạo rainbow border
     createRainbowBorder(label)
 
-    -- Animation trượt vào
     local tweenIn = TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
         {Position = UDim2.new(1, -260, 0, 10)}
     )
     
-    -- Animation trượt ra
     local tweenOut = TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
         {Position = UDim2.new(1, 10, 0, 10)}
     )
@@ -743,10 +737,8 @@ local function showBanner(text, name)
         tweenOut.Completed:Wait()
         pcall(function() gui:Destroy() end)
     end)
-    
 end
 
--- Cave check
 local caveMin, caveMax = Vector3.new(-275,-10,-275), Vector3.new(-179,45,-179)
 local function isOutsideCave(p)
     if not p then return false end
@@ -774,9 +766,8 @@ local function setBeastTrackerVisible(state)
     end
 end
 
--- ===== BEAST TRACKER =====
-local beast, foundBeast = nil, false 
--- [CHÚ Ý] Biến skill đã khai báo ở trên
+-- ===== BEAST TRACKER MAIN =====
+local beast, foundBeast = nil, false
 local cooldownStart, usedRunner, stalkerActive = nil, false, false
 local labelCooldown = nil
 
@@ -828,9 +819,7 @@ local function startBeastTracker()
             if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
 
             skill = tostring(power.Value):lower()
-            
-            -- [SỬA 1] Hiển thị Banner tên skill (Ví dụ: "Runner")
-            showBanner("Beast chose " ..getDisplaySkill(), "SkillChosenBanner")
+            showBanner("Beast chose " .. getDisplaySkill(), "SkillChosenBanner")
 
             power:GetPropertyChangedSignal("Value"):Connect(function()
                 if foundBeast and beast and Players:FindFirstChild(beast.Name) then
@@ -868,7 +857,6 @@ local function startBeastTracker()
                         if labelCooldown then labelCooldown.Text = "Found beast!!!" end
                         task.delay(2.5, function()
                             if foundBeast and labelCooldown then
-                                -- [SỬA 2] Đổi text thành "Runner/Stalker Ready!!!"
                                 labelCooldown.Text = getDisplaySkill() .. " Ready!!!"
                             end
                         end)
@@ -880,7 +868,7 @@ local function startBeastTracker()
     end)
 end
 
--- Monitor skill & cooldown với PowerProgressPercent
+-- ===== SKILL TRACKING SYSTEM =====
 if _G.BeastHeartbeat then
     _G.BeastHeartbeat:Disconnect()
 end
@@ -892,24 +880,26 @@ local isCooldown = false
 local cooldownTimeLeft = 0
 local usingTimeLeft = 0
 local skillDetected = false
+local isInitialized = false
+local initializationTime = 0
+local lastSkillUsedTime = 0
 
--- Thời gian skill theo từng loại
 local SKILL_TIMES = {
     runner = {use = 3, cooldown = 22, total = 25},
     stalker = {use = 7, cooldown = 20, total = 27},
     seer = {use = 10, cooldown = 28.5, total = 38.5}
 }
 
--- Tìm PowerProgressPercent khi tìm thấy Beast
 local function findProgressPercent()
     if beast and beast.Character then
         local beastPowers = beast.Character:FindFirstChild("BeastPowers")
         if beastPowers then
             progressPercent = beastPowers:FindFirstChild("PowerProgressPercent")
             if progressPercent then
-                -- Đặt lastValue = giá trị hiện tại để tránh phát hiện nhầm
-                lastValue = progressPercent.Value
-                print("[DEBUG] Found PowerProgressPercent, initial value:", progressPercent.Value)
+                isInitialized = false
+                initializationTime = tick()
+                skillDetected = false
+                print("[DEBUG] Found PowerProgressPercent, initial value:", progressPercent.Value, "- Starting init")
                 return true
             end
         end
@@ -921,82 +911,95 @@ _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
     if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
     if not labelCooldown or not labelCooldown.Parent then return end
 
-    -- Tìm PowerProgressPercent nếu chưa có
     if not progressPercent or not progressPercent.Parent then
         if not findProgressPercent() then return end
     end
 
     local currentValue = progressPercent.Value
+    local currentTime = tick()
     
-    -- ===== PHÁT HIỆN KHI BEAST DÙNG SKILL =====
+    -- ===== INITIALIZATION PERIOD =====
+    if not isInitialized then
+        if currentTime - initializationTime >= 2 and currentValue >= 0.99 then
+            isInitialized = true
+            skillDetected = false
+            lastValue = currentValue
+            print("[DEBUG] Initialization complete - Beast skill ready at", currentValue)
+        else
+            lastValue = currentValue
+            return
+        end
+    end
+    
+    -- ===== DETECT SKILL USAGE =====
     local skillUsed = false
     
-    -- Cách 1: Giảm đột ngột từ cao xuống thấp
     if currentValue < 0.95 and lastValue >= 0.99 then
-        skillUsed = true
+        if currentTime - lastSkillUsedTime > 0.5 then
+            skillUsed = true
+        end
     end
     
-    -- Cách 2: Đang ở giá trị thấp và chưa phát hiện
-    if currentValue < 0.95 and not isUsingSkill and not isCooldown and not skillDetected then
-        skillUsed = true
+    if currentValue < 0.90 and not isUsingSkill and not isCooldown and not skillDetected then
+        if currentTime - lastSkillUsedTime > 0.5 then
+            skillUsed = true
+        end
     end
 
-    -- Khi phát hiện skill được dùng
     if skillUsed then
         isUsingSkill = true
         isCooldown = false
         skillDetected = true
+        lastSkillUsedTime = currentTime
         
-        -- Lấy thông tin skill
         local skillData = SKILL_TIMES[skill] or {use = 3, cooldown = 22, total = 25}
-        usingTimeLeft = skillData.use
+        
+        -- Tính using time còn lại dựa trên value
+        local valueDropped = 1 - currentValue
+        local estimatedTimeElapsed = valueDropped * skillData.use
+        usingTimeLeft = math.max(0.1, skillData.use - estimatedTimeElapsed)
         cooldownTimeLeft = skillData.cooldown
         
-        -- [SỬA 3] Banner hiển thị ngắn gọn tên skill (Ví dụ: "Beast used Runner !!!")
         showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
+        print("[DEBUG] Skill detected! Skill:", skill, "Value:", currentValue, "Adjusted time:", usingTimeLeft, "CD:", cooldownTimeLeft)
     end
     
-    -- Reset skillDetected khi value về cao (skill ready trở lại)
     if currentValue >= 0.98 and not isUsingSkill and not isCooldown then
         skillDetected = false
     end
     
-    -- ===== ĐẾM THỜI GIAN SỬ DỤNG SKILL =====
+    -- ===== USING SKILL COUNTDOWN =====
     if isUsingSkill then
         usingTimeLeft = math.max(0, usingTimeLeft - dt)
-        
-        -- [SỬA 4] Text hiển thị tên skill đang dùng
         labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
         
-        -- Khi hết thời gian sử dụng, chuyển sang cooldown
         if usingTimeLeft <= 0 then
             isUsingSkill = false
             isCooldown = true
+            print("[DEBUG] Skill usage ended - Entering cooldown")
         end
         
         lastValue = currentValue
         return
     end
     
-    -- ===== ĐẾM THỜI GIAN COOLDOWN =====
+    -- ===== COOLDOWN COUNTDOWN =====
     if isCooldown then
         cooldownTimeLeft = math.max(0, cooldownTimeLeft - dt)
         labelCooldown.Text = string.format("Cooldown: %.1fs", cooldownTimeLeft)
         
-        -- Khi hết cooldown
         if cooldownTimeLeft <= 0 then
             isCooldown = false
-            -- [SỬA 5] Text hiển thị khi hồi xong (Ví dụ: "Runner Ready!")
             labelCooldown.Text = getDisplaySkill() .. " Ready!"
+            print("[DEBUG] Cooldown ended - Skill ready")
         end
         
         lastValue = currentValue
         return
     end
     
-    -- ===== HIỂN THỊ SKILL READY =====
+    -- ===== SKILL READY =====
     if currentValue >= 0.99 then
-        -- [SỬA 6] Text hiển thị sẵn sàng
         labelCooldown.Text = getDisplaySkill() .. " Ready!"
     end
     
@@ -1007,6 +1010,17 @@ local function stopBeastTracker()
     beastTrackerRunning = false
     setBeastTrackerVisible(false)
     disconnectBeastTracker()
+    
+    progressPercent = nil
+    lastValue = 1
+    isUsingSkill = false
+    isCooldown = false
+    cooldownTimeLeft = 0
+    usingTimeLeft = 0
+    skillDetected = false
+    isInitialized = false
+    initializationTime = 0
+    lastSkillUsedTime = 0
 end
 
 -- ===== HÀM SURVIVOR TRACKER =====
