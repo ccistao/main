@@ -575,11 +575,17 @@ function SelfMuting.stop()
 
 end
 
--- ===== HÀM HỖ TRỢ BEAST TRACKER (VERSION FINAL - NO BUG) =====
+-- ===== HÀM HỖ TRỢ BEAST TRACKER (ATTRIBUTE VERSION) =====
 local beastTrackerRunning = false
 local beastConnections = {}
 
--- Hàm lấy tên Skill viết hoa
+-- Cấu hình thời gian
+local SKILL_TIMES = {
+    runner = {use = 3.5, cooldown = 22},
+    stalker = {use = 7, cooldown = 20},
+    seer = {use = 10, cooldown = 28.5} -- Seer tạm thời chưa detect được qua attribute
+}
+
 local skill = "Unknown"
 local function getDisplaySkill()
     if skill and skill ~= "Unknown" then
@@ -588,6 +594,14 @@ local function getDisplaySkill()
     return "Skill"
 end
 
+-- Hàm check vị trí hang (Cần thiết cho Stalker)
+local caveMin, caveMax = Vector3.new(-275,-10,-275), Vector3.new(-179,45,-179)
+local function isOutsideCave(p)
+    if not p then return false end
+    return p.X < caveMin.X or p.X > caveMax.X or p.Y < caveMin.Y or p.Y > caveMax.Y or p.Z < caveMin.Z or p.Z > caveMax.Z
+end
+
+-- UI Functions (Giữ nguyên UI đẹp của bạn)
 local function ensureCooldownUI()
     local existing = plr.PlayerGui:FindFirstChild("BeastCooldownUI")
     if existing then return existing:FindFirstChild("CooldownLabel") end
@@ -618,7 +632,7 @@ local function ensureCooldownUI()
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = label
     
-    -- DRAG SYSTEM
+    -- Drag System
     local dragging, dragInput, dragStart, startPos
     label.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -716,6 +730,7 @@ local function startBeastTracker()
         end
     end)
 
+    -- Xác định Perk trong giai đoạn đầu
     local function detectSkillWhenGameActive()
         task.spawn(function()
             local gameActive = Replicated:WaitForChild("IsGameActive")
@@ -762,42 +777,23 @@ local function startBeastTracker()
     end)
 end
 
--- ===== SKILL TRACKING SYSTEM (FIXED RELOAD LOGIC) =====
+-- ===== SKILL TRACKING SYSTEM (ATTRIBUTE BASED - NO VALUE LAG) =====
 if _G.BeastHeartbeat then
     _G.BeastHeartbeat:Disconnect()
 end
 
-local progressPercent = nil
-local lastValue = 0 
 local isUsingSkill = false
 local isCooldown = false
 local cooldownTimeLeft = 0
 local usingTimeLeft = 0
-local skillDetected = false
-local initTime = 0
-local hasTriggeredOnce = false 
-local isBarRefilled = false -- [BIẾN MỚI] Đánh dấu thanh đã hồi đầy hay chưa
 
-local SKILL_TIMES = {
-    runner = {use = 3, cooldown = 22, total = 25},
-    stalker = {use = 7, cooldown = 20, total = 27},
-    seer = {use = 10, cooldown = 28.5, total = 38.5}
-}
-
-local function findProgressPercent()
-    if beast and beast.Character then
-        local beastPowers = beast.Character:FindFirstChild("BeastPowers")
-        if beastPowers then
-            progressPercent = beastPowers:FindFirstChild("PowerProgressPercent")
-            if progressPercent then
-                -- Reset trạng thái
-                lastValue = 0 
-                isUsingSkill = false
-                isCooldown = false
-                hasTriggeredOnce = false
-                isBarRefilled = false -- Reset cờ hồi đầy
-                initTime = tick()
-                print("[DEBUG] Tracking Reset.")
+-- Helper check Stalker Lights
+local function areLightsOff(char)
+    if not char then return false end
+    for _, v in ipairs(char:GetDescendants()) do
+        if v:IsA("PointLight") or v:IsA("SurfaceLight") or v:IsA("SpotLight") then
+            -- Nếu có bất kỳ đèn nào bị tắt hoặc độ sáng = 0
+            if not v.Enabled or v.Brightness == 0 then
                 return true
             end
         end
@@ -808,40 +804,22 @@ end
 _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
     if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
     if not labelCooldown or not labelCooldown.Parent then return end
+    if not beast.Character then return end
 
-    if not progressPercent or not progressPercent.Parent then
-        if not findProgressPercent() then return end
-    end
-
-    local currentValue = progressPercent.Value
-    local now = tick()
-    
-    -- [1] FIX SPAWN BUG: Chặn 0% ảo trong 1.5s đầu
-    if not hasTriggeredOnce and (now - initTime < 1.5) and currentValue < 0.1 then
-        lastValue = currentValue
-        return
-    end
-
-    -- [2] KIỂM TRA HỒI ĐẦY (REFILL CHECK)
-    -- Nếu thanh năng lượng > 0.95, đánh dấu là đã nạp đạn xong
-    if currentValue > 0.95 then
-        isBarRefilled = true
-    end
-
-    -- ============================================================
-    -- 3. ĐẾM GIỜ (ƯU TIÊN CAO NHẤT)
-    -- ============================================================
+    -- [1] HỆ THỐNG ĐẾM GIỜ ƯU TIÊN (PRIORITY TIMER)
+    -- Nếu đang đếm giờ thì RETURN NGAY, không đi xuống phần detect bên dưới
+    -- Điều này giúp tránh bug lặp lại khi beast đang chạy nhanh hoặc đèn đang tắt
     
     if isUsingSkill then
-        usingTimeLeft = usingTimeLeft - dt 
+        usingTimeLeft = usingTimeLeft - dt
         labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), math.max(0, usingTimeLeft))
         
         if usingTimeLeft <= 0 then
             isUsingSkill = false
             isCooldown = true
+            -- Chuyển sang Cooldown ngay
         else
-            lastValue = currentValue
-            return 
+            return -- DỪNG FRAME, KHÔNG DETECT NỮA
         end
     end
     
@@ -852,82 +830,54 @@ _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
         if cooldownTimeLeft <= 0 then
             isCooldown = false
             labelCooldown.Text = getDisplaySkill() .. " Ready!"
-            -- Hết cooldown thì phải đợi thanh hồi đầy (isBarRefilled = true) mới được bắt tiếp
+            -- Hết cooldown thì cho phép code chạy xuống dưới ở frame tiếp theo để detect lại
         else
-            lastValue = currentValue
-            return 
+            return -- DỪNG FRAME, KHÔNG DETECT NỮA
         end
     end
 
-    -- ============================================================
-    -- 4. ĐIỀU KIỆN QUÉT (SCAN CONDITION)
-    -- ============================================================
-    local canScan = false
-
-    if not hasTriggeredOnce then
-        -- LẦN ĐẦU: Dễ tính (Chỉ cần không phải bug 0%)
-        if currentValue > 0.8 or (now - initTime > 1.5) then
-            canScan = true
-        end
-    else
-        -- LẦN SAU: Kiểm tra cờ isBarRefilled
-        -- Nếu đã từng đầy (>0.95) thì cho phép quét, bất kể hiện tại đang tụt xuống bao nhiêu
-        if isBarRefilled then
-            canScan = true
-        end
-    end
-
-    -- ============================================================
-    -- 5. PHÁT HIỆN SKILL (TRIGGER)
-    -- ============================================================
+    -- [2] PHÁT HIỆN SKILL (ATTRIBUTE DETECTION)
+    -- Chỉ chạy xuống đây khi KHÔNG Using và KHÔNG Cooldown
     
-    if canScan then
-        local skillUsed = false
-        
-        -- Detect: Tụt xuống dưới 0.96 VÀ LastValue cao
-        if currentValue < 0.96 and lastValue > 0.8 then
-            skillUsed = true
-        end
-        
-        -- Backup check
-        if currentValue < 0.9 and lastValue > 0.9 then
-            skillUsed = true
-        end
+    local skillUsed = false
+    local char = beast.Character
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
 
-        if skillUsed then
-            if skill == "Unknown" then
-                 local p = Replicated:FindFirstChild("CurrentPower")
-                 if p then skill = tostring(p.Value):lower() end
+    if hum and root then
+        if skill == "runner" then
+            -- RUNNER: Phát hiện nếu tốc độ chạy > 20 (Bình thường là 16)
+            if hum.WalkSpeed > 20 then
+                skillUsed = true
             end
-
-            -- Kích hoạt
-            hasTriggeredOnce = true 
-            isBarRefilled = false -- [QUAN TRỌNG] Reset cờ hồi đầy -> Phải đợi hồi lại mới bắt tiếp
-            isUsingSkill = true
-            isCooldown = false
             
-            local skillData = SKILL_TIMES[skill] or {use = 3, cooldown = 22, total = 25}
-            usingTimeLeft = skillData.use     
-            cooldownTimeLeft = skillData.cooldown
+        elseif skill == "stalker" then
+            -- STALKER: Phát hiện nếu đèn tắt VÀ đang ở ngoài hang
+            -- Phải check ngoài hang vì trong hang đèn có thể tự tắt hoặc do map tối
+            if isOutsideCave(root.Position) and areLightsOff(char) then
+                skillUsed = true
+            end
             
-            showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
-            
-            labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
-            
-            lastValue = currentValue
-            return 
+        elseif skill == "seer" then
+            -- SEER: (Chưa có attribute rõ ràng, để trống chờ update sau)
+            -- Logic detect Seer bằng attribute rất khó vì nó không thay đổi char beast
         end
     end
 
-    -- ============================================================
-    -- 6. TRẠNG THÁI READY
-    -- ============================================================
-    -- Chỉ hiện khi canScan = true (An toàn để bắt)
-    if canScan then
-        labelCooldown.Text = getDisplaySkill() .. " Ready!"
+    -- [3] XỬ LÝ KHI PHÁT HIỆN
+    if skillUsed then
+        isUsingSkill = true
+        isCooldown = false
+        
+        local skillData = SKILL_TIMES[skill] or {use = 3, cooldown = 22}
+        usingTimeLeft = skillData.use
+        cooldownTimeLeft = skillData.cooldown
+        
+        showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
+        
+        -- Update text ngay lập tức (0 Delay)
+        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
     end
-    
-    lastValue = currentValue
 end)
 
 local function stopBeastTracker()
@@ -935,14 +885,11 @@ local function stopBeastTracker()
     setBeastTrackerVisible(false)
     disconnectBeastTracker()
     
-    progressPercent = nil
-    lastValue = 0
     isUsingSkill = false
     isCooldown = false
-    hasTriggeredOnce = false
-    isBarRefilled = false
+    cooldownTimeLeft = 0
+    usingTimeLeft = 0
 end
-
 
 -- ===== HÀM SURVIVOR TRACKER =====
 local SurvivorTracker = {}
