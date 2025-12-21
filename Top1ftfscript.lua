@@ -574,11 +574,18 @@ function SelfMuting.stop()
     unmuteAll()
 
 end
--- ===== HÀM HỖ TRỢ BEAST TRACKER (VERSION HOÀN CHỈNH) =====
+
+-- ===== HÀM HỖ TRỢ BEAST TRACKER (ATTRIBUTE + REMOTE VERSION) =====
 local beastTrackerRunning = false
 local beastConnections = {}
 
--- Hàm lấy tên Skill viết hoa (ví dụ: runner -> Runner)
+-- Cấu hình thời gian
+local SKILL_TIMES = {
+    runner = {use = 3.5, cooldown = 22}, -- Đã update thời gian chuẩn
+    stalker = {use = 7, cooldown = 20},
+    seer = {use = 10, cooldown = 28.5} 
+}
+
 local skill = "Unknown"
 local function getDisplaySkill()
     if skill and skill ~= "Unknown" then
@@ -587,11 +594,17 @@ local function getDisplaySkill()
     return "Skill"
 end
 
+-- Hàm check vị trí hang
+local caveMin, caveMax = Vector3.new(-275,-10,-275), Vector3.new(-179,45,-179)
+local function isOutsideCave(p)
+    if not p then return false end
+    return p.X < caveMin.X or p.X > caveMax.X or p.Y < caveMin.Y or p.Y > caveMax.Y or p.Z < caveMin.Z or p.Z > caveMax.Z
+end
+
+-- UI Functions (Giữ nguyên)
 local function ensureCooldownUI()
     local existing = plr.PlayerGui:FindFirstChild("BeastCooldownUI")
-    if existing then
-        return existing:FindFirstChild("CooldownLabel")
-    end
+    if existing then return existing:FindFirstChild("CooldownLabel") end
     
     local gui = Instance.new("ScreenGui")
     gui.Name = "BeastCooldownUI"
@@ -613,56 +626,29 @@ local function ensureCooldownUI()
     label.TextStrokeTransparency = 0.5
     label.Active = true
     
-    if isMobile() then
-        label.Position = UDim2.new(0.5, 0, 0.8, 0)
-    end
+    if isMobile() then label.Position = UDim2.new(0.5, 0, 0.8, 0) end
     
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 12)
     corner.Parent = label
     
-    -- DRAG SYSTEM
-    local dragging = false
-    local dragInput
-    local dragStart
-    local startPos
-    
-    local function update(input)
-        local delta = input.Position - dragStart
-        label.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-    
+    -- Drag System
+    local dragging, dragInput, dragStart, startPos
     label.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = label.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
+            dragging = true; dragStart = input.Position; startPos = label.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
         end
     end)
-    
     label.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
     end)
-    
     UIS.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
-            update(input)
+            local delta = input.Position - dragStart
+            label.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
-    
     return label
 end
 
@@ -678,154 +664,85 @@ local function createRainbowBorder(frame)
         ColorSequenceKeypoint.new(1, Color3.fromRGB(148, 0, 211)),
     })
     gradient.Parent = frame
-
     local conn
     conn = RunService.RenderStepped:Connect(function()
-        if gradient and gradient.Parent then
-            gradient.Rotation = (gradient.Rotation + 2) % 360
-        else
-            conn:Disconnect()
-        end
+        if gradient and gradient.Parent then gradient.Rotation = (gradient.Rotation + 2) % 360 else conn:Disconnect() end
     end)
 end
 
 local function showBanner(text, name)
     local existing = plr.PlayerGui:FindFirstChild(name)
-    if existing then 
-        pcall(function() existing:Destroy() end)
-    end
+    if existing then pcall(function() existing:Destroy() end) end
     
     local gui = Instance.new("ScreenGui")
-    gui.Name = name
-    gui.Parent = plr.PlayerGui
-    gui.ResetOnSpawn = false
-
+    gui.Name = name; gui.Parent = plr.PlayerGui; gui.ResetOnSpawn = false
     local label = Instance.new("TextLabel")
-    label.Parent = gui
-    label.Size = UDim2.new(0, 250, 0, 40)
-    label.Position = UDim2.new(1, 10, 0, 10)
-    label.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    label.TextColor3 = Color3.new(1, 1, 1)
-    label.Font = Enum.Font.GothamBold
-    label.TextScaled = true
-    label.Text = text
-    label.BorderSizePixel = 3
-    label.BorderColor3 = Color3.new(1, 1, 1)
-
+    label.Parent = gui; label.Size = UDim2.new(0, 250, 0, 40); label.Position = UDim2.new(1, 10, 0, 10)
+    label.BackgroundColor3 = Color3.fromRGB(30, 30, 30); label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.GothamBold; label.TextScaled = true; label.Text = text
+    label.BorderSizePixel = 3; label.BorderColor3 = Color3.new(1, 1, 1)
+    
     local padding = Instance.new("UIPadding")
-    padding.PaddingLeft = UDim.new(0, 10)
-    padding.PaddingRight = UDim.new(0, 10)
-    padding.PaddingTop = UDim.new(0, 5)
-    padding.PaddingBottom = UDim.new(0, 5)
+    padding.PaddingLeft = UDim.new(0, 10); padding.PaddingRight = UDim.new(0, 10)
+    padding.PaddingTop = UDim.new(0, 5); padding.PaddingBottom = UDim.new(0, 5)
     padding.Parent = label
-
     createRainbowBorder(label)
 
-    local tweenIn = TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), 
-        {Position = UDim2.new(1, -260, 0, 10)}
-    )
-    
-    local tweenOut = TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), 
-        {Position = UDim2.new(1, 10, 0, 10)}
-    )
+    local tweenIn = TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(1, -260, 0, 10)})
+    local tweenOut = TweenService:Create(label, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position = UDim2.new(1, 10, 0, 10)})
 
-    tweenIn:Play()
-    tweenIn.Completed:Wait()
-    
-    task.delay(3.4, function()
-        tweenOut:Play()
-        tweenOut.Completed:Wait()
-        pcall(function() gui:Destroy() end)
-    end)
-end
-
-local caveMin, caveMax = Vector3.new(-275,-10,-275), Vector3.new(-179,45,-179)
-local function isOutsideCave(p)
-    if not p then return false end
-    return p.X < caveMin.X or p.X > caveMax.X or p.Y < caveMin.Y or p.Y > caveMax.Y or p.Z < caveMin.Z or p.Z > caveMax.Z
+    tweenIn:Play(); tweenIn.Completed:Wait()
+    task.delay(3.4, function() tweenOut:Play(); tweenOut.Completed:Wait(); pcall(function() gui:Destroy() end) end)
 end
 
 local function disconnectBeastTracker()
-    if _G.BeastHeartbeat then
-        _G.BeastHeartbeat:Disconnect()
-        _G.BeastHeartbeat = nil
-    end
-    
-    for _, conn in ipairs(beastConnections) do
-        if typeof(conn) == "RBXScriptConnection" then
-            conn:Disconnect()
-        end
-    end
+    if _G.BeastHeartbeat then _G.BeastHeartbeat:Disconnect(); _G.BeastHeartbeat = nil end
+    for _, conn in ipairs(beastConnections) do if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end end
     beastConnections = {}
 end
 
 local function setBeastTrackerVisible(state)
     local g = plr.PlayerGui:FindFirstChild("BeastCooldownUI")
-    if g and g:IsA("ScreenGui") then
-        g.Enabled = state
-    end
+    if g and g:IsA("ScreenGui") then g.Enabled = state end
 end
 
 -- ===== BEAST TRACKER MAIN =====
 local beast, foundBeast = nil, false
-local cooldownStart, usedRunner, stalkerActive = nil, false, false
 local labelCooldown = nil
 
 local function startBeastTracker()
     if beastTrackerRunning then return end
     beastTrackerRunning = true
-    
-    labelCooldown = plr.PlayerGui:FindFirstChild("BeastCooldownUI") and 
-                    plr.PlayerGui.BeastCooldownUI:FindFirstChild("CooldownLabel") or 
-                    ensureCooldownUI()
-    
+    labelCooldown = plr.PlayerGui:FindFirstChild("BeastCooldownUI") and plr.PlayerGui.BeastCooldownUI:FindFirstChild("CooldownLabel") or ensureCooldownUI()
     setBeastTrackerVisible(true)
-    
-    if labelCooldown then
-        labelCooldown.Text = "Finding beast..."
-    end
+    if labelCooldown then labelCooldown.Text = "Finding beast..." end
 
     beast, foundBeast, skill = nil, false, "Unknown"
-    cooldownStart, usedRunner, stalkerActive = nil, false, false
 
-    local runningDots = false
     task.spawn(function()
-        if runningDots then return end
-        runningDots = true
         local dots = 0
-        while task.wait(0.5) do
-            if not foundBeast and labelCooldown and labelCooldown.Parent then
+        while beastTrackerRunning and not foundBeast do
+            if labelCooldown and labelCooldown.Parent then
                 dots = (dots % 3) + 1
                 labelCooldown.Text = "Finding new beast" .. string.rep(".", dots)
             end
+            task.wait(0.5)
         end
     end)
 
     local function detectSkillWhenGameActive()
         task.spawn(function()
             local gameActive = Replicated:WaitForChild("IsGameActive")
-            if gameActive:IsA("BoolValue") then
-                repeat task.wait(0.5) until gameActive.Value == true
-            end
-
-            if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
-
+            if gameActive:IsA("BoolValue") then repeat task.wait(0.5) until gameActive.Value == true end
+            if not foundBeast or not beast then return end
+            
             local power
-            repeat
-                power = Replicated:FindFirstChild("CurrentPower")
-                task.wait(0.5)
-            until power and power:IsA("StringValue")
-
-            if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
-
+            repeat power = Replicated:FindFirstChild("CurrentPower"); task.wait(0.5) until power and power:IsA("StringValue")
+            if not foundBeast then return end
+            
             skill = tostring(power.Value):lower()
             showBanner("Beast chose " .. getDisplaySkill(), "SkillChosenBanner")
-
-            power:GetPropertyChangedSignal("Value"):Connect(function()
-                if foundBeast and beast and Players:FindFirstChild(beast.Name) then
-                    skill = tostring(power.Value):lower()
-                end
-            end)
+            power:GetPropertyChangedSignal("Value"):Connect(function() if foundBeast then skill = tostring(power.Value):lower() end end)
         end)
     end
 
@@ -835,31 +752,22 @@ local function startBeastTracker()
         return s and s:FindFirstChild("IsBeast") and s.IsBeast.Value
     end
 
-    local runningScan = false
     task.spawn(function()
-        if runningScan then return end
-        runningScan = true
-        while task.wait(0.05) do
+        while beastTrackerRunning do
+            task.wait(0.1)
             if foundBeast then
                 if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
                     beast, foundBeast, skill = nil, false, "Unknown"
-                    cooldownStart, usedRunner, stalkerActive = nil, false, false
                     if labelCooldown then labelCooldown.Text = "Finding new beast..." end
                 end
-            end
-
-            if not foundBeast then
+            else
                 for _, p in ipairs(Players:GetPlayers()) do
                     if isBeast(p) then
                         beast, foundBeast = p, true
                         showBanner(beast.Name .. " is Beast!!!", "BeastBanner")
                         detectSkillWhenGameActive()
                         if labelCooldown then labelCooldown.Text = "Found beast!!!" end
-                        task.delay(2.5, function()
-                            if foundBeast and labelCooldown then
-                                labelCooldown.Text = getDisplaySkill() .. " Ready!!!"
-                            end
-                        end)
+                        task.delay(2.5, function() if foundBeast and labelCooldown then labelCooldown.Text = getDisplaySkill() .. " Ready!!!" end end)
                         break
                     end
                 end
@@ -868,38 +776,23 @@ local function startBeastTracker()
     end)
 end
 
--- ===== SKILL TRACKING SYSTEM =====
+-- ===== SKILL TRACKING SYSTEM (ATTRIBUTE + REMOTE INTEGRATION) =====
 if _G.BeastHeartbeat then
     _G.BeastHeartbeat:Disconnect()
 end
 
-local progressPercent = nil
-local lastValue = 1
 local isUsingSkill = false
 local isCooldown = false
 local cooldownTimeLeft = 0
 local usingTimeLeft = 0
-local skillDetected = false
-local isInitialized = false
-local initializationTime = 0
-local lastSkillUsedTime = 0
+local seerTriggered = false -- Biến cờ cho Seer
 
-local SKILL_TIMES = {
-    runner = {use = 3, cooldown = 22, total = 25},
-    stalker = {use = 7, cooldown = 20, total = 27},
-    seer = {use = 10, cooldown = 28.5, total = 38.5}
-}
-
-local function findProgressPercent()
-    if beast and beast.Character then
-        local beastPowers = beast.Character:FindFirstChild("BeastPowers")
-        if beastPowers then
-            progressPercent = beastPowers:FindFirstChild("PowerProgressPercent")
-            if progressPercent then
-                isInitialized = false
-                initializationTime = tick()
-                skillDetected = false
-                print("[DEBUG] Found PowerProgressPercent, initial value:", progressPercent.Value, "- Starting init")
+-- Helper check Stalker Lights
+local function areLightsOff(char)
+    if not char then return false end
+    for _, v in ipairs(char:GetDescendants()) do
+        if v:IsA("PointLight") or v:IsA("SurfaceLight") or v:IsA("SpotLight") then
+            if not v.Enabled or v.Brightness == 0 then
                 return true
             end
         end
@@ -907,103 +800,93 @@ local function findProgressPercent()
     return false
 end
 
+-- [QUAN TRỌNG] Lắng nghe Remote WarningEvent để bắt Seer
+-- Script sẽ lắng nghe 1 lần duy nhất và tự động kích hoạt khi có sự kiện
+local warningEvent = Replicated:WaitForChild("WarningEvent", 5)
+if warningEvent then
+    table.insert(beastConnections, warningEvent.OnClientEvent:Connect(function(...)
+        -- Chỉ kích hoạt nếu skill hiện tại là Seer
+        if skill == "seer" then
+            seerTriggered = true -- Bật cờ lên để vòng lặp Heartbeat xử lý
+        end
+    end))
+end
+
 _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
     if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
     if not labelCooldown or not labelCooldown.Parent then return end
+    if not beast.Character then return end
 
-    if not progressPercent or not progressPercent.Parent then
-        if not findProgressPercent() then return end
-    end
-
-    local currentValue = progressPercent.Value
-    local currentTime = tick()
-    
-    -- ===== INITIALIZATION PERIOD =====
-    if not isInitialized then
-        if currentTime - initializationTime >= 2 and currentValue >= 0.99 then
-            isInitialized = true
-            skillDetected = false
-            lastValue = currentValue
-            print("[DEBUG] Initialization complete - Beast skill ready at", currentValue)
-        else
-            lastValue = currentValue
-            return
-        end
-    end
-    
-    -- ===== DETECT SKILL USAGE =====
-    local skillUsed = false
-    
-    if currentValue < 0.95 and lastValue >= 0.99 then
-        if currentTime - lastSkillUsedTime > 0.5 then
-            skillUsed = true
-        end
-    end
-    
-    if currentValue < 0.90 and not isUsingSkill and not isCooldown and not skillDetected then
-        if currentTime - lastSkillUsedTime > 0.5 then
-            skillUsed = true
-        end
-    end
-
-    if skillUsed then
-        isUsingSkill = true
-        isCooldown = false
-        skillDetected = true
-        lastSkillUsedTime = currentTime
-        
-        local skillData = SKILL_TIMES[skill] or {use = 3, cooldown = 22, total = 25}
-        
-        -- Tính using time còn lại dựa trên value
-        local valueDropped = 1 - currentValue
-        local estimatedTimeElapsed = valueDropped * skillData.use
-        usingTimeLeft = math.max(0.1, skillData.use - estimatedTimeElapsed)
-        cooldownTimeLeft = skillData.cooldown
-        
-        showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
-        print("[DEBUG] Skill detected! Skill:", skill, "Value:", currentValue, "Adjusted time:", usingTimeLeft, "CD:", cooldownTimeLeft)
-    end
-    
-    if currentValue >= 0.98 and not isUsingSkill and not isCooldown then
-        skillDetected = false
-    end
-    
-    -- ===== USING SKILL COUNTDOWN =====
+    -- [1] HỆ THỐNG ĐẾM GIỜ ƯU TIÊN (PRIORITY TIMER)
     if isUsingSkill then
-        usingTimeLeft = math.max(0, usingTimeLeft - dt)
-        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
+        usingTimeLeft = usingTimeLeft - dt
+        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), math.max(0, usingTimeLeft))
         
         if usingTimeLeft <= 0 then
             isUsingSkill = false
             isCooldown = true
-            print("[DEBUG] Skill usage ended - Entering cooldown")
+        else
+            -- Khi đang dùng skill thì Reset cờ Seer để tránh kích hoạt lại
+            seerTriggered = false 
+            return 
         end
-        
-        lastValue = currentValue
-        return
     end
     
-    -- ===== COOLDOWN COUNTDOWN =====
     if isCooldown then
-        cooldownTimeLeft = math.max(0, cooldownTimeLeft - dt)
-        labelCooldown.Text = string.format("Cooldown: %.1fs", cooldownTimeLeft)
+        cooldownTimeLeft = cooldownTimeLeft - dt
+        labelCooldown.Text = string.format("Cooldown: %.1fs", math.max(0, cooldownTimeLeft))
         
         if cooldownTimeLeft <= 0 then
             isCooldown = false
             labelCooldown.Text = getDisplaySkill() .. " Ready!"
-            print("[DEBUG] Cooldown ended - Skill ready")
+        else
+            -- Khi đang hồi chiêu cũng Reset cờ Seer
+            seerTriggered = false
+            return 
         end
+    end
+
+    -- [2] PHÁT HIỆN SKILL (ATTRIBUTE + REMOTE)
+    local skillUsed = false
+    local char = beast.Character
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+
+    if hum and root then
+        if skill == "runner" then
+            -- RUNNER: Check Speed
+            if hum.WalkSpeed > 20 then
+                skillUsed = true
+            end
+            
+        elseif skill == "stalker" then
+            -- STALKER: Check Đèn tắt + Ngoài hang
+            if isOutsideCave(root.Position) and areLightsOff(char) then
+                skillUsed = true
+            end
+            
+        elseif skill == "seer" then
+            -- SEER: Check biến cờ từ RemoteEvent
+            if seerTriggered then
+                skillUsed = true
+                seerTriggered = false -- Reset ngay sau khi bắt được
+            end
+        end
+    end
+
+    -- [3] XỬ LÝ KHI PHÁT HIỆN
+    if skillUsed then
+        isUsingSkill = true
+        isCooldown = false
         
-        lastValue = currentValue
-        return
+        local skillData = SKILL_TIMES[skill] or {use = 3, cooldown = 22}
+        usingTimeLeft = skillData.use
+        cooldownTimeLeft = skillData.cooldown
+        
+        showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
+        
+        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
     end
-    
-    -- ===== SKILL READY =====
-    if currentValue >= 0.99 then
-        labelCooldown.Text = getDisplaySkill() .. " Ready!"
-    end
-    
-    lastValue = currentValue
 end)
 
 local function stopBeastTracker()
@@ -1011,16 +894,11 @@ local function stopBeastTracker()
     setBeastTrackerVisible(false)
     disconnectBeastTracker()
     
-    progressPercent = nil
-    lastValue = 1
     isUsingSkill = false
     isCooldown = false
     cooldownTimeLeft = 0
     usingTimeLeft = 0
-    skillDetected = false
-    isInitialized = false
-    initializationTime = 0
-    lastSkillUsedTime = 0
+    seerTriggered = false
 end
 
 -- ===== HÀM SURVIVOR TRACKER =====
