@@ -575,15 +575,15 @@ function SelfMuting.stop()
 
 end
 
--- ===== HÀM HỖ TRỢ BEAST TRACKER (ATTRIBUTE + REMOTE VERSION) =====
+-- ===== HÀM HỖ TRỢ BEAST TRACKER (ATTRIBUTE VERSION + SEER EVENT) =====
 local beastTrackerRunning = false
 local beastConnections = {}
 
 -- Cấu hình thời gian
 local SKILL_TIMES = {
-    runner = {use = 3.5, cooldown = 22}, -- Đã update thời gian chuẩn
+    runner = {use = 3.5, cooldown = 22},
     stalker = {use = 7, cooldown = 20},
-    seer = {use = 10, cooldown = 28.5} 
+    seer = {use = 9.5, cooldown = 29}
 }
 
 local skill = "Unknown"
@@ -594,14 +594,14 @@ local function getDisplaySkill()
     return "Skill"
 end
 
--- Hàm check vị trí hang
+-- Hàm check vị trí hang (Cần thiết cho Stalker)
 local caveMin, caveMax = Vector3.new(-275,-10,-275), Vector3.new(-179,45,-179)
 local function isOutsideCave(p)
     if not p then return false end
     return p.X < caveMin.X or p.X > caveMax.X or p.Y < caveMin.Y or p.Y > caveMax.Y or p.Z < caveMin.Z or p.Z > caveMax.Z
 end
 
--- UI Functions (Giữ nguyên)
+-- UI Functions
 local function ensureCooldownUI()
     local existing = plr.PlayerGui:FindFirstChild("BeastCooldownUI")
     if existing then return existing:FindFirstChild("CooldownLabel") end
@@ -730,6 +730,7 @@ local function startBeastTracker()
         end
     end)
 
+    -- Xác định Perk trong giai đoạn đầu
     local function detectSkillWhenGameActive()
         task.spawn(function()
             local gameActive = Replicated:WaitForChild("IsGameActive")
@@ -776,7 +777,7 @@ local function startBeastTracker()
     end)
 end
 
--- ===== SKILL TRACKING SYSTEM (ATTRIBUTE + REMOTE INTEGRATION) =====
+-- ===== SKILL TRACKING SYSTEM (HYBRID: ATTRIBUTE + VALUE FOR SEER) =====
 if _G.BeastHeartbeat then
     _G.BeastHeartbeat:Disconnect()
 end
@@ -785,7 +786,10 @@ local isUsingSkill = false
 local isCooldown = false
 local cooldownTimeLeft = 0
 local usingTimeLeft = 0
-local seerTriggered = false -- Biến cờ cho Seer
+local seerEventConnection = nil
+local progressPercent = nil
+local lastValue = 1
+local skillDetected = false
 
 -- Helper check Stalker Lights
 local function areLightsOff(char)
@@ -800,24 +804,71 @@ local function areLightsOff(char)
     return false
 end
 
--- [QUAN TRỌNG] Lắng nghe Remote WarningEvent để bắt Seer
--- Script sẽ lắng nghe 1 lần duy nhất và tự động kích hoạt khi có sự kiện
-local warningEvent = Replicated:WaitForChild("WarningEvent", 5)
-if warningEvent then
-    table.insert(beastConnections, warningEvent.OnClientEvent:Connect(function(...)
-        -- Chỉ kích hoạt nếu skill hiện tại là Seer
-        if skill == "seer" then
-            seerTriggered = true -- Bật cờ lên để vòng lặp Heartbeat xử lý
+-- Tìm PowerProgressPercent cho Seer (backup method)
+local function findProgressPercent()
+    if beast and beast.Character then
+        local beastPowers = beast.Character:FindFirstChild("BeastPowers")
+        if beastPowers then
+            progressPercent = beastPowers:FindFirstChild("PowerProgressPercent")
+            if progressPercent then
+                lastValue = progressPercent.Value
+                skillDetected = false
+                return true
+            end
         end
-    end))
+    end
+    return false
 end
+
+-- Hàm trigger khi detect skill
+local function triggerSkillUsed()
+    if isUsingSkill or isCooldown then return end
+    
+    isUsingSkill = true
+    isCooldown = false
+    skillDetected = true
+    
+    local skillData = SKILL_TIMES[skill] or {use = 3.5, cooldown = 22}
+    usingTimeLeft = skillData.use
+    cooldownTimeLeft = skillData.cooldown
+    
+    showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
+    
+    if labelCooldown then
+        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
+    end
+end
+
+-- Setup Seer Event Listener (cho Survivor)
+local function setupSeerDetection()
+    if seerEventConnection then
+        seerEventConnection:Disconnect()
+        seerEventConnection = nil
+    end
+    
+    local warningEvent = Replicated:FindFirstChild("WarningEvent")
+    if warningEvent and warningEvent:IsA("RemoteEvent") then
+        seerEventConnection = warningEvent.OnClientEvent:Connect(function(...)
+            if skill == "seer" and foundBeast and beastTrackerRunning then
+                triggerSkillUsed()
+            end
+        end)
+        table.insert(beastConnections, seerEventConnection)
+        print("[DEBUG] Seer event detection ready")
+    end
+end
+
+task.spawn(function()
+    task.wait(1)
+    setupSeerDetection()
+end)
 
 _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
     if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
     if not labelCooldown or not labelCooldown.Parent then return end
     if not beast.Character then return end
 
-    -- [1] HỆ THỐNG ĐẾM GIỜ ƯU TIÊN (PRIORITY TIMER)
+    -- [1] ĐẾM GIỜ
     if isUsingSkill then
         usingTimeLeft = usingTimeLeft - dt
         labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), math.max(0, usingTimeLeft))
@@ -826,9 +877,8 @@ _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
             isUsingSkill = false
             isCooldown = true
         else
-            -- Khi đang dùng skill thì Reset cờ Seer để tránh kích hoạt lại
-            seerTriggered = false 
-            return 
+            lastValue = progressPercent and progressPercent.Value or 1
+            return
         end
     end
     
@@ -838,54 +888,54 @@ _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
         
         if cooldownTimeLeft <= 0 then
             isCooldown = false
-            labelCooldown.Text = getDisplaySkill() .. " Ready!"
+            skillDetected = false
+            labelCooldown.Text = getDisplaySkill() .. " Ready!!!"
         else
-            -- Khi đang hồi chiêu cũng Reset cờ Seer
-            seerTriggered = false
-            return 
+            lastValue = progressPercent and progressPercent.Value or 1
+            return
         end
     end
 
-    -- [2] PHÁT HIỆN SKILL (ATTRIBUTE + REMOTE)
-    local skillUsed = false
+    -- [2] DETECT RUNNER & STALKER (ATTRIBUTE)
     local char = beast.Character
     local hum = char:FindFirstChild("Humanoid")
     local root = char:FindFirstChild("HumanoidRootPart")
 
     if hum and root then
         if skill == "runner" then
-            -- RUNNER: Check Speed
             if hum.WalkSpeed > 20 then
-                skillUsed = true
+                triggerSkillUsed()
             end
             
         elseif skill == "stalker" then
-            -- STALKER: Check Đèn tắt + Ngoài hang
             if isOutsideCave(root.Position) and areLightsOff(char) then
-                skillUsed = true
-            end
-            
-        elseif skill == "seer" then
-            -- SEER: Check biến cờ từ RemoteEvent
-            if seerTriggered then
-                skillUsed = true
-                seerTriggered = false -- Reset ngay sau khi bắt được
+                triggerSkillUsed()
             end
         end
     end
-
-    -- [3] XỬ LÝ KHI PHÁT HIỆN
-    if skillUsed then
-        isUsingSkill = true
-        isCooldown = false
+    
+    -- [3] DETECT SEER (POWERPROGRESSPERCENT - BACKUP CHO BEAST)
+    if skill == "seer" then
+        -- Tìm progressPercent nếu chưa có
+        if not progressPercent or not progressPercent.Parent then
+            findProgressPercent()
+        end
         
-        local skillData = SKILL_TIMES[skill] or {use = 3, cooldown = 22}
-        usingTimeLeft = skillData.use
-        cooldownTimeLeft = skillData.cooldown
-        
-        showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
-        
-        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
+        if progressPercent then
+            local currentValue = progressPercent.Value
+            
+            -- Detect khi value drop từ cao xuống thấp
+            if currentValue < 0.99 and lastValue > 0.95 and not skillDetected then
+                triggerSkillUsed()
+            end
+            
+            -- Reset skillDetected khi value về cao
+            if currentValue >= 0.98 and not isUsingSkill and not isCooldown then
+                skillDetected = false
+            end
+            
+            lastValue = currentValue
+        end
     end
 end)
 
@@ -894,11 +944,19 @@ local function stopBeastTracker()
     setBeastTrackerVisible(false)
     disconnectBeastTracker()
     
+    if seerEventConnection then
+        seerEventConnection:Disconnect()
+        seerEventConnection = nil
+    end
+    
     isUsingSkill = false
     isCooldown = false
     cooldownTimeLeft = 0
     usingTimeLeft = 0
-    seerTriggered = false
+    progressPercent = nil
+    lastValue = 1
+    skillDetected = false
+    isBarRefilled = false  -- [FIX] Reset cờ
 end
 
 -- ===== HÀM SURVIVOR TRACKER =====
