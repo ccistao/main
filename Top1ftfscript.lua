@@ -63,48 +63,6 @@ LogService.MessageOut:Connect(function() end)
 local plr = Players.LocalPlayer
 repeat task.wait() until plr and plr:FindFirstChild("PlayerGui")
 
---// Intro
-local guiIntro = Instance.new("ScreenGui")
-guiIntro.Parent = plr.PlayerGui
-guiIntro.ResetOnSpawn = false
-guiIntro.Name = "IntroGui"
-local frameIntro = Instance.new("Frame")
-frameIntro.Parent = guiIntro
-frameIntro.Size = UDim2.new(1,0,1,0)
-frameIntro.BackgroundTransparency = 1
-
-local function createText(t,y,s)
-    local l = Instance.new("TextLabel")
-    l.Parent = frameIntro
-    l.Text = t
-    l.Size = UDim2.new(0,600,0,60)
-    l.Position = UDim2.new(0.5,0,0.5,y)
-    l.AnchorPoint = Vector2.new(0.5,0.5)
-    l.BackgroundTransparency = 1
-    l.TextColor3 = Color3.new(1,1,1)
-    l.TextStrokeTransparency = 0.2
-    l.TextStrokeColor3 = Color3.fromRGB(0,170,255)
-    l.Font = Enum.Font.GothamBold
-    l.TextTransparency = 1
-    l.TextScaled = false
-    l.TextSize = s or 36
-    return l
-end
-
-local main = createText("script made by Kilo & Zero",-35,38)
-local sub = createText("ver 1.0.0",10,26)
-
-local function fade(lbl, a)
-    if lbl and lbl.Parent then
-        TweenService:Create(lbl, TweenInfo.new(1), {TextTransparency = a}):Play()
-    end
-end
-
-fade(main,0); fade(sub,0)
-task.wait(2)
-fade(main,1); fade(sub,1)
-task.wait(1.5)
-pcall(function() guiIntro:Destroy() end)
 
 --// Detect Platform
 local function isMobile()
@@ -575,7 +533,7 @@ function SelfMuting.stop()
 
 end
 
--- ===== HÀM HỖ TRỢ BEAST TRACKER (ATTRIBUTE VERSION + SEER EVENT) =====
+-- ===== BEAST TRACKER (GAME STATE LOGIC FIX) =====
 local beastTrackerRunning = false
 local beastConnections = {}
 
@@ -583,25 +541,28 @@ local beastConnections = {}
 local SKILL_TIMES = {
     runner = {use = 3.5, cooldown = 22},
     stalker = {use = 7, cooldown = 20},
-    seer = {use = 9.5, cooldown = 29}
+    seer = {use = 9.5, cooldown = 28.5}
 }
 
 local skill = "Unknown"
+local beast, foundBeast = nil, false
+local labelCooldown = nil
+
+local isUsingSkill = false
+local isCooldown = false
+local cooldownTimeLeft = 0
+local usingTimeLeft = 0
+local progressPercent = nil
+local lastValue = 0 
+local skillDetected = false
+local canDetectDrop = true -- [FIX] Mặc định là TRUE để bắt được pha Spam Q đầu game
+local seerEventConnection = nil
+
 local function getDisplaySkill()
-    if skill and skill ~= "Unknown" then
-        return skill:gsub("^%l", string.upper)
-    end
-    return "Skill"
+    return (skill and skill ~= "Unknown") and skill:gsub("^%l", string.upper) or "Skill"
 end
 
--- Hàm check vị trí hang (Cần thiết cho Stalker)
-local caveMin, caveMax = Vector3.new(-275,-10,-275), Vector3.new(-179,45,-179)
-local function isOutsideCave(p)
-    if not p then return false end
-    return p.X < caveMin.X or p.X > caveMax.X or p.Y < caveMin.Y or p.Y > caveMax.Y or p.Z < caveMin.Z or p.Z > caveMax.Z
-end
-
--- UI Functions
+-- === CÁC HÀM UI ===
 local function ensureCooldownUI()
     local existing = plr.PlayerGui:FindFirstChild("BeastCooldownUI")
     if existing then return existing:FindFirstChild("CooldownLabel") end
@@ -695,6 +656,68 @@ local function showBanner(text, name)
     task.delay(3.4, function() tweenOut:Play(); tweenOut.Completed:Wait(); pcall(function() gui:Destroy() end) end)
 end
 
+-- === LOGIC FUNCTIONS ===
+local function isGameActive()
+    local val = Replicated:FindFirstChild("IsGameActive")
+    return val and val.Value == true
+end
+
+local caveMin, caveMax = Vector3.new(-275,-10,-275), Vector3.new(-179,45,-179)
+local function isOutsideCave(p)
+    -- Giữ lại hàm này để check phụ trợ, nhưng không dùng làm điều kiện chính nữa
+    if not p then return false end
+    return p.X < caveMin.X or p.X > caveMax.X or p.Y < caveMin.Y or p.Y > caveMax.Y or p.Z < caveMin.Z or p.Z > caveMax.Z
+end
+
+local function areLightsOff(char)
+    if not char then return false end
+    -- [OPTIMIZE] Chỉ check cái đèn chính của Beast (BeastGem) thay vì quét cả nhân vật
+    local gem = char:FindFirstChild("BeastGem", true) -- Tìm sâu
+    if gem then
+        for _, v in ipairs(gem:GetChildren()) do
+            if (v:IsA("PointLight") or v:IsA("SurfaceLight") or v:IsA("SpotLight")) then
+                if not v.Enabled or v.Brightness == 0 then return true end
+            end
+        end
+    else
+        -- Fallback: Nếu không tìm thấy Gem thì mới quét hết (đề phòng)
+        for _, v in ipairs(char:GetDescendants()) do
+            if (v:IsA("PointLight") or v:IsA("SurfaceLight") or v:IsA("SpotLight")) then
+                if not v.Enabled or v.Brightness == 0 then return true end
+            end
+        end
+    end
+    return false
+end
+
+local function findProgressPercent()
+    if beast and beast.Character then
+        local beastPowers = beast.Character:FindFirstChild("BeastPowers")
+        if beastPowers then
+            progressPercent = beastPowers:FindFirstChild("PowerProgressPercent")
+            if progressPercent then
+                lastValue = progressPercent.Value
+                skillDetected = false
+                -- [FIX] Không reset canDetectDrop về false ở đây nữa, giữ nó True
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function triggerSkillUsed()
+    if isUsingSkill or isCooldown then return end
+    isUsingSkill = true; isCooldown = false; skillDetected = true
+    
+    local skillData = SKILL_TIMES[skill] or {use = 3.5, cooldown = 22}
+    usingTimeLeft = skillData.use
+    cooldownTimeLeft = skillData.cooldown
+    
+    showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
+    if labelCooldown then labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft) end
+end
+
 local function disconnectBeastTracker()
     if _G.BeastHeartbeat then _G.BeastHeartbeat:Disconnect(); _G.BeastHeartbeat = nil end
     for _, conn in ipairs(beastConnections) do if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end end
@@ -706,67 +729,82 @@ local function setBeastTrackerVisible(state)
     if g and g:IsA("ScreenGui") then g.Enabled = state end
 end
 
--- ===== BEAST TRACKER MAIN =====
-local beast, foundBeast = nil, false
-local labelCooldown = nil
+local function setupSeerDetection()
+    if seerEventConnection then seerEventConnection:Disconnect() end
+    local warningEvent = Replicated:FindFirstChild("WarningEvent")
+    if warningEvent and warningEvent:IsA("RemoteEvent") then
+        seerEventConnection = warningEvent.OnClientEvent:Connect(function(...)
+            -- [FIX] Logic tin tưởng GameActive: Nếu game đang chạy và đúng skill Seer -> Báo luôn
+            if beastTrackerRunning and foundBeast and skill == "seer" and isGameActive() then
+                triggerSkillUsed()
+            end
+        end)
+        table.insert(beastConnections, seerEventConnection)
+    end
+end
 
+-- === MAIN START ===
 local function startBeastTracker()
     if beastTrackerRunning then return end
     beastTrackerRunning = true
+    
     labelCooldown = plr.PlayerGui:FindFirstChild("BeastCooldownUI") and plr.PlayerGui.BeastCooldownUI:FindFirstChild("CooldownLabel") or ensureCooldownUI()
     setBeastTrackerVisible(true)
     if labelCooldown then labelCooldown.Text = "Finding beast..." end
 
     beast, foundBeast, skill = nil, false, "Unknown"
+    isUsingSkill = false; isCooldown = false
+    progressPercent = nil; lastValue = 0
+    canDetectDrop = true -- [QUAN TRỌNG] Reset về True
 
+    -- Animation Loop
     task.spawn(function()
         local dots = 0
-        while beastTrackerRunning and not foundBeast do
-            if labelCooldown and labelCooldown.Parent then
-                dots = (dots % 3) + 1
-                labelCooldown.Text = "Finding new beast" .. string.rep(".", dots)
+        while beastTrackerRunning do
+            if not foundBeast then
+                if labelCooldown and labelCooldown.Parent then
+                    dots = (dots % 3) + 1
+                    labelCooldown.Text = "Finding new beast" .. string.rep(".", dots)
+                end
+            else
+                dots = 0 
             end
             task.wait(0.5)
         end
     end)
 
-    -- Xác định Perk trong giai đoạn đầu
-    local function detectSkillWhenGameActive()
-        task.spawn(function()
-            local gameActive = Replicated:WaitForChild("IsGameActive")
-            if gameActive:IsA("BoolValue") then repeat task.wait(0.5) until gameActive.Value == true end
-            if not foundBeast or not beast then return end
-            
-            local power
-            repeat power = Replicated:FindFirstChild("CurrentPower"); task.wait(0.5) until power and power:IsA("StringValue")
-            if not foundBeast then return end
-            
-            skill = tostring(power.Value):lower()
-            showBanner("Beast chose " .. getDisplaySkill(), "SkillChosenBanner")
-            power:GetPropertyChangedSignal("Value"):Connect(function() if foundBeast then skill = tostring(power.Value):lower() end end)
-        end)
-    end
-
-    local function isBeast(player)
-        if not player then return false end
-        local s = player:FindFirstChild("TempPlayerStatsModule")
-        return s and s:FindFirstChild("IsBeast") and s.IsBeast.Value
-    end
-
+    -- Finder Loop
     task.spawn(function()
         while beastTrackerRunning do
-            task.wait(0.1)
+            task.wait(0.2) 
             if foundBeast then
-                if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
+                if not beast or not Players:FindFirstChild(beast.Name) or not (beast:FindFirstChild("TempPlayerStatsModule") and beast.TempPlayerStatsModule:FindFirstChild("IsBeast") and beast.TempPlayerStatsModule.IsBeast.Value) then
                     beast, foundBeast, skill = nil, false, "Unknown"
-                    if labelCooldown then labelCooldown.Text = "Finding new beast..." end
                 end
             else
                 for _, p in ipairs(Players:GetPlayers()) do
-                    if isBeast(p) then
+                    local s = p:FindFirstChild("TempPlayerStatsModule")
+                    if s and s:FindFirstChild("IsBeast") and s.IsBeast.Value then
                         beast, foundBeast = p, true
                         showBanner(beast.Name .. " is Beast!!!", "BeastBanner")
-                        detectSkillWhenGameActive()
+                        
+                        task.spawn(function()
+                            local gameActive = Replicated:WaitForChild("IsGameActive", 10)
+                            if not gameActive then return end
+                            -- Đợi game thực sự active để xác nhận skill (tránh lỗi)
+                            repeat task.wait(0.5) until gameActive.Value == true or not beastTrackerRunning
+                            
+                            local power = Replicated:FindFirstChild("CurrentPower")
+                            if power and foundBeast then
+                                skill = tostring(power.Value):lower()
+                                showBanner("Beast chose " .. getDisplaySkill(), "SkillChosenBanner")
+                                table.insert(beastConnections, power:GetPropertyChangedSignal("Value"):Connect(function() 
+                                    if foundBeast then skill = tostring(power.Value):lower() end 
+                                end))
+                            end
+                        end)
+                        
+                        setupSeerDetection() 
                         if labelCooldown then labelCooldown.Text = "Found beast!!!" end
                         task.delay(2.5, function() if foundBeast and labelCooldown then labelCooldown.Text = getDisplaySkill() .. " Ready!!!" end end)
                         break
@@ -775,188 +813,76 @@ local function startBeastTracker()
             end
         end
     end)
-end
 
--- ===== SKILL TRACKING SYSTEM (HYBRID: ATTRIBUTE + VALUE FOR SEER) =====
-if _G.BeastHeartbeat then
-    _G.BeastHeartbeat:Disconnect()
-end
+    -- CONNECT HEARTBEAT HERE
+    if _G.BeastHeartbeat then _G.BeastHeartbeat:Disconnect() end
+    _G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
+        if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
+        if not labelCooldown or not labelCooldown.Parent then return end
+        
+        -- Timer Logic
+        if isUsingSkill then
+            usingTimeLeft = usingTimeLeft - dt
+            labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), math.max(0, usingTimeLeft))
+            if usingTimeLeft <= 0 then isUsingSkill = false; isCooldown = true end
+            if progressPercent then lastValue = progressPercent.Value end
+            return
+        end
+        if isCooldown then
+            cooldownTimeLeft = cooldownTimeLeft - dt
+            labelCooldown.Text = string.format("Cooldown: %.1fs", math.max(0, cooldownTimeLeft))
+            if cooldownTimeLeft <= 0 then isCooldown = false; skillDetected = false; canDetectDrop = true; labelCooldown.Text = getDisplaySkill() .. " Ready!!!" end
+            if progressPercent then lastValue = progressPercent.Value end
+            return
+        end
 
-local isUsingSkill = false
-local isCooldown = false
-local cooldownTimeLeft = 0
-local usingTimeLeft = 0
-local seerEventConnection = nil
-local progressPercent = nil
-local lastValue = 1
-local skillDetected = false
+        -- [FIX CHÍNH] GAME STATE CHECK
+        -- Nếu trận đấu chưa bắt đầu -> Dừng mọi detect (Kể cả khi TP)
+        if not isGameActive() then 
+            if progressPercent then lastValue = progressPercent.Value end
+            return 
+        end
 
--- Helper check Stalker Lights
-local function areLightsOff(char)
-    if not char then return false end
-    for _, v in ipairs(char:GetDescendants()) do
-        if v:IsA("PointLight") or v:IsA("SurfaceLight") or v:IsA("SpotLight") then
-            if not v.Enabled or v.Brightness == 0 then
-                return true
+        local char = beast.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        
+        -- Detect Logic
+        if hum then
+            if skill == "runner" then
+                if hum.WalkSpeed > 20 then triggerSkillUsed() end
+            elseif skill == "stalker" then
+                if areLightsOff(char) then triggerSkillUsed() end
             end
         end
-    end
-    return false
-end
-
--- Tìm PowerProgressPercent cho Seer (backup method)
-local function findProgressPercent()
-    if beast and beast.Character then
-        local beastPowers = beast.Character:FindFirstChild("BeastPowers")
-        if beastPowers then
-            progressPercent = beastPowers:FindFirstChild("PowerProgressPercent")
+        
+        if skill == "seer" then
+            if not progressPercent or not progressPercent.Parent then findProgressPercent() end
             if progressPercent then
-                lastValue = progressPercent.Value
-                skillDetected = false
-                return true
+                local currentValue = progressPercent.Value
+                
+                -- [LOGIC SMART LATCH MỚI]
+                -- Vì canDetectDrop mặc định là True, nên nếu Q spam ngay đầu game (currentValue < 0.98), nó sẽ vào nhánh else ngay và trigger.
+                if not canDetectDrop then
+                    if currentValue > 0.98 then canDetectDrop = true end
+                else
+                    if currentValue < 0.98 and lastValue > 0.95 and not skillDetected then triggerSkillUsed() end
+                end
+                
+                if currentValue >= 0.98 and not isUsingSkill and not isCooldown then skillDetected = false; canDetectDrop = true end
+                lastValue = currentValue
             end
         end
-    end
-    return false
+    end)
 end
-
--- Hàm trigger khi detect skill
-local function triggerSkillUsed()
-    if isUsingSkill or isCooldown then return end
-    
-    isUsingSkill = true
-    isCooldown = false
-    skillDetected = true
-    
-    local skillData = SKILL_TIMES[skill] or {use = 3.5, cooldown = 22}
-    usingTimeLeft = skillData.use
-    cooldownTimeLeft = skillData.cooldown
-    
-    showBanner("Beast used " .. getDisplaySkill() .. " !!!", "SkillUsedBanner")
-    
-    if labelCooldown then
-        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), usingTimeLeft)
-    end
-end
-
--- Setup Seer Event Listener (cho Survivor)
-local function setupSeerDetection()
-    if seerEventConnection then
-        seerEventConnection:Disconnect()
-        seerEventConnection = nil
-    end
-    
-    local warningEvent = Replicated:FindFirstChild("WarningEvent")
-    if warningEvent and warningEvent:IsA("RemoteEvent") then
-        seerEventConnection = warningEvent.OnClientEvent:Connect(function(...)
-            if skill == "seer" and foundBeast and beastTrackerRunning then
-                triggerSkillUsed()
-            end
-        end)
-        table.insert(beastConnections, seerEventConnection)
-        print("[DEBUG] Seer event detection ready")
-    end
-end
-
-task.spawn(function()
-    task.wait(1)
-    setupSeerDetection()
-end)
-
-_G.BeastHeartbeat = RunService.Heartbeat:Connect(function(dt)
-    if not foundBeast or not beast or not Players:FindFirstChild(beast.Name) then return end
-    if not labelCooldown or not labelCooldown.Parent then return end
-    if not beast.Character then return end
-
-    -- [1] ĐẾM GIỜ
-    if isUsingSkill then
-        usingTimeLeft = usingTimeLeft - dt
-        labelCooldown.Text = string.format("Using %s: %.1fs", getDisplaySkill(), math.max(0, usingTimeLeft))
-        
-        if usingTimeLeft <= 0 then
-            isUsingSkill = false
-            isCooldown = true
-        else
-            lastValue = progressPercent and progressPercent.Value or 1
-            return
-        end
-    end
-    
-    if isCooldown then
-        cooldownTimeLeft = cooldownTimeLeft - dt
-        labelCooldown.Text = string.format("Cooldown: %.1fs", math.max(0, cooldownTimeLeft))
-        
-        if cooldownTimeLeft <= 0 then
-            isCooldown = false
-            skillDetected = false
-            labelCooldown.Text = getDisplaySkill() .. " Ready!!!"
-        else
-            lastValue = progressPercent and progressPercent.Value or 1
-            return
-        end
-    end
-
-    -- [2] DETECT RUNNER & STALKER (ATTRIBUTE)
-    local char = beast.Character
-    local hum = char:FindFirstChild("Humanoid")
-    local root = char:FindFirstChild("HumanoidRootPart")
-
-    if hum and root then
-        if skill == "runner" then
-            if hum.WalkSpeed > 20 then
-                triggerSkillUsed()
-            end
-            
-        elseif skill == "stalker" then
-            if isOutsideCave(root.Position) and areLightsOff(char) then
-                triggerSkillUsed()
-            end
-        end
-    end
-    
-    -- [3] DETECT SEER (POWERPROGRESSPERCENT - BACKUP CHO BEAST)
-    if skill == "seer" then
-        -- Tìm progressPercent nếu chưa có
-        if not progressPercent or not progressPercent.Parent then
-            findProgressPercent()
-        end
-        
-        if progressPercent then
-            local currentValue = progressPercent.Value
-            
-            -- Detect khi value drop từ cao xuống thấp
-            if currentValue < 0.99 and lastValue > 0.95 and not skillDetected then
-                triggerSkillUsed()
-            end
-            
-            -- Reset skillDetected khi value về cao
-            if currentValue >= 0.98 and not isUsingSkill and not isCooldown then
-                skillDetected = false
-            end
-            
-            lastValue = currentValue
-        end
-    end
-end)
 
 local function stopBeastTracker()
     beastTrackerRunning = false
     setBeastTrackerVisible(false)
     disconnectBeastTracker()
-    
-    if seerEventConnection then
-        seerEventConnection:Disconnect()
-        seerEventConnection = nil
-    end
-    
-    isUsingSkill = false
-    isCooldown = false
-    cooldownTimeLeft = 0
-    usingTimeLeft = 0
-    progressPercent = nil
-    lastValue = 1
-    skillDetected = false
-    isBarRefilled = false  -- [FIX] Reset cờ
+    isUsingSkill = false; isCooldown = false
+    cooldownTimeLeft = 0; usingTimeLeft = 0
+    progressPercent = nil; lastValue = 0
+    skillDetected = false; canDetectDrop = true -- Reset về True
 end
 
 -- ===== HÀM SURVIVOR TRACKER =====
