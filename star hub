@@ -1,0 +1,355 @@
+repeat task.wait() until game:IsLoaded()
+local lib = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+lib:Notify({Title = "StarHub Notification.",Content = "Loaded Successfully!",Duration = 3,Icon = "bird"})
+local rep,runs,uis,rs,httpservice,ts = game:GetService("ReplicatedStorage"),game:GetService("RunService"),game:GetService("UserInputService"),game:GetService("RunService"),game:GetService("HttpService"),game:GetService("TweenService")
+local lplr = game:GetService("Players").LocalPlayer
+local char = lplr.Character or lplr.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+local hrp = char:WaitForChild("HumanoidRootPart")
+lplr.CharacterAdded:Connect(function(c) char = c;hum = c:WaitForChild("Humanoid");hrp = c:WaitForChild("HumanoidRootPart") end)
+getgenv().Settings = {
+    Esp = {
+        Elements = {},
+        Players = false,
+        Computers = false,
+        Freezers = false,
+        Vents = false,
+        Exit_Doors = false
+    },
+    Method = "Metamethod",
+    Anti_Failure = false,
+    Crawling = 8,
+    Hit_Settings = {
+        Distance = 8,
+        Connection
+    },
+    Tie_Settings = {
+        Distance = 8,
+        Connection
+    }
+}
+local win = lib:CreateWindow({Title = "StarHub - FTF/Flee The Facility",Icon = "rbxassetid://140350520713166",Author = "Owner: Sky",Size = UDim2.fromOffset(820,540),Transparent = true,Theme = "Dark",Resizable = true,SideBarWidth = 180,ScrollBarEnabled = true,User = {Enabled = true,Anonymous = false}})
+win:EditOpenButton({Title = "StarHub",Icon = "monitor",CornerRadius = UDim.new(0,6),StrokeThickness = 2,Color = ColorSequence.new(Color3.fromRGB(30,30,30),Color3.fromRGB(255,255,255)),Draggable = true})
+local Sections = {
+    Main = win:Section({Title = "Main Section",Icon = "crown",Opened = false}),
+    Misc = win:Section({Title = "Misc",Icon = "info",Opened = false})
+}
+local Tabs = {
+    Features = Sections.Main:Tab({Title = "Features",Icon = "sword",Desc = "The Tab That Contains Everything Important."}),
+    ExtraFeatures = Sections.Main:Tab({Title = "Extra Features",Icon = "lucide:anchor",Desc = "Oh My Gyat. More Features?"}),
+    Info = Sections.Misc:Tab({Title = "Info",Icon = "users",Desc = "Credits And Discord Server And Information."})
+}
+Tabs.Features:Paragraph({Title = "Main Section",Color = "Orange",Locked = true})
+Tabs.Features:Dropdown({Title = "Bypass Method",Values = {"Metamethod","Event","Legitmate"},Value = "Metamethod",Callback = function(v)
+    getgenv().Settings.Method = v
+end,})
+local enabled = false
+local mt = getrawmetatable(game)
+local old = mt.__namecall
+setreadonly(mt,false)
+mt.__namecall = newcclosure(function(self,...)
+    local args = {...}
+    if enabled and getnamecallmethod() == "FireServer" and args[1] == "SetPlayerMinigameResult" then
+        args[2] = true
+    end
+    return old(self,unpack(args))
+end)
+setreadonly(mt,true)
+Tabs.Features:Toggle({Title = "Anti-Failure",Desc = "Failure? That Never Existed.",Type = "Checkbox",Value = false,Callback = function(v)
+    getgenv().Settings.Anti_Failure = v
+    if getgenv().Settings.Method == "Metamethod" then
+        enabled = getgenv().Settings.Anti_Failure
+    elseif getgenv().Settings.Method == "Event" then
+        if v then
+            coroutine.wrap(function()
+                while getgenv().Settings.Anti_Failure and getgenv().Settings.Method == "Event" do
+                    rep.RemoteEvent:FireServer("SetPlayerMinigameResult",true)
+                    task.wait()
+                end
+            end)()
+        end
+    elseif getgenv().Settings.Method == "Legitmate" then
+        
+    end
+end,})
+Tabs.Features:Paragraph({Title = "LocalPlayer Section",Color = "Orange",Locked = true})
+Tabs.Features:Slider({Title = "Crawling Speed",Step = 1,Value = {Min = 8,Max = 100,Default = tonumber(getgenv().Settings.Crawling)},Callback = function(v)
+    getgenv().Settings.Crawling = v
+    local IsCrawling = lplr and lplr:WaitForChild("TempPlayerStatsModule") and lplr.TempPlayerStatsModule:WaitForChild("IsCrawling") and lplr.TempPlayerStatsModule.IsCrawling
+    IsCrawling:GetPropertyChangedSignal("Value"):Connect(function()
+        if IsCrawling.Value then
+            hum.WalkSpeed = getgenv().Settings.Crawling
+        end
+    end)
+end,})
+Tabs.Features:Paragraph({Title = "Visuals Section",Color = "Orange",Locked = true})
+local extension = false
+local function cleanup(plr,Elements)
+    local data = Elements["Players"][plr]
+    if data then
+        if data.conn then data.conn:Disconnect() end
+        if data.hi then data.hi:Destroy() end
+        if data.bbg then data.bbg:Destroy() end
+        Elements["Players"][plr] = nil
+    end
+end
+local function plr_esp(Elements)
+    if not getgenv().Settings.Esp.Players then return end
+    for _,plr in ipairs(game:GetService("Players"):GetPlayers()) do
+        if plr ~= game:GetService("Players").LocalPlayer and plr.Character then
+            local stats = plr:FindFirstChild("TempPlayerStatsModule") or plr:WaitForChild("TempPlayerStatsModule")
+            if not stats or not stats:FindFirstChild("IsBeast") then continue end
+            cleanup(plr, Elements)
+            local bbg, tl
+            if extension then
+                bbg = Instance.new("BillboardGui",plr.Character:WaitForChild("Head"))
+                bbg.Size = UDim2.fromOffset(100,50)
+                bbg.StudsOffset = Vector3.new(0,2,0)
+                bbg.AlwaysOnTop = true
+                bbg.Adornee = plr.Character:WaitForChild("Head")
+                tl = Instance.new("TextLabel",bbg)
+                tl.Size = UDim2.fromScale(1,1)
+                tl.BackgroundTransparency = 1
+                tl.TextColor3 = stats.IsBeast.Value and Color3.new(.9,0,0) or Color3.fromRGB(153,255,153)
+                tl.Font = Enum.Font.Fantasy
+                tl.TextSize = 13
+                tl.Text = stats.IsBeast.Value and ("Power: "..rep.CurrentPower.Value.." | Beast | "..plr.Name) or ("Survivor | "..plr.Name)
+            end
+            local hi = Instance.new("Highlight",plr.Character)
+            hi.FillColor = stats.IsBeast.Value and Color3.new(.9,0,0) or Color3.fromRGB(153,255,153)
+            hi.OutlineTransparency = stats.IsBeast.Value and .5 or 1
+            hi.FillTransparency = .75
+            hi.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            Elements["Players"][plr] = {
+                hi = hi,
+                bbg = bbg,
+                tl = tl,
+                conn = stats.IsBeast:GetPropertyChangedSignal("Value"):Connect(function()
+                    if hi then
+                        hi.FillColor = stats.IsBeast.Value and Color3.new(.9,0,0) or Color3.fromRGB(153,255,153)
+                        hi.OutlineTransparency = stats.IsBeast.Value and .5 or 1
+                    end
+                    if tl then
+                        tl.TextColor3 = stats.IsBeast.Value and Color3.new(.9,0,0) or Color3.fromRGB(153,255,153)
+                        tl.Text = stats.IsBeast.Value and ("Power: "..rep.CurrentPower.Value.." | Beast | "..plr.Name) or ("Survivor | "..plr.Name)
+                    end
+                end)
+            }
+        end
+    end
+end
+Tabs.Features:Toggle({Title = "Players Esp",Desc = "",Type = "Checkbox",Default = false,Callback = function(state)
+    getgenv().Settings.Esp.Players = state
+    local Elements = getgenv().Settings.Esp.Elements
+    Elements["Players"] = Elements["Players"] or {}
+    if state then
+        plr_esp(Elements)
+        game:GetService("Players").PlayerAdded:Connect(function(plr)
+            plr.CharacterAdded:Connect(function()
+                repeat task.wait() until plr.Character:FindFirstChild("Humanoid")
+                plr_esp(Elements)
+            end)
+        end)
+    else
+        for plr,data in pairs(Elements["Players"]) do
+            cleanup(plr,Elements)
+        end
+        Elements["Players"] = {}
+    end
+end,})
+game:GetService("Players").PlayerRemoving:Connect(function(plr)
+    local Elements = getgenv().Settings.Esp.Elements
+    if Elements and Elements["Players"] then
+        cleanup(plr,Elements)
+    end
+end)
+Tabs.Features:Toggle({Title = "Beast Role Extension",Desc = "Make The Players Esp Apply A TextLabel To Identify The Beasts Power And Names",Type = "Checkbox",Value = false,Callback = function(state)
+    extension = state
+    if getgenv().Settings.Esp.Players then
+        local Elements = getgenv().Settings.Esp.Elements
+        for plr,data in pairs(Elements["Players"]) do
+            cleanup(plr,Elements)
+        end
+        plr_esp(Elements)
+    end
+end,})
+Tabs.Features:Toggle({Title = "Computers Esp",Desc = "",Type = "Checkbox",Value = false,Callback = function(state)
+    getgenv().Settings.Esp.Computers = state
+    local Elements = getgenv().Settings.Esp.Elements
+    Elements["Computer"] = Elements["Computer"] or {}
+    local function Apply(v)
+        if v.Name == "ComputerTable" and v.Parent.Name == tostring(rep.CurrentMap.Value) and v.Parent.Parent.Name == "Workspace" and not Elements["Computer"][v] then
+            local screen = v:WaitForChild("Screen")
+            if not screen then return end
+            local hi = Instance.new("Highlight",v)
+            hi.FillColor,hi.OutlineTransparency,hi.FillTransparency,hi.DepthMode = screen.Color,1,.75,Enum.HighlightDepthMode.AlwaysOnTop
+            screen:GetPropertyChangedSignal("Color"):Connect(function() hi.FillColor = screen.Color end)
+            Elements["Computer"][v] = hi
+        end
+    end
+    if getgenv().Settings.Esp.Computers then
+        for _,v in ipairs(workspace:GetDescendants()) do
+            Apply(v)
+        end
+        Elements["Computer"].Connection = workspace.DescendantAdded:Connect(function(v)
+            Apply(v)
+        end)
+    else
+        if Elements["Computer"].Connection then Elements["Computer"].Connection:Disconnect() Elements["Computer"].Connection = nil end
+        for i,v in pairs(Elements["Computer"]) do if v then v:Destroy() end end
+        Elements["Computer"] = {}
+    end
+end,})
+Tabs.Features:Toggle({Title = "FreezePods Esp",Desc = "",Type = "Checkbox",Value = false,Callback = function(state)
+    getgenv().Settings.Esp.Freezers = state
+    local Elements = getgenv().Settings.Esp.Elements
+    Elements["Freezer"] = Elements["Freezer"] or {}
+    local function Apply(v)
+        if v.Name == "FreezePod" and not Elements["Freezer"][v] then
+            local hi = Instance.new("Highlight",v)
+            hi.FillColor,hi.OutlineTransparency,hi.FillTransparency,hi.DepthMode = Color3.fromRGB(153,204,255),1,.75,Enum.HighlightDepthMode.AlwaysOnTop
+            Elements["Freezer"][v] = hi
+        end
+    end
+    if getgenv().Settings.Esp.Freezers then
+        for _,v in ipairs(workspace:GetDescendants()) do
+            Apply(v)
+        end
+        Elements["Freezer"].Connection = workspace.DescendantAdded:Connect(function(v)
+            Apply(v)
+        end)
+    else
+        if Elements["Freezer"].Connection then Elements["Freezer"].Connection:Disconnect() Elements["Freezer"].Connection = nil end
+        for i,v in pairs(Elements["Freezer"]) do if v then v:Destroy() end end
+        Elements["Freezer"] = {}
+    end
+end,})
+Tabs.Features:Toggle({Title = "Vents Esp",Desc = "",Type = "Checkbox",Value = false,Callback = function(state)
+    getgenv().Settings.Esp.Vents = state
+    local Elements = getgenv().Settings.Esp.Elements
+    Elements["Vent"] = Elements["Vent"] or {}
+    local function Apply(v)
+        if v.Name:match("^Vent") and (v:IsA("Part") or v:IsA("Model")) and not Elements["Vent"][v] then
+            local bha = Instance.new("BoxHandleAdornment",v)
+            bha.Size,bha.Color3,bha.AlwaysOnTop,bha.Adornee,bha.ZIndex,bha.Transparency = v.Size,Color3.fromRGB(13,105,172),true,v,1,.75
+            Elements["Vent"][v] = bha
+        end
+    end
+    if getgenv().Settings.Esp.Vents then
+        for _,v in ipairs(workspace:GetDescendants()) do
+            Apply(v)
+        end
+        Elements["Vent"].Connection = workspace.DescendantAdded:Connect(function(v)
+            Apply(v)
+        end)
+    else
+        if Elements["Vent"].Connection then Elements["Vent"].Connection:Disconnect() Elements["Vent"].Connection = nil end
+        for i,v in pairs(Elements["Vent"]) do if v then v:Destroy() end end
+        Elements["Vent"] = {}
+    end
+end,})
+Tabs.Features:Toggle({Title = "ExitDoors Esp",Desc = "",Type = "Checkbox",Value = false,Callback = function(state)
+    getgenv().Settings.Esp.Exit_Doors = state
+    local Elements = getgenv().Settings.Esp.Elements
+    Elements["Exit_Door"] = Elements["Exit_Door"] or {}
+    local function Apply(v)
+        if v.Name == "ExitDoor" and not Elements["Exit_Door"][v] then
+            local hi = Instance.new("Highlight",v)
+            hi.FillColor,hi.OutlineTransparency,hi.FillTransparency,hi.DepthMode = Color3.fromRGB(255,153,51),1,.75,Enum.HighlightDepthMode.AlwaysOnTop
+            Elements["Exit_Door"][v] = hi
+        end
+    end
+    if getgenv().Settings.Esp.Exit_Doors then
+        for _,v in ipairs(workspace:GetDescendants()) do
+            Apply(v)
+        end
+        Elements["Exit_Door"].Connection = workspace.DescendantAdded:Connect(function(v)
+            Apply(v)
+        end)
+    else
+        if Elements["Exit_Door"].Connection then Elements["Exit_Door"].Connection:Disconnect() Elements["Exit_Door"].Connection = nil end
+        for i,v in pairs(Elements["Exit_Door"]) do if v then v:Destroy() end end
+        Elements["Exit_Door"] = {}
+    end
+end,})
+Tabs.Features:Paragraph({Title = "Beast Section",Color = "Red",Locked = true})
+local conn
+Tabs.Features:Toggle({Title = "Anti Slowness",Desc = "",Type = "Checkbox",Value = false,Callback = function(state)
+    if state then
+        local IsCrawling = lplr and lplr:WaitForChild("TempPlayerStatsModule") and lplr.TempPlayerStatsModule:WaitForChild("IsCrawling") and lplr.TempPlayerStatsModule.IsCrawling
+        conn = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+            if not IsCrawling and hum.WalkSpeed < 16 then
+                hum.WalkSpeed = 17
+            end
+        end)
+    elseif conn ~= nil then
+        conn:Disconnect()
+        conn = nil
+    end
+end,})
+Tabs.Features:Slider({Title = "Hit Distance",Step = 1,Value = {Min = 8,Max = 28,Default = 8},Callback = function(v)
+    getgenv().Settings.Hit_Settings.Distance = v
+end,})
+Tabs.Features:Toggle({Title = "Hit Aura",Desc = "",Type = "Checkbox",Value = false,Callback = function(state)
+    if state then
+        getgenv().Settings.Hit_Settings.Connection = runs.RenderStepped:Connect(function()
+            for _,plr in ipairs(game:GetService("Players"):GetPlayers()) do
+                if plr ~= lplr and plr.Character and plr.Character:FindFirstChild("Head") then
+                    local thrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                    local rag = plr.Character:FindFirstChild("Ragdoll")
+                    if thrp and (hrp.Position-thrp.Position).Magnitude <= tonumber(getgenv().Settings.Hit_Settings.Distance) and not (rag and rag.Value) then
+                        if char:FindFirstChild("Hammer") and char.Hammer:FindFirstChild("HammerEvent") then
+                            char.Hammer.HammerEvent:FireServer("HammerHit",plr.Character.Head)
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        if getgenv().Settings.Hit_Settings.Connection then
+            getgenv().Settings.Hit_Settings.Connection:Disconnect()
+            getgenv().Settings.Hit_Settings.Connection = nil
+        end
+    end
+end,})
+Tabs.Features:Slider({Title = "Tie Distance",Step = 1,Value = {Min = 8,Max = 28,Default = 8},Callback = function(v)
+    getgenv().Settings.Tie_Settings.Distance = v
+end,})
+Tabs.Features:Toggle({Title = "Tie Aura",Desc = "",Type = "Checkbox",Value = false,Callback = function(state)
+    if state then
+        getgenv().Settings.Tie_Settings.Connection = runs.RenderStepped:Connect(function()
+            for _,plr in ipairs(game:GetService("Players"):GetPlayers()) do
+                if plr ~= lplr and plr.Character and plr.Character:FindFirstChild("Head") then
+                    local thrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                    local rag = plr.Character:FindFirstChild("Ragdoll")
+                    if thrp and (hrp.Position-thrp.Position).Magnitude <= tonumber(getgenv().Settings.Tie_Settings.Distance) and not (rag and rag.Value) then
+                        if char:FindFirstChild("Hammer") and char.Hammer:FindFirstChild("HammerEvent") then
+                            char.Hammer.HammerEvent:FireServer("HammerTieUp",thrp,Vector3.new(0,0,0))
+                        end
+                    end
+                end
+            end
+        end)
+    else
+        if getgenv().Settings.Tie_Settings.Connection then
+            getgenv().Settings.Tie_Settings.Connection:Disconnect()
+            getgenv().Settings.Tie_Settings.Connection = nil
+        end
+    end
+end,})
+Tabs.ExtraFeatures:Button({Title = "ShiftLock",Desc = "This Is By Nameless Admin.",Locked = false,Callback = function()
+    loadstring(game:HttpGet("https://github.com/ltseverydayyou/uuuuuuu/blob/main/shiftlock?raw=true"))()
+end,})
+Tabs.ExtraFeatures:Button({Title = "Third Person",Desc = "Force Is Necessary...",Locked = false,Callback = function()
+    lplr.CameraMode = Enum.CameraMode.Classic
+    lplr.CameraMinZoomDistance = .5
+    lplr.CameraMaxZoomDistance = 12
+end,})
+Tabs.ExtraFeatures:Button({Title = "Force Respawn",Desc = "This Can Free You From A Freezer But If Everyone Is Frozen You'll Lose. Force Is Necessary.",Locked = false,Callback = function()
+    hum.Health = 0
+    lplr:LoadCharacter()
+end,})
+local info = Tabs.Info:Paragraph({Title = "Info + More Features:",Desc = "",Color = "Green",Buttons = {{Icon = "bird",Title = "Discord Server Link",Callback = function() setclipboard("https://discord.gg/6UaRDjBY42") lib:Notify({Title = "Discord Server Link.",Content = "https://discord.gg/6UaRDjBY42",Duration = 8,Icon = "check"}) end,},{Title = "Smallest Serverhop",Callback = function() local JobId = (httpservice:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))).data[1].id if JobId ~= game.JobId then ts:TeleportToPlaceInstance(game.PlaceId,JobId,lplr) end end,}},Locked = true})
+runs.Heartbeat:Connect(function()
+    info:SetDesc("Credits To The Owner: Sky\nDiscord Name For Contact: theloststar0802\nPing: "..math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() or 0).."ms.\nServer Stuff:\nSize: "..#game:GetService("Players"):GetPlayers().."/"..game:GetService("Players").MaxPlayers..".\nBeast Power: "..rep.CurrentPower.Value)
+end)
