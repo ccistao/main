@@ -1562,13 +1562,11 @@ local KeySystemData = {
 
 local function saveKey(key)
     if writefile and makefolder then
-        -- Tạo thư mục nếu chưa tồn tại
         local folderPath = "redexecutor"
         if not isfolder(folderPath) then
             makefolder(folderPath)
         end
         
-        -- Ghi file
         writefile(KeySystemData.FileName, key)
     end
 end
