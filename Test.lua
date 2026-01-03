@@ -264,7 +264,7 @@ local function escapeBeast()
     task.wait(5)
     print("[ESCAPE] ✅ ESCAPE XONG")
 end
-local function waitForGameActive() Chờ game...")
+local function waitForGameActive()
     updateStatus("⏳ Chờ game...")
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
