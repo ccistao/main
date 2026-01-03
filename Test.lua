@@ -150,7 +150,6 @@ local function findBeast()
                 if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
                     log("⚠️ Beast lost → RESET SCRIPT")
                     
-                    -- ✅ RESET TẤT CẢ
                     beast = nil
                     foundBeast = false
                     beastRoot = nil
@@ -160,7 +159,6 @@ local function findBeast()
                     canAutoJump = false
                     hasEscaped = false
                     
-                    -- Dừng mọi hành động
                     task.wait(1)
                     resetGameState()
                 end
@@ -204,6 +202,14 @@ end
 
 local function isBeastNearby(distance)
     distance = distance or 23
+    
+    -- DEBUG START
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("[BEAST CHECK] foundBeast:", foundBeast)
+    print("[BEAST CHECK] beast object:", beast and beast.Name or "NIL")
+    print("[BEAST CHECK] beast.Character:", beast and beast.Character or "NIL")
+    -- DEBUG END
+    
     if not foundBeast or not beast or not beast.Character then return false end
 
     local beastRoot =
@@ -217,13 +223,25 @@ local function isBeastNearby(distance)
         or player.Character:FindFirstChild("UpperTorso")
         or player.Character:FindFirstChild("Torso")))
 
+    -- DEBUG START
+    print("[BEAST CHECK] beastRoot:", beastRoot or "NIL")
+    print("[BEAST CHECK] myRoot:", myRoot or "NIL")
+    -- DEBUG END
+
     if not beastRoot or not myRoot then return false end
 
     local dist = (myRoot.Position - beastRoot.Position).Magnitude
+    
+    -- DEBUG START
+    print("[BEAST CHECK] Distance:", math.floor(dist), "/", distance)
+    print("[BEAST CHECK] Is Near:", dist <= distance)
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    -- DEBUG END
+    
     return dist <= distance
 end
-
-local function escapeBeast()
+plocal function escapeBeast()
+    print("🚨🚨🚨 ESCAPE BEAST ĐƯỢC GỌI! 🚨🚨🚨")
     updateStatus("🚨 Trốn Beast!")
     if not hidePlatform then createHidePlatform() end
     
@@ -232,17 +250,21 @@ local function escapeBeast()
         if char then
             local hrp = char:FindFirstChild("HumanoidRootPart")
             if hrp then
+                print("[ESCAPE] TP từ:", hrp.Position, "→ (50, 73, 50)")
                 hrp.CFrame = CFrame.new(50, 73, 50)
-                log("🛡️ TP safe!")
+                print("[ESCAPE] TP xong! Position mới:", hrp.Position)
+            else
+                print("[ESCAPE] ❌ KHÔNG CÓ HRP!")
             end
+        else
+            print("[ESCAPE] ❌ KHÔNG CÓ CHARACTER!")
         end
     end)
     
     task.wait(5)
+    print("[ESCAPE] ✅ ESCAPE XONG")
 end
-
-local function waitForGameActive()
-    updateStatus("⏳ Chờ game...")
+local function waitForGameActive() Chờ game...")
 
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
