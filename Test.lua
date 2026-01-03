@@ -240,7 +240,7 @@ local function isBeastNearby(distance)
     
     return dist <= distance
 end
-plocal function escapeBeast()
+local function escapeBeast()
     print("🚨🚨🚨 ESCAPE BEAST ĐƯỢC GỌI! 🚨🚨🚨")
     updateStatus("🚨 Trốn Beast!")
     if not hidePlatform then createHidePlatform() end
@@ -265,7 +265,7 @@ plocal function escapeBeast()
     print("[ESCAPE] ✅ ESCAPE XONG")
 end
 local function waitForGameActive() Chờ game...")
-
+    updateStatus("⏳ Chờ game...")
     local Players = game:GetService("Players")
     local player = Players.LocalPlayer
     local statusBox = player:WaitForChild("PlayerGui"):WaitForChild("ScreenGui")
