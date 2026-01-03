@@ -642,7 +642,9 @@ local function hackPC(pcData)
 
     while isHacking and scriptEnabled do
         task.wait(0.15)
-
+        if tick() % 2 < 0.15 then  -- Log mỗi 2s
+            print("[HACK LOOP] Checking beast... isHacking:", isHacking, "| scriptEnabled:", scriptEnabled)
+        end
         if isBeastNearby() then
             updateStatus("🚨 Beast gần!")
             isHacking = false
