@@ -1,4 +1,5 @@
--- ROBLOX HACK MENU - Full Features với Thu gọn Icon
+
+-- ROBLOX HACK MENU - Full Features với Thu gọn Icon (Đã thêm: Aimbot NPC & Bên hông NPC)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -10,7 +11,7 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local camera = Workspace.CurrentCamera
 
--- Biến cấu hình
+-- Biến cấu hình (THAY THẾ block config cũ bằng block này)
 local config = {
     speed = 16,
     jumpPower = 50,
@@ -20,12 +21,17 @@ local config = {
     aimbot = false,
     esp = false,
     shiftlock = false,
-    menuOpen = true
+    menuOpen = true,
+    -- Aimbot modes: "NORMAL" (chỉ quay camera vào head NPC) | "TPSIDE_NPC" (teleport sang bên hông NPC)
+    aimbotMode = "NORMAL",
+    tpOffset = 3, -- studs sang bên hông
+    tpMaxDistance = 50 -- tối đa khoảng cách để TP (tuỳ chọn)
 }
 
 local connections = {}
 local espBoxes = {}
 local fullbrightConnection = nil
+local iconDragConnection = nil
 
 -- Tạo ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -62,7 +68,7 @@ iconLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 iconLabel.Font = Enum.Font.GothamBold
 iconLabel.Parent = miniIcon
 
--- Hệ thống kéo cho Icon (Chỉ cho Mobile Touch - Fixed)
+-- Hệ thống kéo cho Icon (Touch)
 local iconDragging = false
 local iconDragInput = nil
 local iconStartPos = nil
@@ -337,7 +343,7 @@ local function createSlider(name, emoji, min, max, default, layoutOrder)
     sliderBtnCorner.CornerRadius = UDim.new(1, 0)
     sliderBtnCorner.Parent = sliderBtn
     
-    -- Xử lý kéo slider (Mobile-friendly - Cải thiện)
+    -- Xử lý kéo slider (Mobile-friendly)
     local sliderDragging = false
     local touchConnection = nil
     
@@ -479,7 +485,7 @@ espBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Aimbot
+-- Aimbot (NGUỒN NÚT CŨ)
 local aimbotBtn, aimbotLabel = createToggle("Aimbot", "🎯", 7)
 aimbotBtn.MouseButton1Click:Connect(function()
     config.aimbot = not config.aimbot
@@ -503,21 +509,17 @@ shiftlockBtn.MouseButton1Click:Connect(function()
         shiftlockBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
         shiftlockBtn.Text = "BẬT"
         
-        -- Lưu camera offset gốc
         pcall(function()
             if humanoid then
                 originalCameraOffset = humanoid.CameraOffset
-                -- Đẩy camera sang phải 1.5 studs
                 humanoid.CameraOffset = Vector3.new(1.5, 0, 0)
             end
         end)
         
-        -- Custom Shiftlock
         shiftLockConnection = RunService.RenderStepped:Connect(function()
             if humanoid and humanoid.Parent then
                 local rootPart = character:FindFirstChild("HumanoidRootPart")
                 if rootPart then
-                    -- Xoay character theo hướng camera
                     local cameraDirection = camera.CFrame.LookVector
                     local targetCFrame = CFrame.new(rootPart.Position, rootPart.Position + Vector3.new(cameraDirection.X, 0, cameraDirection.Z))
                     rootPart.CFrame = CFrame.new(rootPart.Position, targetCFrame.Position + targetCFrame.LookVector)
@@ -525,7 +527,6 @@ shiftlockBtn.MouseButton1Click:Connect(function()
             end
         end)
         
-        -- Bật Mouse Lock mặc định của Roblox (nếu game hỗ trợ)
         pcall(function()
             player.DevEnableMouseLock = true
             local StarterPlayer = game:GetService("StarterPlayer")
@@ -536,14 +537,12 @@ shiftlockBtn.MouseButton1Click:Connect(function()
         shiftlockBtn.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
         shiftlockBtn.Text = "TẮT"
         
-        -- Khôi phục camera offset gốc
         pcall(function()
             if humanoid and originalCameraOffset then
                 humanoid.CameraOffset = originalCameraOffset
             end
         end)
         
-        -- Tắt Custom Shiftlock
         if shiftLockConnection then
             shiftLockConnection:Disconnect()
             shiftLockConnection = nil
@@ -553,6 +552,25 @@ shiftlockBtn.MouseButton1Click:Connect(function()
             player.DevEnableMouseLock = false
         end)
     end
+end)
+
+-- ===== THÊM 2 NÚT MỚI CHO Aimbot NPC =====
+local aimbotNormalBtn, _ = createToggle("Aimbot NPC", "🎯", 9)
+aimbotNormalBtn.MouseButton1Click:Connect(function()
+    config.aimbotMode = "NORMAL"
+    aimbotNormalBtn.BackgroundColor3 = Color3.fromRGB(50,180,50)
+    aimbotNormalBtn.Text = "ĐANG DÙNG"
+    -- reset nút bên hông về màu default
+    pcall(function() aimbotTPBtn.BackgroundColor3 = Color3.fromRGB(220,50,50); aimbotTPBtn.Text = "TẮT" end)
+end)
+
+local aimbotTPBtn, _ = createToggle("Bên hông NPC", "⚡", 10)
+aimbotTPBtn.MouseButton1Click:Connect(function()
+    config.aimbotMode = "TPSIDE_NPC"
+    aimbotTPBtn.BackgroundColor3 = Color3.fromRGB(50,180,50)
+    aimbotTPBtn.Text = "ĐANG DÙNG"
+    -- reset nút normal về màu default
+    pcall(function() aimbotNormalBtn.BackgroundColor3 = Color3.fromRGB(220,50,50); aimbotNormalBtn.Text = "TẮT" end)
 end)
 
 -- ===== CHỨC NĂNG CHÍNH =====
@@ -615,42 +633,72 @@ connections.espLoop = RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Aimbot Function
-local function getClosestPlayer()
-    local closestPlayer = nil
-    local shortestDistance = math.huge
-    
-    for _, targetPlayer in pairs(Players:GetPlayers()) do
-        if targetPlayer ~= player and targetPlayer.Character then
-            local targetChar = targetPlayer.Character
-            local targetHead = targetChar:FindFirstChild("Head")
-            if targetHead then
-                local screenPos, onScreen = camera:WorldToViewportPoint(targetHead.Position)
-                if onScreen then
-                    local mousePos = UserInputService:GetMouseLocation()
-                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
-                    if distance < shortestDistance then
-                        shortestDistance = distance
-                        closestPlayer = targetPlayer
+-- ===== HÀM LẤY NPC GẦN NHẤT (KHÔNG PHẢI PLAYER) =====
+local function getClosestNPC()
+    local closest, shortest = nil, math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+
+    for _, model in ipairs(Workspace:GetChildren()) do
+        if model:IsA("Model") and not Players:GetPlayerFromCharacter(model) then
+            local hum = model:FindFirstChildOfClass("Humanoid")
+            local head = model:FindFirstChild("Head")
+            local hrp = model:FindFirstChild("HumanoidRootPart")
+            if hum and head and hrp and hum.Health > 0 then
+                local pos, onscreen = camera:WorldToViewportPoint(head.Position)
+                if onscreen then
+                    local dist = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                    if dist < shortest then
+                        shortest = dist
+                        closest = model
                     end
                 end
             end
         end
     end
-    
-    return closestPlayer
+    return closest
 end
 
--- Aimbot Loop
+-- ===== HÀM TP SANG BÊN HÔNG NPC =====
+local function tpSideNPC(npc)
+    if not npc or not npc.Parent then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local npcHRP = npc:FindFirstChild("HumanoidRootPart")
+    local npcHum = npc:FindFirstChildOfClass("Humanoid")
+    if not hrp or not npcHRP or not npcHum then return end
+    if npcHum.Health <= 0 then return end
+
+    -- Kiểm tra khoảng cách (nếu vượt quá tpMaxDistance thì không TP)
+    local dist = (hrp.Position - npcHRP.Position).Magnitude
+    if config.tpMaxDistance and dist > config.tpMaxDistance then
+        return
+    end
+
+    local right = npcHRP.CFrame.RightVector
+    local sidePos = npcHRP.Position + (right * config.tpOffset)
+
+    -- Đặt player ở vị trí bên hông và hướng về NPC
+    pcall(function()
+        hrp.CFrame = CFrame.new(sidePos, npcHRP.Position)
+    end)
+end
+
+-- ===== Aimbot Loop (dùng NPC và 2 chế độ) =====
 connections.aimbotLoop = RunService.RenderStepped:Connect(function()
-    if config.aimbot then
-        local target = getClosestPlayer()
-        if target and target.Character then
-            local targetHead = target.Character:FindFirstChild("Head")
-            if targetHead then
-                camera.CFrame = CFrame.new(camera.CFrame.Position, targetHead.Position)
-            end
+    if not config.aimbot then return end
+
+    local targetNPC = getClosestNPC()
+    if not targetNPC then return end
+    local npcHum = targetNPC:FindFirstChildOfClass("Humanoid")
+    local head = targetNPC:FindFirstChild("Head")
+    if not npcHum or npcHum.Health <= 0 then return end
+
+    if config.aimbotMode == "NORMAL" then
+        if head then
+            camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
         end
+
+    elseif config.aimbotMode == "TPSIDE_NPC" then
+        tpSideNPC(targetNPC)
     end
 end)
 
@@ -702,4 +750,3 @@ end)
 print("✅ Hack Menu loaded!")
 print("📱 Tap icon để mở/đóng menu")
 print("✋ Kéo icon hoặc header để di chuyển")
-print("thk chó quy ngu")
