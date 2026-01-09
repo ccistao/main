@@ -86,7 +86,7 @@ local function startPCProgress()
         
         local bb = Instance.new("BillboardGui")
         bb.Name = "PCProgressBB"
-        bb.Size = UDim2.new(0, 100, 0, 40)
+        bb.Size = UDim2.new(0, 60, 0, 25)
         bb.StudsOffset = Vector3.new(0, 2, 0)
         bb.AlwaysOnTop = true
         bb.Adornee = part
