@@ -554,10 +554,17 @@ local function hackPC(pcData)
         return false
     end
 
-    local chosenTrigger = getAvailableTrigger(pcData)
+ -- FIX: trigger bận thì đợi rồi thử lại (giống script cũ)
+local chosenTrigger = getAvailableTrigger(pcData)
     if not chosenTrigger then
-        updateStatus("⏭️ Không có trigger, skip PC " .. tostring(pcData.id))
-        return false
+        updateStatus("⏳ Trigger bận, đợi 2s thử lại...")
+        task.wait(2)
+
+        chosenTrigger = getAvailableTrigger(pcData)
+        if not chosenTrigger then
+            updateStatus("⏭️ Không có trigger rảnh → Skip PC "..tostring(pcData.id))
+            return false
+        end
     end
 
     if chosenTrigger and rootPart then
@@ -571,15 +578,9 @@ local function hackPC(pcData)
     currentPC = pcData
     updateStatus("🔵 Hack PC " .. tostring(pcData.computer and pcData.computer.Name or "Unknown"))
 
-    local screen = pcData.computer:FindFirstChild("Screen")
-    local doneByColor = false
-
-    if screen and screen:IsA("BasePart") then
-        local c = screen.Color
-        if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
-            doneByColor = true
-        end
-    end
+    -- FIX: dùng progress giống script cũ (CHUẨN NHẤT)
+    local progress = getPCProgress(pcData)
+    local doneByColor = (progress >= 1)
 
     local skipAnti = false
     if doneByColor then
