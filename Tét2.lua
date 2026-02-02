@@ -588,7 +588,34 @@ local chosenTrigger = getAvailableTrigger(pcData)
         task.wait(0.1)
         canAutoJump = true
     end
+    local retryCount = 0
+    task.wait(0.8)
 
+    while retryCount < 3 do
+        local isTyping = false
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then
+                for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+                    if track.Name:lower():find("typing") then
+                        isTyping = true
+                        break
+                    end
+                end
+            end
+        end
+        if isTyping then
+            break
+        end
+ 
+        retryCount += 1
+        updateStatus("🔁 TP lại trigger ("..retryCount..")")
+        if chosenTrigger and rootPart then
+            rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 0.5, 0)
+            task.wait(0.5)
+        end
+    end
     isHacking = true
     currentPC = pcData
     updateStatus("🔵 Hack PC " .. tostring(pcData.computer and pcData.computer.Name or "Unknown"))
