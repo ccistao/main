@@ -808,40 +808,44 @@ local function showPCPercent(pc, percent)
     end
 end
 local function hookProgress(player)
-    local tps = player:WaitForChild("TempPlayerStatsModule", 10)
-    if not tps then return end
+    task.spawn(function()
+        local tps = player:WaitForChild("TempPlayerStatsModule", 15)
+        if not tps then return end
 
-    local ap = tps:WaitForChild("ActionProgress", 10)
-    local anim = tps:WaitForChild("CurrentAnimation", 10)
-    if not ap or not anim then return end
+        local ap = tps:WaitForChild("ActionProgress", 15)
+        local anim = tps:WaitForChild("CurrentAnimation", 15)
+        if not ap or not anim then return end
 
-    ap:GetPropertyChangedSignal("Value"):Connect(function()
-        if anim.Value ~= "Typing" then return end
-        local char = player.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
+        ap:GetPropertyChangedSignal("Value"):Connect(function()
+            if anim.Value ~= "Typing" then return end
 
-        local nearestPC, dist = nil, 35
-        local map = Replicated:FindFirstChild("CurrentMap") and Replicated.CurrentMap.Value
-        if not map then return end
+            local char = player.Character
+            if not char then return end
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
 
-        for _,d in ipairs(map:GetDescendants()) do
-            if d.Name == "ComputerTable" then
-                local part = getPCPart(d)
-                if part then
-                    local mag = (part.Position - hrp.Position).Magnitude
-                    if mag < dist then
-                        dist = mag
-                        nearestPC = d
+            local mapVal = Replicated:FindFirstChild("CurrentMap")
+            local map = mapVal and mapVal.Value
+            if not map then return end
+
+            local nearestPC, dist = nil, 35
+            for _, d in ipairs(map:GetDescendants()) do
+                if d.Name == "ComputerTable" then
+                    local part = getPCPart(d)
+                    if part then
+                        local mag = (part.Position - hrp.Position).Magnitude
+                        if mag < dist then
+                            dist = mag
+                            nearestPC = d
+                        end
                     end
                 end
             end
-        end
 
-        if nearestPC then
-            showPCPercent(nearestPC, ap.Value)
-        end
+            if nearestPC then
+                showPCPercent(nearestPC, ap.Value)
+            end
+        end)
     end)
 end
 
