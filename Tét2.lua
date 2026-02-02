@@ -195,90 +195,6 @@ local function isPlayerTyping()
     end
     return false
 end
-
-local function getPCPart(pc)
-    local scr = pc:FindFirstChild("Screen")
-    if scr and scr:IsA("BasePart") then return scr end
-    for _,d in ipairs(pc:GetDescendants()) do
-        if d:IsA("BasePart") then return d end
-    end
-end
-
-local function showPCPercent(pc, percent)
-    if not pc then return end
-    percent = math.clamp(math.floor(percent * 100 + 0.5), 0, 100)
-
-    if lastPercent[pc] == percent then return end
-    lastPercent[pc] = percent
-
-    local part = getPCPart(pc)
-    if not part then return end
-
-    local bb = pcLabels[pc]
-    if not bb then
-        bb = Instance.new("BillboardGui")
-        bb.Name = "PCProgressBB"
-        bb.Size = UDim2.new(0,60,0,25)
-        bb.StudsOffset = Vector3.new(0,2,0)
-        bb.AlwaysOnTop = true
-        bb.Adornee = part
-        bb.Parent = part
-
-        local tl = Instance.new("TextLabel")
-        tl.Size = UDim2.new(1,0,1,0)
-        tl.BackgroundTransparency = 1
-        tl.Font = Enum.Font.GothamBold
-        tl.TextScaled = true
-        tl.TextColor3 = Color3.new(1,1,1)
-        tl.Parent = bb
-
-        pcLabels[pc] = bb
-    end
-
-    bb.TextLabel.Text = percent >= 100 and "DONE" or (percent .. "%")
-    if percent >= 100 then
-        bb.TextLabel.TextColor3 = Color3.new(0,1,0)
-    end
-end
-local function hookProgress(player)
-    local tps = player:WaitForChild("TempPlayerStatsModule", 10)
-    if not tps then return end
-
-    local ap = tps:WaitForChild("ActionProgress", 10)
-    local anim = tps:WaitForChild("CurrentAnimation", 10)
-    if not ap or not anim then return end
-
-    ap:GetPropertyChangedSignal("Value"):Connect(function()
-        if anim.Value ~= "Typing" then return end
-        local char = player.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-
-        local nearestPC, dist = nil, 35
-        local map = Replicated:FindFirstChild("CurrentMap") and Replicated.CurrentMap.Value
-        if not map then return end
-
-        for _,d in ipairs(map:GetDescendants()) do
-            if d.Name == "ComputerTable" then
-                local part = getPCPart(d)
-                if part then
-                    local mag = (part.Position - hrp.Position).Magnitude
-                    if mag < dist then
-                        dist = mag
-                        nearestPC = d
-                    end
-                end
-            end
-        end
-
-        if nearestPC then
-            showPCPercent(nearestPC, ap.Value)
-        end
-    end)
-end
-
-hookProgress(plr)
 -- =================== BEAST DETECTION ====================
 local function isBeast(plr)
     if not plr then return false end
@@ -850,6 +766,86 @@ local chosenTrigger = getAvailableTrigger(pcData)
     return false
 end
 
+local function getPCPart(pc)
+    local scr = pc:FindFirstChild("Screen")
+    if scr and scr:IsA("BasePart") then return scr end
+    for _,d in ipairs(pc:GetDescendants()) do
+        if d:IsA("BasePart") then return d end
+    end
+end
+
+local function showPCPercent(pc, percent)
+    if not pc then return end
+    percent = math.clamp(math.floor(percent * 100 + 0.5), 0, 100)
+
+    local part = getPCPart(pc)
+    if not part then return end
+
+    local bb = pcLabels[pc]
+    if not bb then
+        bb = Instance.new("BillboardGui")
+        bb.Name = "PCProgressBB"
+        bb.Size = UDim2.new(0,60,0,25)
+        bb.StudsOffset = Vector3.new(0,2,0)
+        bb.AlwaysOnTop = true
+        bb.Adornee = part
+        bb.Parent = part
+
+        local tl = Instance.new("TextLabel")
+        tl.Size = UDim2.new(1,0,1,0)
+        tl.BackgroundTransparency = 1
+        tl.Font = Enum.Font.GothamBold
+        tl.TextScaled = true
+        tl.TextColor3 = Color3.new(1,1,1)
+        tl.Parent = bb
+
+        pcLabels[pc] = bb
+    end
+
+    bb.TextLabel.Text = percent >= 100 and "DONE" or (percent .. "%")
+    if percent >= 100 then
+        bb.TextLabel.TextColor3 = Color3.new(0,1,0)
+    end
+end
+local function hookProgress(player)
+    local tps = player:WaitForChild("TempPlayerStatsModule", 10)
+    if not tps then return end
+
+    local ap = tps:WaitForChild("ActionProgress", 10)
+    local anim = tps:WaitForChild("CurrentAnimation", 10)
+    if not ap or not anim then return end
+
+    ap:GetPropertyChangedSignal("Value"):Connect(function()
+        if anim.Value ~= "Typing" then return end
+        local char = player.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local nearestPC, dist = nil, 35
+        local map = Replicated:FindFirstChild("CurrentMap") and Replicated.CurrentMap.Value
+        if not map then return end
+
+        for _,d in ipairs(map:GetDescendants()) do
+            if d.Name == "ComputerTable" then
+                local part = getPCPart(d)
+                if part then
+                    local mag = (part.Position - hrp.Position).Magnitude
+                    if mag < dist then
+                        dist = mag
+                        nearestPC = d
+                    end
+                end
+            end
+        end
+
+        if nearestPC then
+            showPCPercent(nearestPC, ap.Value)
+        end
+    end)
+end
+
+hookProgress(plr)
 -- ==================== AUTO EXIT (GIỮ NGUYÊN) ====================
 local function autoExitUnified()
     local lastExitUsed = nil
