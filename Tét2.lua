@@ -179,6 +179,21 @@ local function resetGameState()
     updateStatus("🆕 Chờ game mới")
 end
 
+local function isPlayerTyping()
+    local char = game.Players.LocalPlayer.Character
+    if not char then return false end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return false end
+
+    for _,track in ipairs(hum:GetPlayingAnimationTracks()) do
+        if track.Name == "AnimTyping" or track.Name:lower():find("typing") then
+            return true
+        end
+    end
+    return false
+end
+
 -- ==================== BEAST DETECTION ====================
 local function isBeast(plr)
     if not plr then return false end
