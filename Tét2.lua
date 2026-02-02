@@ -589,34 +589,7 @@ local chosenTrigger = getAvailableTrigger(pcData)
         task.wait(0.1)
         canAutoJump = true
     end
-    local retryCount = 0
-    task.wait(0.8)
-
-    while retryCount < 3 do
-        local isTyping = false
-        local char = player.Character
-        if char then
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hum then
-                for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
-                    if track.Name:lower():find("typing") then
-                        isTyping = true
-                        break
-                    end
-                end
-            end
-        end
-        if isTyping then
-            break
-        end
- 
-        retryCount += 1
-        updateStatus("🔁 TP lại trigger ("..retryCount..")")
-        if chosenTrigger and rootPart then
-            rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 0.5, 0)
-            task.wait(0.5)
-        end
-    end
+    
     isHacking = true
     currentPC = pcData
     updateStatus("🔵 Hack PC " .. tostring(pcData.computer and pcData.computer.Name or "Unknown"))
@@ -848,8 +821,9 @@ local function hookProgress(player)
         end)
     end)
 end
-
-hookProgress(plr)
+if Players.LocalPlayer then
+    hookProgress(Players.LocalPlayer)
+end
 -- ==================== AUTO EXIT (GIỮ NGUYÊN) ====================
 local function autoExitUnified()
     local lastExitUsed = nil
@@ -1182,6 +1156,15 @@ local function mainLoop()
                                 else
                                     allCompleted = false
                                     local result = hackPC(pcData)
+
+                                    -- ===== ENSURE HACK (TP LẠI NGAY NẾU RỚT) =====
+                                    if result and isHacking and chosenTrigger and rootPart then
+                                        local dist = (rootPart.Position - chosenTrigger.Position).Magnitude
+                                        if dist > 5 or not isPlayerTyping() then
+                                            rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 0.5, 0)
+                                        end
+                                    end
+                                    -- ===========================================
 
                                     if not result then
                                         log("⚠️ Hack PC " .. pcId .. " thất bại")
