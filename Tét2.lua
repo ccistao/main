@@ -4,6 +4,7 @@ local Replicated = game:GetService("ReplicatedStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CurrentMap = ReplicatedStorage:WaitForChild("CurrentMap")
 local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local scriptEnabled = false
 local hackExtraPC = false
@@ -884,72 +885,24 @@ local function autoExitUnified()
         end)
     end
 
-    local function isExitOpened(exitData)
-        local trigger = exitData.trigger
-        if trigger then
-            local sign = trigger:FindFirstChild("ActionProgress")
-            if sign and (sign:IsA("IntValue") or sign:IsA("NumberValue")) then
-                if sign.Value == 100 then
-                    return true
-                end
-            end
-        end
-        return false
-    end
-
     local function startOpening(trigger, exitData)
-        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if not root then 
-            return false 
-        end
-    
-        log("🔵 Mở Exit...")
-        autointeracttoggle = true
-    
+        local char = player.Character
+        if not char then return false end
+
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return false end
+ 
+       log("🔵 Click mở Exit (1 lần)")
+
+        tpFront(trigger)
+        task.wait(0.4)
+
+
         pcall(function()
-            firetouchinterest(root, trigger, 0)
-            task.wait(0.1)
-            firetouchinterest(root, trigger, 1)
+            trigger:Activate()
         end)
-    
-        task.wait(0.15)
-    
-        local openingTime = 0
-        local maxOpenTime = 15
-    
-        while openingTime < maxOpenTime do
-            task.wait(0.15)
-            openingTime = openingTime + 0.15
-    
-            if isBeastNearby(40) then
-                log("⚠️ Beast chặn Exit")
-                return false
-            end
-    
-            if hasPlayerEscaped() then
-                log("✅ Đã escape trong lúc mở cửa!")
-                return true
-            end
-    
-            tpFront(trigger)
-    
-            if isExitOpened(exitData) then
-                log("✅ Exit opened!")
-                return true
-            else
-                local sign = trigger:FindFirstChild("ActionProgress")
-                if sign and sign:IsA("NumberValue") then
-                    local percent = math.floor((sign.Value / 100) * 100)
-                    if percent > 0 and percent % 10 == 0 then
-                        log("📊 Mở: " .. percent .. "%")
-                    end
-                end
-            end
-        end
-    
-        log("⏱️ Timeout mở cửa")
-        autointeracttoggle = false
-        return false
+
+        return true
     end
 
     local function escape(exitData)
