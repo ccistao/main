@@ -824,6 +824,21 @@ end
 if Players.LocalPlayer then
     hookProgress(Players.LocalPlayer)
 end
+local function hookPCProgress(pc)
+    if hookedPCs[pc] then return end
+    hookedPCs[pc] = true
+
+    local progress = pc:FindFirstChild("Progress", true)
+    if progress and progress:IsA("NumberValue") then
+        table.insert(pcConnections,
+            progress:GetPropertyChangedSignal("Value"):Connect(function()
+                queueProgress(pc, progress.Value)
+            end)
+        )
+
+        queueProgress(pc, progress.Value)
+    end
+end
 -- ==================== AUTO EXIT (GIỮ NGUYÊN) ====================
 local function autoExitUnified()
     local lastExitUsed = nil
