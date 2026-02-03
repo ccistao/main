@@ -1251,7 +1251,35 @@ local function mainLoop()
         end
     end
 end
+task.spawn(function()
+    while true do
+        task.wait(1)
 
+        local mapVal = Replicated:FindFirstChild("CurrentMap")
+        local map = mapVal and mapVal.Value
+        if not map then continue end
+
+        for _, d in ipairs(map:GetDescendants()) do
+            if d.Name == "ComputerTable" then
+                -- tạo billboard cho PC chưa hack
+                if not pcLabels[d] then
+                    showPCPercent(d, 0)
+                end
+
+                -- theo dõi DONE bằng màu Screen
+                local scr = d:FindFirstChild("Screen")
+                if scr and scr:IsA("BasePart") then
+                    scr:GetPropertyChangedSignal("Color"):Connect(function()
+                        if scr.Color.G > scr.Color.R + 0.2
+                        and scr.Color.G > scr.Color.B + 0.2 then
+                            showPCPercent(d, 1)
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end)
 -- ==================== GUI ====================
 local function createGUI()
     local screenGui = Instance.new("ScreenGui")
