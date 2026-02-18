@@ -1,0 +1,84 @@
+local Players = game:GetService("Players")
+local VIM = game:GetService("VirtualInputManager")
+local UIS = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "NativeCrawlBtn"
+gui.ResetOnSpawn = false
+
+if gethui then
+    gui.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(gui)
+    gui.Parent = CoreGui
+else
+    gui.Parent = CoreGui:FindFirstChild("RobloxGui") or Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local btn = Instance.new("ImageButton")
+btn.Name = "CrawlBtn"
+btn.Parent = gui
+btn.Position = UDim2.new(0.8, 0, 0.6, 0)
+btn.Size = UDim2.new(0, 65, 0, 65)
+btn.BackgroundTransparency = 1
+btn.Image = "rbxasset://textures/ui/Input/TouchControls/ButtonRing.png"
+btn.ImageTransparency = 0
+btn.ImageColor3 = Color3.fromRGB(0, 0, 0)
+btn.Active = true
+
+local icon = Instance.new("TextLabel")
+icon.Parent = btn
+icon.Size = UDim2.new(1, 0, 1, 0)
+icon.BackgroundTransparency = 1
+icon.Text = "C"
+icon.TextColor3 = Color3.new(1, 1, 1)
+icon.Font = Enum.Font.GothamBold
+icon.TextSize = 28
+icon.TextTransparency = 0
+
+local toggled = false
+local dragging = false
+local dragStart, startPos
+local hasMoved = false
+
+btn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        hasMoved = false
+        dragStart = input.Position
+        startPos = btn.Position
+        btn.ImageColor3 = Color3.fromRGB(50, 50, 50) 
+    end
+end)
+
+btn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        if not hasMoved then
+            toggled = not toggled
+            VIM:SendKeyEvent(toggled, Enum.KeyCode.LeftShift, false, game)
+            if toggled then
+                btn.Image = "rbxasset://textures/ui/Input/TouchControls/ButtonRing.png" 
+                btn.ImageColor3 = Color3.fromRGB(150, 150, 150)
+                icon.TextTransparency = 0.2
+            else
+                btn.Image = "rbxasset://textures/ui/Input/TouchControls/ButtonRing.png"
+                btn.ImageColor3 = Color3.fromRGB(0, 0, 0)
+                icon.TextTransparency = 0
+            end
+        else
+            btn.ImageColor3 = toggled and Color3.fromRGB(150, 150, 150) or Color3.fromRGB(0, 0, 0)
+        end
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        if delta.Magnitude > 10 then 
+            hasMoved = true
+            btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end
+end)
