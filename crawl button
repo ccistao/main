@@ -1,39 +1,141 @@
 local Players = game:GetService("Players")
-local VIM = game:GetService("VirtualInputManager")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local UIS = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "NativeCrawlBtn"
-gui.ResetOnSpawn = false
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local char = player.Character or player.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+local animator = hum:WaitForChild("Animator")
 
-if gethui then
-    gui.Parent = gethui()
-elseif syn and syn.protect_gui then
-    syn.protect_gui(gui)
-    gui.Parent = CoreGui
-else
-    gui.Parent = CoreGui:FindFirstChild("RobloxGui") or Players.LocalPlayer:WaitForChild("PlayerGui")
+-- === 1. THÔNG SỐ SERVER CHUẨN ===
+local CRAWL_SPEED = 8
+local WALK_SPEED = 16
+local CRAWL_HIP = -2 
+local STAND_HIP = 0  
+local ANIM_ID = "rbxassetid://961932719" 
+
+local remote = ReplicatedStorage:WaitForChild("RemoteEvent")
+
+-- === 2. TÌM NÚT C CỦA GAME ===
+local function getCrawlButton()
+    local caGui = playerGui:FindFirstChild("ContextActionGui")
+    if caGui then
+        for _, v in ipairs(caGui:GetDescendants()) do
+            if v:IsA("ImageButton") and v.Name == "ContextActionButton" then
+                local label = v:FindFirstChild("ActionTitle") or v:FindFirstChildWhichIsA("TextLabel")
+                if label and label.Text == "C" then return v end
+            end
+        end
+    end
+    return nil
 end
 
-local btn = Instance.new("ImageButton")
-btn.Name = "CrawlBtn"
-btn.Parent = gui
-btn.Position = UDim2.new(0.8, 0, 0.6, 0)
-btn.Size = UDim2.new(0, 65, 0, 65)
-btn.BackgroundTransparency = 1
-btn.Image = "rbxasset://textures/ui/Input/TouchControls/ButtonRing.png"
-btn.ImageTransparency = 0
-btn.ImageColor3 = Color3.fromRGB(0, 0, 0)
-btn.Active = true
+local btn = nil
+repeat btn = getCrawlButton(); if not btn then task.wait(0.5) end until btn
 
-local icon = Instance.new("TextLabel")
-icon.Parent = btn
-icon.Size = UDim2.new(1, 0, 1, 0)
-icon.BackgroundTransparency = 1
-icon.Text = "C"
-icon.TextColor3 = Color3.new(1, 1, 1)
-icon.Font = Enum.Font.GothamBold
+-- Cắt mọi kết nối gây lag gốc của nút
+if getconnections then
+    for _, event in ipairs({btn.MouseButton1Down, btn.MouseButton1Up, btn.MouseButton1Click, btn.Activated}) do
+        for _, conn in pairs(getconnections(event)) do conn:Disable() end
+    end
+end
+
+-- === 3. LOGIC KÉO THẢ (ĐÃ FIX LỖI VUỐT NHẦM) ===
+local dragInput = nil -- Lưu trữ chính xác ngón tay đang bấm nút
+local dragStart = nil
+local startPos = nil
+local isMoved = false
+
+btn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input -- Khóa mục tiêu vào đúng ngón tay này
+        dragStart = input.Position
+        startPos = btn.Position
+        isMoved = false
+    end
+end)
+
+UIS.InputChanged:Connect(function(input)
+    -- CHỈ thực hiện di chuyển nếu input hiện tại trùng khớp với ngón tay đã chạm nút ban đầu
+    if input == dragInput then 
+        local delta = input.Position - dragStart
+        if delta.Magnitude > 5 then 
+            isMoved = true -- Nếu nhúc nhích quá 5 pixel -> Tính là kéo, không tính là Click
+        end
+        btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UIS.InputEnded:Connect(function(input)
+    -- Khi ngón tay đó nhấc lên, hủy theo dõi
+    if input == dragInput then
+        dragInput = nil
+    end
+end)
+
+-- === 4. LOGIC BÒ KHÔNG ĐỘ TRỄ (INSTANT PREDICTION) ===
+local isCrawling = false
+local animTrack = nil
+
+local function ApplyStateInstant(active)
+    -- Xử lý Vật Lý
+    local targetHip = active and CRAWL_HIP or STAND_HIP
+    local targetSpeed = active and CRAWL_SPEED or WALK_SPEED
+    
+    local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Linear)
+    TweenService:Create(hum, tweenInfo, {HipHeight = targetHip}):Play()
+    hum.WalkSpeed = targetSpeed
+
+    -- Ép Data Module
+    local stats = player:FindFirstChild("TempPlayerStatsModule") or char:FindFirstChild("TempPlayerStatsModule")
+    if stats then
+        local val = stats:FindFirstChild("IsCrawling")
+        if val then val.Value = active end
+    end
+
+    -- Kích hoạt Animation
+    if active then
+        if not animTrack then
+            local anim = Instance.new("Animation")
+            anim.AnimationId = ANIM_ID
+            animTrack = animator:LoadAnimation(anim)
+            animTrack.Priority = Enum.AnimationPriority.Action 
+            animTrack.Looped = true
+        end
+        animTrack:Play(0.1)
+    else
+        if animTrack then
+            animTrack:Stop(0.1)
+        end
+    end
+end
+
+-- Sự kiện Click
+btn.MouseButton1Click:Connect(function()
+    if isMoved then return end -- Nếu đang kéo thả thì hủy click
+    
+    isCrawling = not isCrawling
+    
+    -- Thực hiện lập tức trên máy mình
+    ApplyStateInstant(isCrawling)
+
+    -- Gửi ngầm lên Server để đồng bộ cho người khác
+    task.spawn(function()
+        remote:FireServer("Input", "Crawl", isCrawling)
+    end)
+end)
+
+-- Reset mọi thứ sạch sẽ khi chết
+player.CharacterAdded:Connect(function(newChar)
+    char = newChar
+    hum = char:WaitForChild("Humanoid")
+    animator = hum:WaitForChild("Animator")
+    isCrawling = false
+    animTrack = nil
+    dragInput = nil -- Xóa cả lịch sử ngón tay kéo
+end)
 icon.TextSize = 28
 icon.TextTransparency = 0
 
