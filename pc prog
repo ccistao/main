@@ -1,0 +1,150 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+-- TOGGLE SETTINGS
+local progressEnabled = true
+local toggleKey = Enum.KeyCode.P
+
+-- TEMPOS REAIS (Cronometrados por vocĂª)
+local TIME_1_PERSON = 64.0
+local TIME_2_PEOPLE = 32.0
+local TIME_3_PEOPLE = 20.0
+
+-- TOGGLE FUNCTION
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == toggleKey then
+		progressEnabled = not progressEnabled
+		for _, descendant in ipairs(Workspace:GetDescendants()) do
+			if descendant:IsA("BillboardGui") and descendant.Name == "ProgressBar" then
+				descendant.Enabled = progressEnabled
+			end
+		end
+	end
+end)
+
+-- CREATE PROGRESS BAR (DESIGN SOLICITADO)
+local function createProgressBar(parent)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ProgressBar"
+	billboard.Adornee = parent
+	billboard.Size = UDim2.new(0, 150, 0, 50) 
+	billboard.StudsOffset = Vector3.new(0, 4.2, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Enabled = progressEnabled
+	billboard.Parent = parent
+
+	local text = Instance.new("TextLabel")
+	text.Name = "ProgressText"
+	text.Size = UDim2.new(1, 0, 0, 20)
+	text.Position = UDim2.new(0, 0, 0, -5)
+	text.BackgroundTransparency = 1
+	text.TextColor3 = Color3.fromRGB(255, 255, 255)
+	text.TextStrokeTransparency = 0.5
+	text.Font = Enum.Font.GothamMedium
+	text.TextSize = 14
+	text.Text = "0,00% | 0,0S"
+	text.Parent = billboard
+
+	local background = Instance.new("Frame")
+	background.Size = UDim2.new(1, 0, 0, 20) -- Barra maior (altura 20)
+	background.Position = UDim2.new(0, 0, 0.6, 0)
+	background.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	background.BackgroundTransparency = 0.5
+	background.BorderSizePixel = 0
+	background.Parent = billboard
+
+	local bar = Instance.new("Frame")
+	bar.Name = "Bar"
+	bar.Size = UDim2.new(0, 0, 1, 0)
+	bar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	bar.BorderSizePixel = 0
+	bar.Parent = background
+
+	return billboard, bar, text
+end
+
+-- COMPUTER SETUP (SISTEMA ORIGINAL)
+local function setupComputer(tableModel)
+	if tableModel:FindFirstChild("ProgressBar") then return end
+
+	local billboard, bar, text = createProgressBar(tableModel)
+	local savedProgress = 0
+
+	RunService.Heartbeat:Connect(function()
+		if not progressEnabled then return end
+
+		local highestTouch = 0
+		local playersHacking = 0
+
+		for _, part in ipairs(tableModel:GetChildren()) do
+			if part:IsA("BasePart") and part.Name:match("^ComputerTrigger") then
+				for _, touchingPart in ipairs(part:GetTouchingParts()) do
+					local plr = Players:GetPlayerFromCharacter(touchingPart.Parent)
+					if plr then
+						local tpsm = plr:FindFirstChild("TempPlayerStatsModule")
+						if tpsm then
+							local ragdoll = tpsm:FindFirstChild("Ragdoll")
+							local ap = tpsm:FindFirstChild("ActionProgress")
+							if ragdoll and typeof(ragdoll.Value) == "boolean" and not ragdoll.Value then
+								if ap and typeof(ap.Value) == "number" and ap.Value > 0 then
+									playersHacking = playersHacking + 1
+									highestTouch = math.max(highestTouch, ap.Value)
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+
+		savedProgress = math.max(savedProgress, highestTouch)
+		bar.Size = UDim2.new(savedProgress, 0, 1, 0)
+
+		-- SISTEMA DE TEMPO DINĂ‚MICO
+		local currentTotalTime = TIME_1_PERSON
+		if playersHacking == 2 then 
+			currentTotalTime = TIME_2_PEOPLE
+		elseif playersHacking >= 3 then 
+			currentTotalTime = TIME_3_PEOPLE
+		end
+
+		local timeLeft = math.max(0, (1 - savedProgress) * currentTotalTime)
+
+		if savedProgress >= 1 then
+			bar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			text.Text = "100,00% | CONCLUĂDO"
+		else
+			-- FORMATO: 0,00% | Segundos,MilissegundosS
+			local pStr = string.format("%.2f%%", savedProgress * 100):gsub("%.", ",")
+			local sStr = string.format("%.1fS", timeLeft):gsub("%.", ",")
+			text.Text = pStr .. " | " .. sStr
+		end
+	end)
+end
+
+-- CONTINUOUS COMPUTER RELOAD (SISTEMA ORIGINAL)
+local function reloadComputers()
+	task.spawn(function()
+		while true do
+			local currentMap = ReplicatedStorage:WaitForChild("CurrentMap")
+			local mapName = tostring(currentMap.Value)
+			if mapName and mapName ~= "" then
+				local map = Workspace:FindFirstChild(mapName)
+				if map then
+					for _, obj in ipairs(map:GetChildren()) do
+						if obj.Name == "ComputerTable" then
+							setupComputer(obj)
+						end
+					end
+				end
+			end
+			task.wait(1)
+		end
+	end)
+end
+
+reloadComputers()
