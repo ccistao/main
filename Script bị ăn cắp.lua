@@ -1018,7 +1018,7 @@ spawn(function() --reload esp when character loads/deloads
 		player.CharacterAdded:Connect(function(character)
 			reloadESP()
 		end)
-		player.CharacterRemoved:Connect(function(character)
+		player.CharacterRemoving:Connect(function(character)
 			reloadESP()
 		end)
 	end)
