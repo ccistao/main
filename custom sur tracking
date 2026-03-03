@@ -1,0 +1,159 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+local activeTimers = {}
+local trackerEnabled = true
+local TOGGLE_KEY = Enum.KeyCode.RightAlt
+
+local function Notify(msg)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "Survivor Tracker";
+            Text = msg;
+            Duration = 2;
+        })
+    end)
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "SurvivorTrackerUI"
+gui.ResetOnSpawn = false
+
+local success = pcall(function()
+    gui.Parent = CoreGui
+end)
+if not success then
+    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+local container = Instance.new("Frame")
+container.Name = "TimerContainer"
+container.BackgroundTransparency = 1
+container.AnchorPoint = Vector2.new(1, 1)
+container.Position = UDim2.new(1, -20, 1, -20)
+container.Size = UDim2.new(0, 250, 0, 400)
+container.Parent = gui
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+listLayout.Padding = UDim.new(0, 5)
+listLayout.Parent = container
+
+local function getBeast()
+    for _, player in ipairs(Players:GetPlayers()) do
+        local stats = player:FindFirstChild("TempPlayerStatsModule")
+        if stats and stats:FindFirstChild("IsBeast") and stats.IsBeast.Value then
+            return player
+        end
+    end
+    return nil
+end
+
+local function createTimerLabel(player)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 28)
+    label.BackgroundTransparency = 0.3
+    label.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    label.RichText = true
+    label.TextScaled = false
+    label.TextSize = 16
+    label.Font = Enum.Font.GothamBold
+    label.TextXAlignment = Enum.TextXAlignment.Right
+    label.Parent = container
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = label
+    
+    local padding = Instance.new("UIPadding")
+    padding.PaddingRight = UDim.new(0, 10)
+    padding.PaddingLeft = UDim.new(0, 10)
+    padding.Parent = label
+
+    return label
+end
+
+local function stopTimer(player)
+    if activeTimers[player] then
+        if activeTimers[player].label then
+            activeTimers[player].label:Destroy()
+        end
+        activeTimers[player] = nil
+    end
+end
+
+local function startTimer(player)
+    if activeTimers[player] then return end
+    activeTimers[player] = {
+        label = createTimerLabel(player),
+        timeLeft = 28.000
+    }
+end
+
+RunService.Heartbeat:Connect(function(dt)
+    if not trackerEnabled then 
+        container.Visible = false
+        return 
+    else
+        container.Visible = true
+    end
+
+    local beast = getBeast()
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= beast then
+            local char = plr.Character
+            local humanoid = char and char:FindFirstChild("Humanoid")
+            
+            if humanoid then
+                if humanoid.PlatformStand or humanoid.JumpPower == 0 then
+                    startTimer(plr)
+                else
+                    stopTimer(plr)
+                end
+            else
+                stopTimer(plr)
+            end
+        else
+            stopTimer(plr)
+        end
+    end
+
+    for player, data in pairs(activeTimers) do
+        data.timeLeft = math.max(0, data.timeLeft - dt)
+        
+        local nameStr = string.format('<font color="#ffffff">%s</font>', player.Name)
+        local timeStr = string.format('<font color="#ff3333">%.3fs</font>', data.timeLeft)
+        
+        data.label.Text = nameStr .. " | " .. timeStr
+
+        if data.timeLeft <= 0 then
+            stopTimer(player)
+        end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    stopTimer(player)
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == TOGGLE_KEY then
+        trackerEnabled = not trackerEnabled
+        if trackerEnabled then
+            Notify("Survivor Tracking: ON")
+        else
+            Notify("Survivor Tracking: OFF")
+        end
+    end
+end)
+
+task.spawn(function()
+    Notify("Survivor Tracking: ON")
+end)
