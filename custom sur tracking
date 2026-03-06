@@ -2,23 +2,12 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 
 local activeTimers = {}
 local trackerEnabled = true
 local TOGGLE_KEY = Enum.KeyCode.RightAlt
-
-local function Notify(msg)
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {
-            Title = "Survivor Tracker";
-            Text = msg;
-            Duration = 2;
-        })
-    end)
-end
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "SurvivorTrackerUI"
@@ -36,7 +25,7 @@ container.Name = "TimerContainer"
 container.BackgroundTransparency = 1
 container.AnchorPoint = Vector2.new(1, 1)
 container.Position = UDim2.new(1, -20, 1, -20)
-container.Size = UDim2.new(0, 250, 0, 400)
+container.Size = UDim2.new(0, 260, 0, 400)
 container.Parent = gui
 
 local listLayout = Instance.new("UIListLayout")
@@ -55,34 +44,45 @@ local function getBeast()
     return nil
 end
 
-local function createTimerLabel(player)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 28)
-    label.BackgroundTransparency = 0.3
-    label.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    label.RichText = true
-    label.TextScaled = false
-    label.TextSize = 16
-    label.Font = Enum.Font.GothamBold
-    label.TextXAlignment = Enum.TextXAlignment.Right
-    label.Parent = container
-    
+local function createTimerUI(player)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 28)
+    frame.BackgroundTransparency = 0.3
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    frame.Parent = container
+
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 6)
-    corner.Parent = label
-    
-    local padding = Instance.new("UIPadding")
-    padding.PaddingRight = UDim.new(0, 10)
-    padding.PaddingLeft = UDim.new(0, 10)
-    padding.Parent = label
+    corner.Parent = frame
 
-    return label
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Size = UDim2.new(0, 165, 1, 0)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+    nameLabel.TextSize = 15
+    nameLabel.Font = Enum.Font.GothamBold
+    nameLabel.TextXAlignment = Enum.TextXAlignment.Right
+    nameLabel.Text = player.Name .. " |"
+    nameLabel.Parent = frame
+
+    local timeLabel = Instance.new("TextLabel")
+    timeLabel.Size = UDim2.new(0, 85, 1, 0)
+    timeLabel.Position = UDim2.new(0, 170, 0, 0)
+    timeLabel.BackgroundTransparency = 1
+    timeLabel.TextColor3 = Color3.fromRGB(255, 51, 51)
+    timeLabel.TextSize = 15
+    timeLabel.Font = Enum.Font.GothamBold
+    timeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    timeLabel.Parent = frame
+
+    return frame, timeLabel
 end
 
 local function stopTimer(player)
     if activeTimers[player] then
-        if activeTimers[player].label then
-            activeTimers[player].label:Destroy()
+        if activeTimers[player].frame then
+            activeTimers[player].frame:Destroy()
         end
         activeTimers[player] = nil
     end
@@ -90,9 +90,11 @@ end
 
 local function startTimer(player)
     if activeTimers[player] then return end
+    local frame, timeLabel = createTimerUI(player)
     activeTimers[player] = {
-        label = createTimerLabel(player),
-        timeLeft = 28.000
+        frame = frame,
+        timeLabel = timeLabel,
+        timeLeft = 28.070
     }
 end
 
@@ -107,7 +109,7 @@ RunService.Heartbeat:Connect(function(dt)
     local beast = getBeast()
 
     for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= beast then
+        if plr ~= beast and plr ~= LocalPlayer then
             local char = plr.Character
             local humanoid = char and char:FindFirstChild("Humanoid")
             
@@ -128,10 +130,7 @@ RunService.Heartbeat:Connect(function(dt)
     for player, data in pairs(activeTimers) do
         data.timeLeft = math.max(0, data.timeLeft - dt)
         
-        local nameStr = string.format('<font color="#ffffff">%s</font>', player.Name)
-        local timeStr = string.format('<font color="#ff3333">%.3fs</font>', data.timeLeft)
-        
-        data.label.Text = nameStr .. " | " .. timeStr
+        data.timeLabel.Text = string.format("%.3fs", data.timeLeft)
 
         if data.timeLeft <= 0 then
             stopTimer(player)
@@ -146,14 +145,5 @@ end)
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == TOGGLE_KEY then
         trackerEnabled = not trackerEnabled
-        if trackerEnabled then
-            Notify("Survivor Tracking: ON")
-        else
-            Notify("Survivor Tracking: OFF")
-        end
     end
-end)
-
-task.spawn(function()
-    Notify("Survivor Tracking: ON")
 end)
