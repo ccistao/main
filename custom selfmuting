@@ -1,0 +1,179 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+
+local TOGGLE_KEY = Enum.KeyCode.Delete
+
+local SelfMuting = {}
+SelfMuting.enabled = false
+SelfMuting.connections = {}
+SelfMuting.muted = {}
+SelfMuting.scanInterval = 0.25
+
+local function Notify(msg)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "Self Mute";
+            Text = msg;
+            Duration = 2;
+        })
+    end)
+end
+
+local function isLocalCharacterAncestor(inst)
+    local model = inst and inst:FindFirstAncestorOfClass("Model")
+    if not model then return false end
+    return Players:GetPlayerFromCharacter(model) == player
+end
+
+local function cleanupMutedEntry(s)
+    if not s then return end
+    local entry = SelfMuting.muted[s]
+    if entry then
+        if entry.c1 then pcall(function() entry.c1:Disconnect() end) end
+        if entry.c2 then pcall(function() entry.c2:Disconnect() end) end
+        if entry.c3 then pcall(function() entry.c3:Disconnect() end) end
+        if entry.d then pcall(function() entry.d:Disconnect() end) end
+        SelfMuting.muted[s] = nil
+    end
+end
+
+local function applyMuteToSound(s)
+    if not s or not s:IsA("Sound") then return end
+    if not isLocalCharacterAncestor(s) then return end
+    if SelfMuting.muted[s] then return end
+
+    local ok, vol = pcall(function() return s.Volume end)
+    local orig = (ok and vol) and vol or 1
+    pcall(function() s.Volume = 0 s:Stop() end)
+
+    local entry = {orig = orig}
+    entry.c1 = s:GetPropertyChangedSignal("Volume"):Connect(function()
+        if not s or not s.Parent then cleanupMutedEntry(s) return end
+        if SelfMuting.enabled and s.Volume ~= 0 then
+            pcall(function() s.Volume = 0 end)
+        end
+    end)
+    entry.c2 = s:GetPropertyChangedSignal("Playing"):Connect(function()
+        if not s or not s.Parent then cleanupMutedEntry(s) return end
+        if SelfMuting.enabled and s.Playing then
+            pcall(function() s:Stop() end)
+        end
+    end)
+    entry.c3 = s:GetPropertyChangedSignal("Parent"):Connect(function()
+        if not s or not s.Parent then cleanupMutedEntry(s) return end
+        if isLocalCharacterAncestor(s) then
+            if SelfMuting.enabled then
+                pcall(function() s.Volume = 0 s:Stop() end)
+            end
+        else
+            cleanupMutedEntry(s)
+        end
+    end)
+    entry.d = s.Destroying:Connect(function()
+        cleanupMutedEntry(s)
+    end)
+
+    SelfMuting.muted[s] = entry
+end
+
+local function scanCharacterSounds()
+    local char = player.Character
+    if not char then return end
+    for _, obj in ipairs(char:GetDescendants()) do
+        if obj:IsA("Sound") then
+            if SelfMuting.enabled then applyMuteToSound(obj) end
+        end
+    end
+end
+
+local function globalDescendantHandler(obj)
+    if obj:IsA("Sound") then
+        if SelfMuting.enabled and isLocalCharacterAncestor(obj) then
+            applyMuteToSound(obj)
+        end
+        local conn = obj:GetPropertyChangedSignal("Parent"):Connect(function()
+            if SelfMuting.enabled and isLocalCharacterAncestor(obj) then
+                applyMuteToSound(obj)
+            else
+                cleanupMutedEntry(obj)
+            end
+        end)
+        table.insert(SelfMuting.connections, conn)
+    end
+end
+
+local function unmuteAll()
+    for s, entry in pairs(SelfMuting.muted) do
+        if s and s.Parent then
+            pcall(function() s.Volume = entry.orig end)
+        end
+        cleanupMutedEntry(s)
+    end
+end
+
+function SelfMuting.start()
+    if SelfMuting.enabled then return end
+    SelfMuting.enabled = true
+    
+    local charConn = player.CharacterAdded:Connect(function(char)
+        task.wait(0.05)
+        if SelfMuting.enabled then scanCharacterSounds() end
+    end)
+    table.insert(SelfMuting.connections, charConn)
+    
+    if player.Character then
+        task.spawn(function()
+            task.wait(0.05)
+            if SelfMuting.enabled then scanCharacterSounds() end
+        end)
+    end
+    
+    local descConn = game.DescendantAdded:Connect(globalDescendantHandler)
+    table.insert(SelfMuting.connections, descConn)
+    
+    local scanTask = task.spawn(function()
+        while true do
+            if not SelfMuting.enabled then break end
+            if SelfMuting.enabled then
+                scanCharacterSounds()
+            end
+            task.wait(SelfMuting.scanInterval)
+        end
+    end)
+    table.insert(SelfMuting.connections, scanTask)
+end
+
+function SelfMuting.stop()
+    SelfMuting.enabled = false
+    
+    for _, conn in pairs(SelfMuting.connections) do
+        if typeof(conn) == "RBXScriptConnection" then
+            conn:Disconnect()
+        elseif typeof(conn) == "thread" then
+            task.cancel(conn)
+        end
+    end
+    SelfMuting.connections = {}
+    
+    unmuteAll()
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == TOGGLE_KEY then
+        if SelfMuting.enabled then
+            SelfMuting.stop()
+            Notify("Self Mute: OFF")
+        else
+            SelfMuting.start()
+            Notify("Self Mute: ON")
+        end
+    end
+end)
+
+task.spawn(function()
+    SelfMuting.start()
+end)
