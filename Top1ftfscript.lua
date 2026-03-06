@@ -896,7 +896,6 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 
--- Xác định Beast
 local function getBeast()
     for _, player in ipairs(Players:GetPlayers()) do
         local stats = player:FindFirstChild("TempPlayerStatsModule")
@@ -904,9 +903,9 @@ local function getBeast()
             return player
         end
     end
+    return nil
 end
 
--- Rút gọn tên nếu quá dài
 local function shortenName(name)
     if #name > 8 then
         return string.sub(name, 1, 8) .. "..."
@@ -915,7 +914,6 @@ local function shortenName(name)
     end
 end
 
--- Hàm tạo BillboardGui
 local function createHeadTimer(char, name)
     local head = char:FindFirstChild("Head")
     if not head then return end
@@ -948,27 +946,41 @@ local function createHeadTimer(char, name)
     return billboard, textLabel
 end
 
--- Bắt đầu timer
+local function stopTimer(player)
+    if SurvivorTracker.activeTimers[player] then
+        if SurvivorTracker.activeTimers[player].gui then
+            SurvivorTracker.activeTimers[player].gui:Destroy()
+        end
+        SurvivorTracker.activeTimers[player] = nil
+    end
+end
+
+local function hideTimerUI(player)
+    if SurvivorTracker.activeTimers[player] then
+        if SurvivorTracker.activeTimers[player].gui then
+            SurvivorTracker.activeTimers[player].gui:Destroy()
+            SurvivorTracker.activeTimers[player].gui = nil
+            SurvivorTracker.activeTimers[player].label = nil
+        end
+    end
+end
+
 local function startTimer(player)
-    if SurvivorTracker.activeTimers[player] then return end
     local char = player.Character
     if not char then return end
 
-    local gui, label = createHeadTimer(char, player.Name)
-    if not gui then return end
-
-    SurvivorTracker.activeTimers[player] = {
-        gui = gui,
-        label = label,
-        timeLeft = 28
-    }
-end
-
--- Dừng timer
-local function stopTimer(player)
-    if SurvivorTracker.activeTimers[player] then
-        SurvivorTracker.activeTimers[player].gui:Destroy()
-        SurvivorTracker.activeTimers[player] = nil
+    if not SurvivorTracker.activeTimers[player] then
+        SurvivorTracker.activeTimers[player] = {
+            startTime = os.clock(),
+            gui = nil,
+            label = nil
+        }
+    end
+    
+    if not SurvivorTracker.activeTimers[player].gui then
+        local gui, label = createHeadTimer(char, player.Name)
+        SurvivorTracker.activeTimers[player].gui = gui
+        SurvivorTracker.activeTimers[player].label = label
     end
 end
 
@@ -976,46 +988,51 @@ function SurvivorTracker.start()
     if SurvivorTracker.enabled then return end
     SurvivorTracker.enabled = true
     
-    -- Connection quét liên tục
-    local heartbeatConn = RunService.Heartbeat:Connect(function(dt)
+    local heartbeatConn = RunService.Heartbeat:Connect(function()
         if not SurvivorTracker.enabled then return end
         
         local beast = getBeast()
-        for _, plr in pairs(Players:GetPlayers()) do
+        for _, plr in ipairs(Players:GetPlayers()) do
             if plr ~= LocalPlayer and plr ~= beast then
                 local char = plr.Character
                 local humanoid = char and char:FindFirstChild("Humanoid")
                 if humanoid then
                     if humanoid.PlatformStand or humanoid.JumpPower == 0 then
-                        if not SurvivorTracker.activeTimers[plr] then
-                            startTimer(plr)
-                        end
+                        startTimer(plr)
                     else
                         stopTimer(plr)
                     end
+                else
+                    stopTimer(plr)
                 end
             end
         end
 
-        -- Cập nhật timer
         for player, data in pairs(SurvivorTracker.activeTimers) do
-            data.timeLeft = math.max(0, data.timeLeft - dt)
+            local elapsed = os.clock() - data.startTime
+            local timeLeft = math.max(0, 28.050 - elapsed)
+            
             if data.label then
-                data.label.Text = shortenName(player.Name) .. "\n" .. math.ceil(data.timeLeft) .. "s"
+                data.label.Text = shortenName(player.Name) .. "\n" .. math.ceil(timeLeft) .. "s"
             end
-            if data.timeLeft <= 0 then
+
+            if timeLeft <= 0 then
                 stopTimer(player)
             end
         end
     end)
     
     table.insert(SurvivorTracker.connections, heartbeatConn)
+    
+    local prConn = Players.PlayerRemoving:Connect(function(player)
+        stopTimer(player)
+    end)
+    table.insert(SurvivorTracker.connections, prConn)
 end
 
 function SurvivorTracker.stop()
     SurvivorTracker.enabled = false
     
-    -- Disconnect tất cả connections
     for _, conn in pairs(SurvivorTracker.connections) do
         if typeof(conn) == "RBXScriptConnection" then
             conn:Disconnect()
@@ -1023,14 +1040,9 @@ function SurvivorTracker.stop()
     end
     SurvivorTracker.connections = {}
     
-    -- Xóa tất cả timer GUI
-    for player, data in pairs(SurvivorTracker.activeTimers) do
-        if data.gui then
-            data.gui:Destroy()
-        end
+    for player, _ in pairs(SurvivorTracker.activeTimers) do
+        hideTimerUI(player)
     end
-    SurvivorTracker.activeTimers = {}
-    
 end
 
 -- ===== PC PROGRESS =====
