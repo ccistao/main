@@ -832,35 +832,6 @@ local function autoExitUnified()
     -- Track position để detect animation cửa đang mở
     local function waitForDoorOpen(exitData, timeoutSecs)
         timeoutSecs = timeoutSecs or 20
-
-        -- Track Wheel part bên trong Spinner để detect animation
-        local doorModel = exitData.model:FindFirstChild("Door")
-        local wheelPart = nil
-        if doorModel then
-            local spinner = doorModel:FindFirstChild("Spinner")
-            if spinner then
-                wheelPart = spinner:FindFirstChild("Wheel")
-            end
-            -- Fallback: lấy part đầu tiên không anchored
-            if not wheelPart then
-                for _, v in ipairs(doorModel:GetDescendants()) do
-                    if v:IsA("BasePart") and not v.Anchored then
-                        wheelPart = v
-                        log("Fallback track part: " .. v.Name)
-                        break
-                    end
-                end
-            end
-        end
-
-        local initPos = wheelPart and wheelPart.Position
-        local initCFrame = wheelPart and wheelPart.CFrame
-        if wheelPart then
-            log("Tracking: " .. wheelPart.Name)
-        else
-            log("No trackable part found, using timeout only")
-        end
-
         local waited = 0
         local beastInterrupted = false
 
@@ -874,20 +845,24 @@ local function autoExitUnified()
                 break
             end
 
-            if isExitOpened(exitData) then
-                log("Door opened! (transparency/collision)")
+            -- Check ActionProgress của bản thân
+            local tps = player:FindFirstChild("TempPlayerStatsModule")
+            local ap = tps and tps:FindFirstChild("ActionProgress")
+            local prog = ap and ap.Value or 0
+            local pct = math.floor(prog * 100)
+            if pct > 0 and pct % 10 == 0 then
+                log("Door progress: " .. pct .. "%")
+            end
+            if prog >= 0.999 then
+                log("Door opened! (ActionProgress=100%)")
+                task.wait(0.5)
                 return true, false
             end
 
-            if wheelPart and initCFrame then
-                local posMoved = (wheelPart.Position - initCFrame.Position).Magnitude
-                -- Check rotation thay đổi (dot product < 1 = đã xoay)
-                local rotChanged = math.abs(wheelPart.CFrame.LookVector:Dot(initCFrame.LookVector)) < 0.99
-                if posMoved > 0.3 or rotChanged then
-                    log("Door animating! pos=" .. string.format("%.2f", posMoved) .. " rot=" .. tostring(rotChanged) .. " → wait 2s")
-                    task.wait(2)
-                    return true, false
-                end
+            -- Fallback: check visual
+            if isExitOpened(exitData) then
+                log("Door opened! (visual check)")
+                return true, false
             end
         end
 
@@ -991,6 +966,16 @@ local function autoExitUnified()
                     local success = startOpening(exitData.trigger)
                     if success then
                         log("Waiting for door to open...")
+                        -- Tiếp tục fire action trong lúc chờ
+                        task.spawn(function()
+                            while not hasEscaped do
+                                task.wait(0.15)
+                                pcall(function()
+                                    local r = ReplicatedStorage:FindFirstChild("RemoteEvent")
+                                    if r then r:FireServer("Input", "Action", true) end
+                                end)
+                            end
+                        end)
                         local opened, beastInterrupted = waitForDoorOpen(exitData, 20)
                         if beastInterrupted then
                             log("Beast interrupted, try other exit")
