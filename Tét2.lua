@@ -1384,7 +1384,7 @@ local function createGUI()
 
         local content = isTest
             and "🧪 **[FTF AUTO HACK] TEST**"
-            or "📊 **[FTF AUTO HACK] Report**"
+            or "📊 **[FTF AUTO HACK] Webhook**"
         content = content .. "\n👤 Player: **" .. player.Name .. "**"
         content = content .. "\n⏱ Uptime: **" .. uptime .. "**"
         content = content .. "\n💰 Credits: **" .. tostring(credits or "?") .. "C**"
@@ -1417,11 +1417,11 @@ local function createGUI()
         autoSendEnabled = not autoSendEnabled
         if autoSendEnabled then
             autoBtn.BackgroundColor3 = Color3.fromRGB(50, 130, 50)
-            autoBtn.Text = "🔔 Auto: ON"
+            autoBtn.Text = "🔔 Auto Send Webhook: ON"
             lblWebhookStatus.Text = "✅ Will send every " .. webhookInterval .. "m"
         else
             autoBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-            autoBtn.Text = "🔔 Auto: OFF"
+            autoBtn.Text = "🔔 Auto Send Webhook: OFF"
             lblWebhookStatus.Text = "🔕 Auto send off"
         end
     end)
