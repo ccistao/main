@@ -7,9 +7,7 @@ local RunService = game:GetService("RunService")
 
 local scriptEnabled = false
 local hackExtraPC = false
-local autointeracttoggle = true
-local neverfailtoggle = true
-local gameOver = false -- true khi beast out hoặc game kết thúc
+local gameOver = false
 
 local currentTrigger = nil
 local currentPC = nil
@@ -17,7 +15,6 @@ local skippedPCs = {}
 local isHacking = false
 local hackedPCs = {}
 local beast = nil
-local pcLabels = {}
 local foundBeast = false
 local skipCurrentPC = false
 local hasEscaped = false
@@ -31,7 +28,6 @@ local ANTI_CHEAT_DELAY = 10
 local delayAfterHack = 10
 local jumpInterval = 4
 local SAFE_POS = Vector3.new(50, 73, 50)
-
 
 local roundsPlayed = 0
 
@@ -61,7 +57,6 @@ local function updateCharacterReferences()
     character = player.Character or player.CharacterAdded:Wait()
     humanoid = character:WaitForChild("Humanoid")
     rootPart = character:WaitForChild("HumanoidRootPart")
-    log("Char refs updated")
 end
 
 -- ==================== HIDE PLATFORM ====================
@@ -88,18 +83,15 @@ local function setupActionProgressTracking()
         pcall(function()
             local tps = player:FindFirstChild("TempPlayerStatsModule")
             if not tps then
-                log("ActionProgress hook: TempPlayerStatsModule not found")
                 return
             end
             local ap = tps:FindFirstChild("ActionProgress")
             if not ap or not ap:IsA("NumberValue") then
-                log("ActionProgress hook: value not found")
                 return
             end
             actionProgressConnection = ap:GetPropertyChangedSignal("Value"):Connect(function()
                 pcall(function() currentActionProgress = ap.Value or 0 end)
             end)
-            log("ActionProgress hooked OK")
         end)
     end
 
@@ -118,7 +110,7 @@ end
 
 -- ==================== RESET ====================
 local function resetGameState()
-    log("Reset game state (round=" .. roundsPlayed .. ")")
+    log("Reset state (round=" .. roundsPlayed .. ")")
     isHacking = false
     currentPC = nil
     currentTrigger = nil
@@ -132,7 +124,6 @@ local function resetGameState()
     gameOver = false
     beast = nil
     foundBeast = false
-    autointeracttoggle = true
 
     if hidePlatform then
         pcall(function() hidePlatform:Destroy() end)
@@ -140,7 +131,7 @@ local function resetGameState()
     end
     createHidePlatform()
     updateCharacterReferences()
-    updateStatus("Chờ game mới")
+    updateStatus("Waiting for new game")
 end
 
 -- ==================== BEAST ====================
@@ -166,11 +157,12 @@ local beastTrackerRunning = false
 local function findBeast()
     if beastTrackerRunning then return end
     beastTrackerRunning = true
-    log("Beast tracker started")
 
     task.spawn(function()
         while true do
             task.wait(0.3)
+
+            if not scriptEnabled then continue end
 
             if foundBeast then
                 if not beast or not Players:FindFirstChild(beast.Name) or not isBeast(beast) then
@@ -181,29 +173,22 @@ local function findBeast()
                     currentPC = nil
                     canAutoJump = false
                     hasEscaped = false
-                    gameOver = true -- dừng hackPC loop ngay
+                    gameOver = true
 
                     task.wait(3)
                     local gs = ReplicatedStorage:FindFirstChild("GameStatus")
                     local txt = gs and tostring(gs.Value):upper() or ""
                     if txt:find("HACK") or txt:find("HEAD START") or txt:find("FIND") then
-                        log("Game still active → reset")
+                        log("Game still active -> reset")
                         gameOver = false
                         resetGameState()
                     else
-                        log("Game over/lobby → skip reset, wait for next round")
+                        log("Game over/lobby -> skip reset")
                     end
                 end
             else
                 for _, p in ipairs(Players:GetPlayers()) do
                     if isBeast(p) then
-                        if p == player then
-                            log("Mình là Beast → hop server!")
-                            pcall(function()
-                                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-                            end)
-                            return
-                        end
                         beast = p
                         foundBeast = true
                         log("Beast found: " .. p.Name)
@@ -221,10 +206,10 @@ local function findBeast()
                         local gs = ReplicatedStorage:FindFirstChild("GameStatus")
                         local txt = gs and tostring(gs.Value):upper() or ""
                         if txt:find("HACK") or txt:find("HEAD START") or txt:find("FIND") then
-                            log("No beast after 5s, game active → reset")
+                            log("No beast after 5s, game active -> reset")
                             resetGameState()
                         else
-                            log("No beast after 5s, game over → skip reset")
+                            log("No beast after 5s, game over -> skip reset")
                         end
                     end
                 end
@@ -253,7 +238,7 @@ local function isBeastNearby(distance)
 end
 
 local function escapeBeast()
-    updateStatus("Trốn Beast!")
+    updateStatus("Hiding from Beast!")
     pcall(function()
         local char = player.Character
         if not char then return end
@@ -263,17 +248,15 @@ local function escapeBeast()
         if hum and hum.Sit then hum.Sit = false task.wait(0.1) end
         root.CFrame = CFrame.new(SAFE_POS)
     end)
-    log("TP safe pos, waiting 10s")
-    updateStatus("Ẩn náu 10s...")
+    updateStatus("Hiding 10s...")
     task.wait(10)
-    -- Clear skip list để thử lại các PC bị skip do beast
+    -- Clear skip list so skipped PCs get retried
     skippedPCs = {}
-    log("Resume after beast escape, cleared skip list")
 end
 
 -- ==================== WAIT FOR GAME ====================
 local function waitForGameActive()
-    updateStatus("Chờ game bắt đầu...")
+    updateStatus("Waiting for game...")
     local timeout = 300
     local elapsed = 0
     local lastLogTime = 0
@@ -282,9 +265,8 @@ local function waitForGameActive()
         task.wait(0.5)
         elapsed = elapsed + 0.5
 
-        -- Heartbeat log mỗi 30s
+        -- Heartbeat log every 30s
         if elapsed - lastLogTime >= 30 then
-            log("Still waiting for game... " .. math.floor(elapsed) .. "s")
             lastLogTime = elapsed
         end
 
@@ -302,7 +284,6 @@ local function waitForGameActive()
         if ok and result and result.Text then
             local txt = result.Text:upper()
             if txt:find("15 SEC HEAD START") or txt:find("HEAD START") then
-                log("HEAD START detected via GameStatusBox")
                 task.wait(2)
                 return true
             end
@@ -312,19 +293,12 @@ local function waitForGameActive()
         local gs = ReplicatedStorage:FindFirstChild("GameStatus")
         if gs then
             local txt = tostring(gs.Value):upper()
-            -- Log giá trị GameStatus để debug (mỗi 5s thôi)
-            if elapsed % 5 < 0.5 then
-                log("GameStatus = \"" .. txt .. "\"")
-            end
             if txt:find("HEAD START") or txt:find("HACK") then
-                log("Game active via GameStatus: " .. txt)
                 task.wait(1)
                 return true
             end
         end
     end
-
-    log("Timeout waitForGameActive")
     return false
 end
 
@@ -334,7 +308,8 @@ spawn(function()
     local function onActionBoxVisible(ab)
         ab:GetPropertyChangedSignal("Visible"):Connect(function()
             if ab.Visible then
-                if (scriptEnabled and isHacking and currentPC) or autointeracttoggle then
+                -- Only fire when hacking PC and script is ON
+                if scriptEnabled and isHacking and currentPC then
                     local remote = ReplicatedStorage:FindFirstChild("RemoteEvent")
                     if remote and remote.FireServer then
                         pcall(function() remote:FireServer("Input", "Action", true) end)
@@ -360,7 +335,6 @@ spawn(function()
 
     local screenGui = playerGui:WaitForChild("ScreenGui")
     bindToScreenGui(screenGui)
-    log("ActionBox hook bound")
 end)
 
 -- ==================== PC UTILITIES ====================
@@ -410,14 +384,13 @@ local function getAvailableTrigger(pcData)
         if not occupied then return trigger end
     end
 
-    return nil -- cả 3 trigger đều có người → skip PC này
+    return nil -- all 3 triggers occupied -> skip PC
 end
 
 local function findAllPCs()
     local found = {}
     local map = CurrentMap.Value
     if not map then
-        log("findAllPCs: map not found")
         return found
     end
     for _, obj in ipairs(map:GetDescendants()) do
@@ -441,7 +414,6 @@ local function findAllPCs()
         end
     end
     for i, pc in ipairs(found) do pc.id = i end
-    log("Found " .. #found .. " PC(s)")
     return found
 end
 
@@ -457,21 +429,31 @@ local function isFindExitPhase()
 end
 
 -- ==================== NEVER FAIL HOOK ====================
+-- ==================== NEVER FAIL ====================
 task.spawn(function()
-    local mt = getrawmetatable(game)
-    local old = mt.__namecall
-    setreadonly(mt, false)
-    mt.__namecall = newcclosure(function(self, ...)
-        local args = {...}
-        if getnamecallmethod() == "FireServer"
-            and args[1] == "SetPlayerMinigameResult"
-            and neverfailtoggle then
-            args[2] = true
-            return old(self, unpack(args))
-        end
-        return old(self, ...)
-    end)
-    log("NeverFail hook active")
+    local remoteEvent = ReplicatedStorage:WaitForChild("RemoteEvent", 10)
+    if not remoteEvent then log("NeverFail: RemoteEvent not found") return end
+
+    -- Only run from lobby/start of round, not mid-game
+    local function isInLobby()
+        local gs = ReplicatedStorage:FindFirstChild("GameStatus")
+        if not gs then return true end
+        local txt = tostring(gs.Value):upper()
+        return not (txt:find("HACK") or txt:find("HEAD START") or txt:find("FIND"))
+    end
+
+    -- Wait for lobby first
+    while not isInLobby() do task.wait(1) end
+    log("NeverFail: waiting for round...")
+    while isInLobby() do task.wait(1) end
+
+    while true do
+        task.wait(0.1)
+        if not scriptEnabled then continue end
+        pcall(function()
+            remoteEvent:FireServer("SetPlayerMinigameResult", true)
+        end)
+    end
 end)
 
 -- ==================== HEARTBEAT ====================
@@ -504,15 +486,11 @@ local function hackPC(pcData)
 
     local pcId = tostring(pcData.id)
     local pcName = pcData.computer.Name or "Unknown"
-    log("hackPC start: PC" .. pcId .. " (" .. pcName .. ")")
 
     local chosenTrigger = getAvailableTrigger(pcData)
     if not chosenTrigger then
-        log("PC" .. pcId .. ": no trigger found, skip")
         return false
     end
-
-    log("PC" .. pcId .. ": TP to " .. chosenTrigger.Name)
     if chosenTrigger and rootPart then
         rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 0.5, 0)
         currentTrigger = chosenTrigger
@@ -527,7 +505,6 @@ local function hackPC(pcData)
     local progress = getPCProgress(pcData)
     local skipAnti = (progress >= 1)
     if skipAnti then
-        log("PC" .. pcId .. ": already done, skip anti-cheat delay")
     else
         task.wait(0.2)
     end
@@ -571,7 +548,6 @@ local function hackPC(pcData)
             return false
         end
 
-
         if not pcData.computer or not pcData.computer.Parent then
             log("PC" .. pcId .. ": disappeared!")
             break
@@ -585,7 +561,7 @@ local function hackPC(pcData)
 
         local prog = getPlayerActionProgress()
 
-        -- Log progress mỗi 10%
+        -- Log every 10%
         local pct = math.floor(prog * 100)
         if pct ~= lastLoggedPct and pct % 10 == 0 and pct > 0 then
             log("PC" .. pcId .. " progress: " .. pct .. "%")
@@ -627,8 +603,16 @@ local function hackPC(pcData)
 
         if doneByColor or prog >= 0.999 then
             log("PC" .. pcId .. ": DONE!")
-            updateStatus("Hack xong PC " .. pcId)
+            updateStatus("Done PC " .. pcId)
             hackedPCs[pcData.id] = true
+
+            -- Check last PC BEFORE refreshing allPCs
+            local remaining = 0
+            for _, pc in ipairs(allPCs) do
+                if not hackedPCs[pc.id] then remaining += 1 end
+            end
+            local isLastPC = (remaining == 0)
+
             allPCs = findAllPCs()
             isHacking = false
             currentPC = nil
@@ -639,31 +623,16 @@ local function hackPC(pcData)
                 local char = player.Character
                 if char then
                     local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        char:PivotTo(CFrame.new(SAFE_POS))
-                        log("TP to safe pos")
-                    end
+                    if hrp then char:PivotTo(CFrame.new(SAFE_POS)) end
                 end
             end)
 
-            if skipAnti then
-                log("Skip anti-cheat delay (PC was already done)")
+            if skipAnti or isLastPC then
+                if isLastPC then log("Last PC -> skip delay, go exit!") end
                 return true
             end
 
-            -- Kiểm tra còn PC nào chưa hack không
-            -- Nếu đây là PC cuối thì skip delay để tp exit luôn
-            local remaining = 0
-            for _, pc in ipairs(allPCs) do
-                if not hackedPCs[pc.id] then remaining += 1 end
-            end
-            if remaining == 0 then
-                log("Last PC done → skip anti-cheat delay, go exit!")
-                return true
-            end
-
-            log("Anti-cheat delay: " .. delayAfterHack .. "s")
-            updateStatus("Anti-cheat delay " .. delayAfterHack .. "s...")
+            updateStatus("Anti-cheat " .. delayAfterHack .. "s...")
             task.wait(delayAfterHack)
             return true
         end
@@ -671,7 +640,7 @@ local function hackPC(pcData)
         lastProgress = prog
     end
 
-    log("PC" .. pcId .. ": hackPC loop ended (done=" .. tostring(hackedPCs[pcData.id]) .. ")")
+    log("PC" .. pcId .. ": loop ended (done=" .. tostring(hackedPCs[pcData.id]) .. ")")
     isHacking = false
     currentPC = nil
     canAutoJump = false
@@ -679,100 +648,8 @@ local function hackPC(pcData)
     return false
 end
 
--- ==================== ESP ====================
-local function getPCPart(pc)
-    local scr = pc:FindFirstChild("Screen")
-    if scr and scr:IsA("BasePart") then return scr end
-    for _, d in ipairs(pc:GetDescendants()) do
-        if d:IsA("BasePart") then return d end
-    end
-end
-
-local function showPCPercent(pc, percent)
-    if not pc then return end
-    percent = math.clamp(math.floor(percent * 100 + 0.5), 0, 100)
-    local part = getPCPart(pc)
-    if not part then return end
-    local bb = pcLabels[pc]
-    if not bb then
-        bb = Instance.new("BillboardGui")
-        bb.Name = "PCProgressBB"
-        bb.Size = UDim2.new(0, 60, 0, 25)
-        bb.StudsOffset = Vector3.new(0, 2, 0)
-        bb.AlwaysOnTop = true
-        bb.Adornee = part
-        bb.Parent = part
-        local tl = Instance.new("TextLabel")
-        tl.Size = UDim2.new(1, 0, 1, 0)
-        tl.BackgroundTransparency = 1
-        tl.Font = Enum.Font.GothamBold
-        tl.TextScaled = true
-        tl.TextColor3 = Color3.new(1, 1, 1)
-        tl.Parent = bb
-        pcLabels[pc] = bb
-    end
-    bb.TextLabel.Text = percent >= 100 and "DONE" or (percent .. "%")
-    if percent >= 100 then bb.TextLabel.TextColor3 = Color3.new(0, 1, 0) end
-end
-
-local function hookProgress(plr)
-    task.spawn(function()
-        local tps = plr:WaitForChild("TempPlayerStatsModule", 15)
-        if not tps then return end
-        local ap = tps:WaitForChild("ActionProgress", 15)
-        local anim = tps:WaitForChild("CurrentAnimation", 15)
-        if not ap or not anim then return end
-        ap:GetPropertyChangedSignal("Value"):Connect(function()
-            if anim.Value ~= "Typing" then return end
-            local char = plr.Character
-            if not char then return end
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-            local mapVal = Replicated:FindFirstChild("CurrentMap")
-            local map = mapVal and mapVal.Value
-            if not map then return end
-            local nearestPC, dist = nil, 35
-            for _, d in ipairs(map:GetDescendants()) do
-                if d.Name == "ComputerTable" then
-                    local part = getPCPart(d)
-                    if part then
-                        local mag = (part.Position - hrp.Position).Magnitude
-                        if mag < dist then dist = mag nearestPC = d end
-                    end
-                end
-            end
-            if nearestPC then showPCPercent(nearestPC, ap.Value) end
-        end)
-    end)
-end
-
-if Players.LocalPlayer then hookProgress(Players.LocalPlayer) end
-
-task.spawn(function()
-    while true do
-        task.wait(1)
-        local mapVal = Replicated:FindFirstChild("CurrentMap")
-        local map = mapVal and mapVal.Value
-        if not map then continue end
-        for _, d in ipairs(map:GetDescendants()) do
-            if d.Name == "ComputerTable" then
-                if not pcLabels[d] then showPCPercent(d, 0) end
-                local scr = d:FindFirstChild("Screen")
-                if scr and scr:IsA("BasePart") then
-                    scr:GetPropertyChangedSignal("Color"):Connect(function()
-                        if scr.Color.G > scr.Color.R + 0.2 and scr.Color.G > scr.Color.B + 0.2 then
-                            showPCPercent(d, 1)
-                        end
-                    end)
-                end
-            end
-        end
-    end
-end)
-
 -- ==================== AUTO EXIT ====================
 local function autoExitUnified()
-    log("autoExitUnified start")
     local lastExitUsed = nil
 
     local function findExit()
@@ -817,19 +694,19 @@ local function autoExitUnified()
     end
 
     local function isExitOpened(exitData)
-        -- Cách 1: check transparency
+        -- Method 1: transparency
         local door = exitData.model:FindFirstChild("Door")
         if door and door:IsA("BasePart") then
             if door.Transparency > 0.5 then return true end
         end
-        -- Cách 2: check CanCollide = false (cửa mở thường tắt collision)
+        -- Method 2: CanCollide off
         if door and door:IsA("BasePart") then
             if not door.CanCollide then return true end
         end
         return false
     end
 
-    -- Track position để detect animation cửa đang mở
+    -- Detect door open via ActionProgress
     local function waitForDoorOpen(exitData, timeoutSecs)
         timeoutSecs = timeoutSecs or 20
         local waited = 0
@@ -840,12 +717,12 @@ local function autoExitUnified()
             waited = waited + 0.2
 
             if isBeastNearby(40) then
-                log("Beast came while waiting door → try other exit")
+                log("Beast near door -> try other exit")
                 beastInterrupted = true
                 break
             end
 
-            -- Check ActionProgress của bản thân
+            -- Check own ActionProgress
             local tps = player:FindFirstChild("TempPlayerStatsModule")
             local ap = tps and tps:FindFirstChild("ActionProgress")
             local prog = ap and ap.Value or 0
@@ -854,14 +731,14 @@ local function autoExitUnified()
                 log("Door progress: " .. pct .. "%")
             end
             if prog >= 0.999 then
-                log("Door opened! (ActionProgress=100%)")
+                log("Door opened! (progress=100%)")
                 task.wait(0.5)
                 return true, false
             end
 
             -- Fallback: check visual
             if isExitOpened(exitData) then
-                log("Door opened! (visual check)")
+                log("Door opened! (visual)")
                 return true, false
             end
         end
@@ -875,11 +752,8 @@ local function autoExitUnified()
             log("escape: no root or area")
             return
         end
-        log("TP safe before escape")
         root.CFrame = CFrame.new(50, 73, 50)
         task.wait(3)
-        log("TP into ExitArea")
-        autointeracttoggle = false
         root.CFrame = exitData.area.CFrame + Vector3.new(0, 2, 0)
         task.wait(1.5)
 
@@ -888,12 +762,12 @@ local function autoExitUnified()
             task.wait(0.2)
             waitTime = waitTime + 0.2
             if hasPlayerEscaped() then
-                log("Escaped confirmed by game!")
+                log("Escaped!")
                 hasEscaped = true
                 return
             end
         end
-        log("Escape timeout, assuming done")
+        log("Escape timeout")
         hasEscaped = true
     end
 
@@ -908,7 +782,6 @@ local function autoExitUnified()
             local r = ReplicatedStorage:FindFirstChild("RemoteEvent")
             if r then
                 r:FireServer("Input", "Action", true)
-                log("Fired RemoteEvent Action for exit")
             end
         end)
         return true
@@ -938,7 +811,6 @@ local function autoExitUnified()
             if not scriptEnabled or hasEscaped then break end
 
             if lastExitUsed and exitData.model == lastExitUsed then
-                log("Skip already-used exit")
                 continue
             end
 
@@ -960,15 +832,13 @@ local function autoExitUnified()
                     log("Beast near exit, try next")
                     task.wait(0.5)
                 else
-                    log("Opening exit...")
                     tpFront(exitData.trigger)
                     task.wait(0.2)
                     local success = startOpening(exitData.trigger)
                     if success then
-                        log("Waiting for door to open...")
-                        -- Tiếp tục fire action trong lúc chờ
+                        local firing = true
                         task.spawn(function()
-                            while not hasEscaped do
+                            while firing do
                                 task.wait(0.15)
                                 pcall(function()
                                     local r = ReplicatedStorage:FindFirstChild("RemoteEvent")
@@ -977,15 +847,15 @@ local function autoExitUnified()
                             end
                         end)
                         local opened, beastInterrupted = waitForDoorOpen(exitData, 20)
+                        firing = false
                         if beastInterrupted then
-                            log("Beast interrupted, try other exit")
+                            log("Beast interrupted")
                         elseif opened then
-                            log("Door opened! Escaping...")
                             escape(exitData)
                             lastExitUsed = exitData.model
                             break
                         else
-                            log("Door didn't open after 20s, try next exit")
+                            log("Door timeout, try next")
                         end
                     end
                 end
@@ -998,7 +868,6 @@ end
 
 -- ==================== MAIN LOOP ====================
 local function mainLoop()
-    log("mainLoop started")
 
     while true do
         if not scriptEnabled then
@@ -1023,8 +892,7 @@ local function mainLoop()
         allPCs = findAllPCs()
 
         if #allPCs == 0 then
-            log("No PCs found, wait 3s")
-            updateStatus("Không có PC")
+            updateStatus("No PCs found")
             task.wait(3)
             continue
         end
@@ -1050,7 +918,6 @@ local function mainLoop()
 
                 if isFindExitPhase() then
                     if hackExtraPC then
-                        log("Find Exit phase but Extra ON, continue")
                     else
                         log("Find Exit phase, stop hacking PCs")
                         break
@@ -1067,7 +934,7 @@ local function mainLoop()
                 else
                     local progress = getPCProgress(pcData)
                     if progress >= 1 then
-                        log("PC" .. pcId .. " already done (color)")
+                        log("PC" .. pcId .. " already done")
                         hackedPCs[pcId] = true
                     else
                         allCompleted = false
@@ -1077,7 +944,6 @@ local function mainLoop()
             end
 
             totalAttempts = totalAttempts + 1
-            log("Attempt " .. totalAttempts .. "/" .. maxAttempts)
 
             if allCompleted then
                 log("All PCs done!")
@@ -1100,8 +966,8 @@ local function mainLoop()
 
         if hackExtraPC then task.wait(2) end
 
-        -- Đợi Find Exit
-        updateStatus("Đợi Find Exit...")
+        -- Wait for Find Exit
+        updateStatus("Waiting for Find Exit...")
         log("Waiting for Find Exit phase...")
         local waitStart = tick()
         repeat task.wait(0.5) until isFindExitPhase() or (tick() - waitStart > 30) or not scriptEnabled
@@ -1110,7 +976,7 @@ local function mainLoop()
 
         if isFindExitPhase() then
             log("Find Exit detected!")
-            updateStatus("Auto Exit bắt đầu!")
+            updateStatus("Auto Exit started!")
             autoExitUnified()
             log("=== ROUND " .. roundsPlayed .. " COMPLETE ===")
             task.wait(3)
@@ -1122,45 +988,98 @@ end
 
 -- ==================== GUI ====================
 local function createGUI()
+    local TweenService = game:GetService("TweenService")
+    local HttpService = game:GetService("HttpService")
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "AutoHackGUI"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = player:WaitForChild("PlayerGui")
 
+    local scriptStartTime = tick()
+    local webhookUrl = ""
+    local webhookInterval = 5 -- minutes
+    local creditsAtStart = nil
+    local creditHistory = {} -- {time, credits}
+
+    local function getCredits()
+        local stats = player:FindFirstChild("SavedPlayerStatsModule")
+        if stats then
+            local c = stats:FindFirstChild("Credits")
+            if c then return c.Value end
+        end
+        return nil
+    end
+
+    local function getServerTime()
+        return os.date("%H:%M:%S")
+    end
+
+    local function formatUptime(secs)
+        local h = math.floor(secs / 3600)
+        local m = math.floor((secs % 3600) / 60)
+        local s = math.floor(secs % 60)
+        return string.format("%02d:%02d:%02d", h, m, s)
+    end
+
+    -- ===== MAIN FRAME =====
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 120)
+    frame.Size = UDim2.new(0, 200, 0, 115)
     frame.Position = UDim2.new(0.5, -100, 0, 20)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    frame.BorderSizePixel = 2
-    frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    frame.BorderSizePixel = 0
+    frame.ClipsDescendants = false
     frame.Parent = screenGui
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+
+    -- Title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 28)
+    titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = frame
+    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
 
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, 0, 0, 25)
+    title.Size = UDim2.new(1, -36, 1, 0)
+    title.Position = UDim2.new(0, 8, 0, 0)
     title.BackgroundTransparency = 1
-    title.Text = "AUTO HACK FTF"
+    title.Text = "AUTO FARM FTF"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextSize = 14
+    title.TextSize = 12
     title.Font = Enum.Font.GothamBold
-    title.Parent = frame
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = titleBar
+
+    -- Gear button
+    local gearBtn = Instance.new("TextButton")
+    gearBtn.Size = UDim2.new(0, 24, 0, 24)
+    gearBtn.Position = UDim2.new(1, -27, 0, 2)
+    gearBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    gearBtn.Text = "⚙"
+    gearBtn.TextColor3 = Color3.new(1,1,1)
+    gearBtn.TextSize = 13
+    gearBtn.Font = Enum.Font.GothamBold
+    gearBtn.BorderSizePixel = 0
+    gearBtn.Parent = titleBar
+    Instance.new("UICorner", gearBtn).CornerRadius = UDim.new(0, 6)
 
     local toggleButton = Instance.new("TextButton")
-    toggleButton.Size = UDim2.new(0, 160, 0, 35)
-    toggleButton.Position = UDim2.new(0.5, -80, 0, 30)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-    toggleButton.Text = "TẮT"
+    toggleButton.Size = UDim2.new(1, -16, 0, 32)
+    toggleButton.Position = UDim2.new(0, 8, 0, 32)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    toggleButton.Text = "OFF"
     toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleButton.TextSize = 16
+    toggleButton.TextSize = 14
     toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.BorderSizePixel = 0
     toggleButton.Parent = frame
-    Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 7)
 
     local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, -10, 0, 18)
-    status.Position = UDim2.new(0, 5, 0, 70)
+    status.Size = UDim2.new(1, -16, 0, 14)
+    status.Position = UDim2.new(0, 8, 0, 68)
     status.BackgroundTransparency = 1
-    status.Text = "Status: Chờ bật..."
+    status.Text = "Status: Waiting..."
     status.TextColor3 = Color3.fromRGB(150, 220, 150)
     status.TextSize = 10
     status.Font = Enum.Font.Gotham
@@ -1169,15 +1088,16 @@ local function createGUI()
     status.Parent = frame
     statusLabel = status
 
+    -- Extra PC checkbox
     local checkboxFrame = Instance.new("Frame")
-    checkboxFrame.Size = UDim2.new(0, 160, 0, 20)
-    checkboxFrame.Position = UDim2.new(0.5, -80, 0, 95)
+    checkboxFrame.Size = UDim2.new(1, -16, 0, 18)
+    checkboxFrame.Position = UDim2.new(0, 8, 0, 86)
     checkboxFrame.BackgroundTransparency = 1
     checkboxFrame.Parent = frame
 
     local checkbox = Instance.new("Frame")
-    checkbox.Size = UDim2.new(0, 16, 0, 16)
-    checkbox.Position = UDim2.new(0, 0, 0.5, -8)
+    checkbox.Size = UDim2.new(0, 14, 0, 14)
+    checkbox.Position = UDim2.new(0, 0, 0.5, -7)
     checkbox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
     checkbox.BorderSizePixel = 1
     checkbox.BorderColor3 = Color3.fromRGB(120, 120, 120)
@@ -1185,63 +1105,383 @@ local function createGUI()
     Instance.new("UICorner", checkbox).CornerRadius = UDim.new(0, 3)
 
     local checkmark = Instance.new("TextLabel")
-    checkmark.Size = UDim2.new(1, 0, 1, 0)
+    checkmark.Size = UDim2.new(1,0,1,0)
     checkmark.BackgroundTransparency = 1
     checkmark.Text = "✓"
     checkmark.TextColor3 = Color3.fromRGB(255, 80, 80)
-    checkmark.TextSize = 14
+    checkmark.TextSize = 12
     checkmark.Font = Enum.Font.GothamBold
     checkmark.Visible = false
     checkmark.Parent = checkbox
 
     local checkLabel = Instance.new("TextLabel")
-    checkLabel.Size = UDim2.new(1, -20, 1, 0)
-    checkLabel.Position = UDim2.new(0, 22, 0, 0)
+    checkLabel.Size = UDim2.new(1, -18, 1, 0)
+    checkLabel.Position = UDim2.new(0, 18, 0, 0)
     checkLabel.BackgroundTransparency = 1
     checkLabel.Text = "Hack Extra PC"
     checkLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-    checkLabel.TextSize = 11
+    checkLabel.TextSize = 10
     checkLabel.Font = Enum.Font.Gotham
     checkLabel.TextXAlignment = Enum.TextXAlignment.Left
     checkLabel.Parent = checkboxFrame
 
     local checkButton = Instance.new("TextButton")
-    checkButton.Size = UDim2.new(1, 0, 1, 0)
+    checkButton.Size = UDim2.new(1,0,1,0)
     checkButton.BackgroundTransparency = 1
     checkButton.Text = ""
     checkButton.Parent = checkboxFrame
 
+    -- ===== SETTINGS PANEL (slide up/down) =====
+    local PANEL_H = 261
+    local settingsPanel = Instance.new("Frame")
+    settingsPanel.Size = UDim2.new(0, 220, 0, PANEL_H)
+    settingsPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+    settingsPanel.BorderSizePixel = 0
+    settingsPanel.ClipsDescendants = true
+    settingsPanel.Visible = false
+    settingsPanel.Parent = screenGui
+    Instance.new("UICorner", settingsPanel).CornerRadius = UDim.new(0, 10)
+
+    local settingsOpen = false
+    local function getSettingsPanelPos()
+        local frameAbsPos = frame.AbsolutePosition
+        local frameAbsSize = frame.AbsoluteSize
+        local screenSize = screenGui.AbsoluteSize
+        local panelX = (frameAbsPos.X + frameAbsSize.X + 5) / screenSize.X
+        local panelY = frameAbsPos.Y / screenSize.Y
+        return panelX, panelY
+    end
+
+    local function toggleSettings()
+        settingsOpen = not settingsOpen
+        local panelX, panelY = getSettingsPanelPos()
+        local screenSize = screenGui.AbsoluteSize
+        local hiddenY = (frame.AbsolutePosition.Y - PANEL_H) / screenSize.Y -- above frame frame
+
+        if settingsOpen then
+            settingsPanel.Position = UDim2.new(panelX, 0, hiddenY, 0) -- start from above
+            settingsPanel.Visible = true
+            TweenService:Create(settingsPanel,
+                TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                Position = UDim2.new(panelX, 0, panelY, 0) -- slide down
+            }):Play()
+        else
+            TweenService:Create(settingsPanel,
+                TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+                Position = UDim2.new(panelX, 0, hiddenY, 0) -- slide up
+            }):Play()
+            task.delay(0.25, function() settingsPanel.Visible = false end)
+        end
+    end
+
+    local settingsTitle = Instance.new("TextLabel")
+    settingsTitle.Size = UDim2.new(1, -10, 0, 26)
+    settingsTitle.Position = UDim2.new(0, 5, 0, 2)
+    settingsTitle.BackgroundTransparency = 1
+    settingsTitle.Text = "⚙ SETTINGS & STATS"
+    settingsTitle.TextColor3 = Color3.fromRGB(200, 200, 255)
+    settingsTitle.TextSize = 12
+    settingsTitle.Font = Enum.Font.GothamBold
+    settingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+    settingsTitle.Parent = settingsPanel
+
+    local function makeLabel(yPos, text, color)
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, -10, 0, 17)
+        lbl.Position = UDim2.new(0, 5, 0, yPos)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+        lbl.TextSize = 11
+        lbl.Font = Enum.Font.Gotham
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.Parent = settingsPanel
+        return lbl
+    end
+
+    local lblPlayer  = makeLabel(28,  "👤 " .. player.Name,         Color3.fromRGB(255, 220, 100))
+    local lblUptime  = makeLabel(46,  "⏱ Uptime: 00:00:00",         Color3.fromRGB(150, 220, 255))
+    local lblSvTime  = makeLabel(64,  "🕐 Server: --:--:--",         Color3.fromRGB(150, 220, 255))
+    local lblCredits = makeLabel(82,  "💰 Credits: ...",             Color3.fromRGB(100, 255, 150))
+    local lblCph     = makeLabel(100, "📈 C/h: ...",                 Color3.fromRGB(100, 255, 150))
+
+    local div = Instance.new("Frame")
+    div.Size = UDim2.new(1, -10, 0, 1)
+    div.Position = UDim2.new(0, 5, 0, 122)
+    div.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    div.BorderSizePixel = 0
+    div.Parent = settingsPanel
+
+    makeLabel(128, "🔗 Webhook URL:", Color3.fromRGB(180, 180, 255))
+
+    local webhookInput = Instance.new("TextBox")
+    webhookInput.Size = UDim2.new(1, -10, 0, 26)
+    webhookInput.Position = UDim2.new(0, 5, 0, 146)
+    webhookInput.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    webhookInput.BorderSizePixel = 0
+    webhookInput.Text = ""
+    webhookInput.PlaceholderText = "Paste Discord webhook URL..."
+    webhookInput.PlaceholderColor3 = Color3.fromRGB(100, 100, 120)
+    webhookInput.TextColor3 = Color3.fromRGB(220, 220, 255)
+    webhookInput.TextSize = 9
+    webhookInput.Font = Enum.Font.Gotham
+    webhookInput.ClearTextOnFocus = false
+    webhookInput.Parent = settingsPanel
+    Instance.new("UICorner", webhookInput).CornerRadius = UDim.new(0, 5)
+
+    webhookInput:GetPropertyChangedSignal("Text"):Connect(function()
+        webhookUrl = webhookInput.Text
+    end)
+
+    -- Label + input on same row
+    local intervalHeaderFrame = Instance.new("Frame")
+    intervalHeaderFrame.Size = UDim2.new(1, -10, 0, 18)
+    intervalHeaderFrame.Position = UDim2.new(0, 5, 0, 178)
+    intervalHeaderFrame.BackgroundTransparency = 1
+    intervalHeaderFrame.Parent = settingsPanel
+
+    local intervalLabel = Instance.new("TextLabel")
+    intervalLabel.Size = UDim2.new(1, -42, 1, 0)
+    intervalLabel.BackgroundTransparency = 1
+    intervalLabel.Text = "⏰ Every: " .. webhookInterval .. " min"
+    intervalLabel.TextColor3 = Color3.fromRGB(180, 180, 255)
+    intervalLabel.TextSize = 11
+    intervalLabel.Font = Enum.Font.Gotham
+    intervalLabel.TextXAlignment = Enum.TextXAlignment.Left
+    intervalLabel.Parent = intervalHeaderFrame
+
+    local intervalInput = Instance.new("TextBox")
+    intervalInput.Size = UDim2.new(0, 38, 1, 0)
+    intervalInput.Position = UDim2.new(1, -38, 0, 0)
+    intervalInput.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    intervalInput.BorderSizePixel = 0
+    intervalInput.Text = tostring(webhookInterval)
+    intervalInput.TextColor3 = Color3.fromRGB(220, 220, 255)
+    intervalInput.TextSize = 11
+    intervalInput.Font = Enum.Font.GothamBold
+    intervalInput.TextXAlignment = Enum.TextXAlignment.Center
+    intervalInput.ClearTextOnFocus = false
+    intervalInput.Parent = intervalHeaderFrame
+    Instance.new("UICorner", intervalInput).CornerRadius = UDim.new(0, 4)
+
+    -- Slider track
+    local sliderTrack = Instance.new("Frame")
+    sliderTrack.Size = UDim2.new(1, -10, 0, 6)
+    sliderTrack.Position = UDim2.new(0, 5, 0, 202)
+    sliderTrack.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    sliderTrack.BorderSizePixel = 0
+    sliderTrack.Parent = settingsPanel
+    Instance.new("UICorner", sliderTrack).CornerRadius = UDim.new(1, 0)
+
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((webhookInterval - 1) / 59, 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
+    sliderFill.BorderSizePixel = 0
+    sliderFill.Parent = sliderTrack
+    Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(1, 0)
+
+    local sliderKnob = Instance.new("Frame")
+    sliderKnob.Size = UDim2.new(0, 16, 0, 16)
+    sliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+    sliderKnob.Position = UDim2.new((webhookInterval - 1) / 59, 0, 0.5, 0)
+    sliderKnob.BackgroundColor3 = Color3.fromRGB(140, 140, 255)
+    sliderKnob.BorderSizePixel = 0
+    sliderKnob.ZIndex = 2
+    sliderKnob.Parent = sliderTrack
+    Instance.new("UICorner", sliderKnob).CornerRadius = UDim.new(1, 0)
+
+    local function setInterval(val)
+        val = math.clamp(math.round(val), 1, 60)
+        webhookInterval = val
+        local pct = (val - 1) / 59
+        sliderFill.Size = UDim2.new(pct, 0, 1, 0)
+        sliderKnob.Position = UDim2.new(pct, 0, 0.5, 0)
+        intervalLabel.Text = "⏰ Every: " .. val .. " min"
+        intervalInput.Text = tostring(val)
+    end
+
+    -- Drag slider - supports mouse and touch
+    local UIS2 = game:GetService("UserInputService")
+    local sliderDragging = false
+    sliderKnob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = true
+        end
+    end)
+    sliderTrack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = true
+            local trackAbsPos = sliderTrack.AbsolutePosition.X
+            local trackAbsSize = sliderTrack.AbsoluteSize.X
+            local inputX = input.Position.X
+            local pct = math.clamp((inputX - trackAbsPos) / trackAbsSize, 0, 1)
+            setInterval(1 + pct * 59)
+        end
+    end)
+    UIS2.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            sliderDragging = false
+        end
+    end)
+    UIS2.InputChanged:Connect(function(input)
+        if sliderDragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+            local trackAbsPos = sliderTrack.AbsolutePosition.X
+            local trackAbsSize = sliderTrack.AbsoluteSize.X
+            local pct = math.clamp((input.Position.X - trackAbsPos) / trackAbsSize, 0, 1)
+            setInterval(1 + pct * 59)
+        end
+    end)
+
+    -- Text input sync
+    intervalInput.FocusLost:Connect(function()
+        local v = tonumber(intervalInput.Text)
+        if v then setInterval(v) end
+    end)
+
+    -- 2 buttons: Test and Auto Send
+    local autoSendEnabled = false
+
+    local testBtn = Instance.new("TextButton")
+    testBtn.Size = UDim2.new(0.48, -7, 0, 28)
+    testBtn.Position = UDim2.new(0, 5, 0, 216)
+    testBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 140)
+    testBtn.Text = "📡 Test"
+    testBtn.TextColor3 = Color3.new(1,1,1)
+    testBtn.TextSize = 11
+    testBtn.Font = Enum.Font.GothamBold
+    testBtn.BorderSizePixel = 0
+    testBtn.Parent = settingsPanel
+    Instance.new("UICorner", testBtn).CornerRadius = UDim.new(0, 6)
+
+    local autoBtn = Instance.new("TextButton")
+    autoBtn.Size = UDim2.new(0.52, -8, 0, 28)
+    autoBtn.Position = UDim2.new(0.48, 3, 0, 216)
+    autoBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    autoBtn.Text = "🔔 Auto: OFF"
+    autoBtn.TextColor3 = Color3.new(1,1,1)
+    autoBtn.TextSize = 10
+    autoBtn.Font = Enum.Font.GothamBold
+    autoBtn.BorderSizePixel = 0
+    autoBtn.Parent = settingsPanel
+    Instance.new("UICorner", autoBtn).CornerRadius = UDim.new(0, 6)
+
+    local lblWebhookStatus = makeLabel(249, "", Color3.fromRGB(150, 255, 150))
+
+    local function sendWebhook(isTest)
+        if webhookUrl == "" then
+            lblWebhookStatus.Text = "❌ No webhook URL!"
+            return
+        end
+        local uptime = formatUptime(tick() - scriptStartTime)
+        local credits = getCredits()
+        local elapsed = tick() - scriptStartTime
+        local deltaCredits = (credits and creditsAtStart) and (credits - creditsAtStart) or 0
+        local cph = elapsed > 60 and math.floor(deltaCredits / elapsed * 3600) or 0
+
+        local content = isTest
+            and "🧪 **[FTF AUTO HACK] TEST**"
+            or "📊 **[FTF AUTO HACK] Report**"
+        content = content .. "\n👤 Player: **" .. player.Name .. "**"
+        content = content .. "\n⏱ Uptime: **" .. uptime .. "**"
+        content = content .. "\n💰 Credits: **" .. tostring(credits or "?") .. "C**"
+        content = content .. "\n📈 Earned: **+" .. tostring(deltaCredits) .. "C** since start"
+        content = content .. "\n⚡ C/h: **" .. tostring(cph) .. "C**"
+        content = content .. "\n🕐 Server: **" .. getServerTime() .. "**"
+
+        pcall(function()
+            local body = game:GetService("HttpService"):JSONEncode({content = content})
+            if request then
+                request({
+                    Url = webhookUrl,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = body
+                })
+            else
+                game:GetService("HttpService"):PostAsync(webhookUrl, body, Enum.HttpContentType.ApplicationJson)
+            end
+            lblWebhookStatus.Text = isTest and "✅ Test sent!" or "✅ Sent!"
+        end)
+    end
+
+    testBtn.MouseButton1Click:Connect(function()
+        lblWebhookStatus.Text = "📡 Sending..."
+        task.spawn(function() sendWebhook(true) end)
+    end)
+
+    autoBtn.MouseButton1Click:Connect(function()
+        autoSendEnabled = not autoSendEnabled
+        if autoSendEnabled then
+            autoBtn.BackgroundColor3 = Color3.fromRGB(50, 130, 50)
+            autoBtn.Text = "🔔 Auto: ON"
+            lblWebhookStatus.Text = "✅ Will send every " .. webhookInterval .. "m"
+        else
+            autoBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            autoBtn.Text = "🔔 Auto: OFF"
+            lblWebhookStatus.Text = "🔕 Auto send off"
+        end
+    end)
+
+    -- Auto webhook loop
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            if not autoSendEnabled or webhookUrl == "" then continue end
+            local elapsed = tick() - scriptStartTime
+            if elapsed > 0 and elapsed % (webhookInterval * 60) < 1.5 then
+                task.spawn(function() sendWebhook(false) end)
+            end
+        end
+    end)
+
+    -- Update stats loop
+    task.spawn(function()
+        task.wait(2)
+        creditsAtStart = getCredits()
+        while true do
+            task.wait(1)
+            if not settingsOpen then continue end
+            local credits = getCredits()
+            local elapsed = tick() - scriptStartTime
+            local deltaCredits = (credits and creditsAtStart) and (credits - creditsAtStart) or 0
+            local cph = elapsed > 60 and math.floor(deltaCredits / elapsed * 3600) or 0
+            lblUptime.Text = "⏱ Uptime: " .. formatUptime(elapsed)
+            lblSvTime.Text = "🕐 Server: " .. getServerTime()
+            lblCredits.Text = "💰 Credits: " .. tostring(credits or "?")
+            lblCph.Text = "📈 +" .. tostring(deltaCredits) .. "C  (" .. tostring(cph) .. "C/h)"
+        end
+    end)
+
+    -- ===== BUTTONS =====
     toggleButton.MouseButton1Click:Connect(function()
         scriptEnabled = not scriptEnabled
         if scriptEnabled then
-            toggleButton.BackgroundColor3 = Color3.fromRGB(50, 220, 50)
-            toggleButton.Text = "BẬT"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+            toggleButton.Text = "ON"
             hasEscaped = false
             log("Script ON")
         else
-            toggleButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-            toggleButton.Text = "TẮT"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+            toggleButton.Text = "OFF"
             log("Script OFF")
         end
     end)
 
     checkButton.MouseButton1Click:Connect(function()
         hackExtraPC = not hackExtraPC
-        if hackExtraPC then
-            checkmark.Visible = true
-            checkbox.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
-            checkbox.BorderColor3 = Color3.fromRGB(255, 80, 80)
-            checkLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
-            log("Extra PC ON")
-        else
-            checkmark.Visible = false
-            checkbox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-            checkbox.BorderColor3 = Color3.fromRGB(120, 120, 120)
-            checkLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
-            log("Extra PC OFF")
-        end
+        checkmark.Visible = hackExtraPC
+        checkbox.BackgroundColor3 = hackExtraPC and Color3.fromRGB(80, 40, 40) or Color3.fromRGB(60, 60, 60)
+        checkbox.BorderColor3 = hackExtraPC and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(120, 120, 120)
+        checkLabel.TextColor3 = hackExtraPC and Color3.fromRGB(255, 120, 120) or Color3.fromRGB(180, 180, 180)
     end)
 
+    gearBtn.MouseButton1Click:Connect(toggleSettings)
+
+    -- Drag
     local UIS = game:GetService("UserInputService")
     local dragging, dragStart, startPos
     frame.InputBegan:Connect(function(input)
@@ -1264,6 +1504,11 @@ local function createGUI()
                 startPos.X.Scale, startPos.X.Offset + delta.X,
                 startPos.Y.Scale, startPos.Y.Offset + delta.Y
             )
+            -- Follow settings panel if open
+            if settingsOpen then
+                local panelX, panelY = getSettingsPanelPos()
+                settingsPanel.Position = UDim2.new(panelX, 0, panelY, 0)
+            end
         end
     end)
 end
@@ -1275,7 +1520,6 @@ local function antiAFK()
         player.Idled:Connect(function()
             VirtualUser:CaptureController()
             VirtualUser:ClickButton2(Vector2.new())
-            log("Anti-AFK triggered")
         end)
         while true do
             task.wait(600)
@@ -1288,7 +1532,6 @@ local function antiAFK()
 end
 
 -- ==================== INIT ====================
-log("=== AUTO HACK FTF LOADED ===")
 updateCharacterReferences()
 createHidePlatform()
 createGUI()
@@ -1296,4 +1539,3 @@ antiAFK()
 setupActionProgressTracking()
 findBeast()
 task.spawn(mainLoop)
-log("Ready!")
