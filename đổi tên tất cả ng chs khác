@@ -1,0 +1,138 @@
+-- Other players name masker (Optimized Aggressive, local-only)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local player = Players.LocalPlayer
+local MASK = "FX_FTFha"
+
+-- Cache of text objects we care about
+local tracked = {}          -- UI text elements (CoreGui/PlayerGui)
+local overheadTracked = {}  -- Overhead TextLabels per character
+
+-- Helper: should track this instance?
+local function isTextObject(e)
+    return e:IsA("TextLabel") or e:IsA("TextButton") or e:IsA("TextBox")
+end
+
+-- Replace any other player's Name/DisplayName in given text
+local function maskText(text)
+    if not text or text == "" then return text end
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local nm = plr.Name
+            local dn = plr.DisplayName
+            if nm and text:find(nm, 1, true) then
+                text = text:gsub(nm, MASK)
+            end
+            if dn and text:find(dn, 1, true) then
+                text = text:gsub(dn, MASK)
+            end
+        end
+    end
+    return text
+end
+
+-- Patch function for UI objects
+local function patch(e)
+    if isTextObject(e) then
+        local t = e.Text
+        local masked = maskText(t)
+        if masked ~= t then
+            e.Text = masked
+        end
+    end
+end
+
+-- Track new UI text elements
+local function track(e)
+    if isTextObject(e) then
+        table.insert(tracked, e)
+        patch(e)
+        e:GetPropertyChangedSignal("Text"):Connect(function()
+            patch(e)
+        end)
+    end
+end
+
+-- Track overhead BillboardGui text for a specific character
+local function trackOverheadForCharacter(char)
+    if not char then return end
+    local head = char:FindFirstChild("Head")
+    if not head then return end
+    for _, gui in ipairs(head:GetChildren()) do
+        if gui:IsA("BillboardGui") then
+            for _, d in ipairs(gui:GetDescendants()) do
+                if isTextObject(d) then
+                    table.insert(overheadTracked, d)
+                    -- Force mask regardless of content
+                    local t = d.Text
+                    local masked = maskText(t)
+                    d.Text = masked ~= t and masked or MASK
+                    d:GetPropertyChangedSignal("Text"):Connect(function()
+                        local tt = d.Text
+                        local mm = maskText(tt)
+                        d.Text = mm ~= tt and mm or MASK
+                    end)
+                end
+            end
+        end
+    end
+end
+
+-- Hook existing players' overheads
+for _, plr in ipairs(Players:GetPlayers()) do
+    if plr ~= player then
+        if plr.Character then
+            trackOverheadForCharacter(plr.Character)
+        end
+        plr.CharacterAdded:Connect(function(char)
+            task.wait(0.5)
+            trackOverheadForCharacter(char)
+        end)
+    end
+end
+
+-- Hook future players
+Players.PlayerAdded:Connect(function(plr)
+    if plr == player then return end
+    plr.CharacterAdded:Connect(function(char)
+        task.wait(0.5)
+        trackOverheadForCharacter(char)
+    end)
+end)
+
+-- Initial UI scan (CoreGui + PlayerGui only once)
+for _, gui in pairs(CoreGui:GetDescendants()) do
+    track(gui)
+end
+CoreGui.DescendantAdded:Connect(track)
+
+local playerGui = player:WaitForChild("PlayerGui")
+for _, gui in pairs(playerGui:GetDescendants()) do
+    track(gui)
+end
+playerGui.DescendantAdded:Connect(track)
+
+-- Lightweight aggressive loop: re-patch tracked elements only
+RunService.Heartbeat:Connect(function()
+    for i = #tracked, 1, -1 do
+        local e = tracked[i]
+        if e.Parent == nil then
+            tracked[i] = tracked[#tracked]
+            tracked[#tracked] = nil
+        else
+            patch(e)
+        end
+    end
+    for i = #overheadTracked, 1, -1 do
+        local e = overheadTracked[i]
+        if e.Parent == nil then
+            overheadTracked[i] = overheadTracked[#overheadTracked]
+            overheadTracked[#overheadTracked] = nil
+        else
+            local t = e.Text
+            local masked = maskText(t)
+            e.Text = masked ~= t and masked or MASK
+        end
+    end
+end)
