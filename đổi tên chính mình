@@ -1,0 +1,154 @@
+-- Flee the Facility Name Changer (Unified Event-Driven) - XENO SAFE
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+
+-- Spoof settings (NÃO ALTERADOS)
+local spoofName = "Roblox_af825"
+local spoofLevel = 459
+local spoofIconId = "rbxassetid://1188562340"
+
+--------------------------------------------------------------------
+-- Generic patch function (safe)
+--------------------------------------------------------------------
+local function patchElement(e)
+    if not e or not e:IsA("GuiObject") then return end
+    if not (e:IsA("TextLabel") or e:IsA("TextButton") or e:IsA("TextBox")) then return end
+
+    local ok, txt = pcall(function()
+        return e.Text
+    end)
+    if not ok or not txt or txt == "" then return end
+
+    local changed = false
+
+    if txt:find(player.Name, 1, true) then
+        txt = txt:gsub(player.Name, spoofName)
+        changed = true
+    end
+
+    local dn = player.DisplayName
+    if dn and txt:find(dn, 1, true) then
+        txt = txt:gsub(dn, spoofName)
+        changed = true
+    end
+
+    if changed then
+        pcall(function()
+            e.Text = txt
+        end)
+    end
+end
+
+local function trackElement(e)
+    if not e then return end
+    if e:IsA("TextLabel") or e:IsA("TextButton") or e:IsA("TextBox") then
+        patchElement(e)
+        pcall(function()
+            e:GetPropertyChangedSignal("Text"):Connect(function()
+                patchElement(e)
+            end)
+        end)
+    end
+end
+
+--------------------------------------------------------------------
+-- CoreGui patch (Xeno safe)
+--------------------------------------------------------------------
+pcall(function()
+    for _, gui in ipairs(CoreGui:GetDescendants()) do
+        trackElement(gui)
+    end
+
+    CoreGui.DescendantAdded:Connect(function(gui)
+        trackElement(gui)
+    end)
+end)
+
+--------------------------------------------------------------------
+-- PlayerGui patch (Level, Name, Icon)
+--------------------------------------------------------------------
+local function setupPlayerGui()
+    local playerGui = player:WaitForChild("PlayerGui", 10)
+    if not playerGui then return end
+
+    local screenGui = playerGui:FindFirstChild("ScreenGui")
+    if not screenGui then return end
+
+    local namesFrame = screenGui:FindFirstChild("PlayerNamesFrame")
+    if not namesFrame then return end
+
+    local playerFrame = namesFrame:FindFirstChild(player.Name .. "PlayerFrame")
+    if not playerFrame then return end
+
+    local levelLabel = playerFrame:FindFirstChild("LevelLabel")
+    local nameLabel  = playerFrame:FindFirstChild("NameLabel")
+    local iconLabel  = playerFrame:FindFirstChild("IconLabel")
+
+    -- Atualização contínua (Heartbeat é mais estável no Xeno)
+    RunService.Heartbeat:Connect(function()
+        pcall(function()
+            if levelLabel then levelLabel.Text = tostring(spoofLevel) end
+            if nameLabel then nameLabel.Text = spoofName end
+            if iconLabel then iconLabel.Image = spoofIconId end
+            playerFrame.LayoutOrder = -spoofLevel
+        end)
+    end)
+
+    -- Patch geral no PlayerGui
+    for _, d in ipairs(playerGui:GetDescendants()) do
+        trackElement(d)
+    end
+
+    playerGui.DescendantAdded:Connect(function(d)
+        trackElement(d)
+    end)
+end
+
+task.spawn(setupPlayerGui)
+
+--------------------------------------------------------------------
+-- Overhead BillboardGui patch
+--------------------------------------------------------------------
+local function updateOverhead(char)
+    if not char then return end
+
+    local head = char:WaitForChild("Head", 5)
+    if not head then return end
+
+    for _, gui in ipairs(head:GetChildren()) do
+        if gui:IsA("BillboardGui") then
+            for _, d in ipairs(gui:GetDescendants()) do
+                trackElement(d)
+            end
+            gui.DescendantAdded:Connect(function(d)
+                trackElement(d)
+            end)
+        end
+    end
+end
+
+--------------------------------------------------------------------
+-- Character handling
+--------------------------------------------------------------------
+local function onCharacter(char)
+    task.wait(0.3)
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            hum.DisplayName = spoofName
+        end)
+    end
+
+    updateOverhead(char)
+end
+
+player.CharacterAdded:Connect(onCharacter)
+
+if player.Character then
+    onCharacter(player.Character)
+end
