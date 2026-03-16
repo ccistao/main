@@ -34,6 +34,7 @@ local humanoid = nil
 local rootPart = nil
 
 local allPCs = {}
+local isSaving = false
 
 
 -- ==================== LOG ====================
@@ -148,7 +149,7 @@ local function findBeast()
                         resetGameState()
                     else
                         log("Game over -> waiting for new round")
-                        gameOver = false
+                        -- gameOver giữ = true, mainLoop sẽ tự reset khi vào round mới
                     end
                 end
             else
@@ -197,7 +198,6 @@ end
 
 local function escapeBeast()
     updateStatus("Beast nearby! Moving to next PC...")
-    -- Skip PC hiện tại, tìm PC khác chưa hack
     skipCurrentPC = true
     if currentPC and currentPC.id then
         skippedPCs[currentPC.id] = true
@@ -206,9 +206,6 @@ local function escapeBeast()
     canAutoJump = false
     currentPC = nil
     currentTrigger = nil
-    -- Clear skip list sau khi đã tránh
-    task.wait(0.5)
-    skippedPCs = {}
 end
 
 -- ==================== WAIT FOR GAME ====================
@@ -467,6 +464,20 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
+-- ==================== GAME ACTIVE CHECK ====================
+local function isGameActive()
+    local gs = ReplicatedStorage:FindFirstChild("GameStatus")
+    if not gs then return false end
+    local txt = tostring(gs.Value):upper()
+    if txt == "" then return false end
+    if txt:find("GAME OVER") or txt:find("BEAST LEFT")
+    or txt:find("BEF LAI") or txt:find("KET THUC")
+    or txt:find("TRO CHOI KET THUC") then
+        return false
+    end
+    return true
+end
+
 -- ==================== HACK PC ====================
 local function hackPC(pcData)
     if not pcData or not pcData.computer or not pcData.triggers or #pcData.triggers == 0 then
@@ -477,23 +488,18 @@ local function hackPC(pcData)
     local pcId = tostring(pcData.id)
     local pcName = pcData.computer.Name or "Unknown"
 
-    local chosenTrigger = getAvailableTrigger(pcData)
-    if not chosenTrigger then
-        return false
-    end
-    -- ===== MOVE TO TRIGGER =====
-    if chosenTrigger and rootPart then
+    -- ===== HELPER: move tới 1 trigger =====
+    local function moveTo(trigger)
+        if not rootPart then return end
         local char = player.Character
-        if not char then return false end
+        if not char then return end
         local hum = char:FindFirstChild("Humanoid")
 
         if firstMoveOfRound then
-            -- Lần đầu: TP thẳng
             firstMoveOfRound = false
-            rootPart.CFrame = chosenTrigger.CFrame + Vector3.new(0, 0.5, 0)
+            rootPart.CFrame = trigger.CFrame + Vector3.new(0, 0.5, 0)
             task.wait(0.1)
         else
-            -- Các lần sau: U-shape tween - chờ nếu đang có action khác
             while isMoving do task.wait(0.1) end
             isMoving = true
             if hum then
@@ -510,9 +516,10 @@ local function hackPC(pcData)
                 end
             end)
             local function moveToPos(targetPos, spd)
-                local STOP_DIST = 0.3
+                local STOP_DIST = math.max(0.5, spd * 0.05 * 0.8)
                 while true do
                     task.wait(0.05)
+                    if isSaving then break end
                     if not rootPart or not rootPart.Parent then break end
                     local diff = targetPos - rootPart.Position
                     if diff.Magnitude <= STOP_DIST then
@@ -526,10 +533,9 @@ local function hackPC(pcData)
                 end
             end
             local myPos    = rootPart.Position
-            local posDown  = Vector3.new(myPos.X, myPos.Y - 80, myPos.Z)
-            local posAcross= Vector3.new(chosenTrigger.Position.X, myPos.Y - 80, chosenTrigger.Position.Z)
-            local posUp    = Vector3.new(chosenTrigger.Position.X, chosenTrigger.Position.Y + 0.5, chosenTrigger.Position.Z)
-            -- Đọc tweenSpeed 1 lần trước mỗi đoạn move
+            local posDown  = Vector3.new(myPos.X, myPos.Y - 50, myPos.Z)
+            local posAcross= Vector3.new(trigger.Position.X, myPos.Y - 50, trigger.Position.Z)
+            local posUp    = Vector3.new(trigger.Position.X, trigger.Position.Y + 0.5, trigger.Position.Z)
             moveToPos(posDown, tweenSpeed)
             task.wait(0.05)
             moveToPos(posAcross, math.max(10, tweenSpeed * 0.7))
@@ -541,38 +547,84 @@ local function hackPC(pcData)
                 hum.PlatformStand = false
                 hum:ChangeState(Enum.HumanoidStateType.GettingUp)
             end
+            isMoving = false
         end
+    end
 
-        isMoving = false
-        currentTrigger = chosenTrigger
-        task.wait(0.1)
+    -- ===== HELPER: fire interact tại trigger =====
+    local function fireInteract(trigger)
+        pcall(function()
+            if trigger and rootPart then
+                firetouchinterest(rootPart, trigger, 0)
+                task.wait(0.1)
+                firetouchinterest(rootPart, trigger, 1)
+            end
+        end)
+        task.wait(0.2)
+        pcall(function()
+            local r = ReplicatedStorage:FindFirstChild("RemoteEvent")
+            if r then
+                r:FireServer("Input", "Action", true)
+                task.wait(0.1)
+                r:FireServer("Input", "Action", true)
+            end
+        end)
+    end
+
+    -- ===== SKIP NGAY NẾU PC ĐÃ DONE =====
+    local pcProgressNow = getPCProgress(pcData)
+    if pcProgressNow >= 1 then
+        log("PC" .. pcId .. ": already done, skip")
+        hackedPCs[pcData.id] = true
+        return true
+    end
+
+    -- ===== SKIP NẾU FIND EXIT VÀ KHÔNG HACK EXTRA =====
+    if isFindExitPhase() and not hackExtraPC then
+        log("PC" .. pcId .. ": Find Exit phase, skip")
+        return false
+    end
+
+    -- ===== THỬ TỪNG TRIGGER, SKIP PC NẾU KHÔNG CÓ TRIGGER NÀO WORK =====
+    local chosenTrigger = nil
+
+    for _, trigger in ipairs(pcData.triggers) do
+        if isSaving then return false end
+        moveTo(trigger)
+        if isSaving then
+            isMoving = false
+            return false
+        end
+        currentTrigger = trigger
         canAutoJump = true
+        -- Snapshot trước khi fire
+        local progressBefore = getPlayerActionProgress()
+        fireInteract(trigger)
+        task.wait(1)
+        -- Check progress tăng thêm so với trước khi fire
+        local progressAfter = getPlayerActionProgress()
+        if progressAfter > progressBefore + 0.001 then
+            chosenTrigger = trigger
+            log("PC" .. pcId .. ": trigger work -> progress=" .. math.floor(progressAfter*100) .. "%")
+            break
+        else
+            log("PC" .. pcId .. ": trigger no response, trying next...")
+            canAutoJump = false
+            currentTrigger = nil
+        end
+    end
+
+    if not chosenTrigger then
+        log("PC" .. pcId .. ": all triggers failed, skipping")
+        isMoving = false
+        canAutoJump = false
+        currentTrigger = nil
+        return false
     end
 
     isHacking = true
     currentPC = pcData
     updateStatus("Hacking PC " .. pcId)
-
-    local progress = getPCProgress(pcData)
-    if progress < 1 then task.wait(0.1) end
-
-    -- Initial fire
-    pcall(function()
-        local hackRemote = ReplicatedStorage:FindFirstChild("RemoteEvent")
-        if hackRemote then
-            hackRemote:FireServer("Input", "Action", true)
-            task.wait(0.1)
-            hackRemote:FireServer("Input", "Action", true)
-        end
-    end)
-
-    pcall(function()
-        if chosenTrigger and rootPart then
-            firetouchinterest(rootPart, chosenTrigger, 0)
-            task.wait(0.05)
-            firetouchinterest(rootPart, chosenTrigger, 1)
-        end
-    end)
 
     local lastProgress = 0
     local stuckCount = 0
@@ -592,8 +644,8 @@ local function hackPC(pcData)
             break
         end
 
-        -- Beast check
-        if isBeastNearby() then
+        -- Beast check (bỏ qua nếu đang save)
+        if isBeastNearby() and not isSaving then
             isHacking = false
             currentPC = nil
             canAutoJump = false
@@ -832,7 +884,7 @@ local function autoExitUnified()
                 root.AssemblyAngularVelocity = Vector3.zero
             end)
         end)
-        task.wait(2)
+        task.wait(1.5)
         freezeActive = false
         freezeConn:Disconnect()
 
@@ -1067,20 +1119,6 @@ local function getBeastNearestEmptyCage()
     return nearest
 end
 
-local function isGameActive()
-    local gs = ReplicatedStorage:FindFirstChild("GameStatus")
-    if not gs then return false end
-    local txt = tostring(gs.Value):upper()
-    if txt == "" then return false end
-    -- Chỉ check text kết thúc, còn lại đều là active
-    if txt:find("GAME OVER") or txt:find("BEAST LEFT")
-    or txt:find("BEF LAI") or txt:find("KET THUC")
-    or txt:find("TRO CHOI KET THUC") then
-        return false
-    end
-    return true
-end
-
 local function beastLoop()
     while true do
         task.wait(0.1)
@@ -1106,12 +1144,44 @@ local function beastLoop()
             local trigger = cage:FindFirstChild("PodTrigger", true)
             if not trigger then continue end
             updateStatus("Beast: Caging...")
-            -- TP vào trong cage
             local cageCenter = cage:GetModelCFrame().Position
             local dirIn = (cageCenter - trigger.Position)
             if dirIn.Magnitude > 0 then dirIn = dirIn.Unit * 3 else dirIn = Vector3.zero end
-            root.CFrame = CFrame.new(trigger.Position.X + dirIn.X, trigger.Position.Y, trigger.Position.Z + dirIn.Z)
+            local cagePos = Vector3.new(trigger.Position.X + dirIn.X, trigger.Position.Y, trigger.Position.Z + dirIn.Z)
+
+            -- Noclip + freeze khi TP vào cage
+            local char = player.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            if hum then
+                hum.PlatformStand = true
+                hum:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+            local noclipActive = true
+            local noclipConn = RunService.Stepped:Connect(function()
+                if not noclipActive then return end
+                local c = player.Character
+                if not c then return end
+                for _, part in pairs(c:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+            end)
+
+            root.CFrame = CFrame.new(cagePos)
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
             task.wait(0.15)
+
+            -- Heartbeat pin position để chống gravity
+            local freezeActive = true
+            local freezeConn = RunService.Heartbeat:Connect(function()
+                if not freezeActive then return end
+                pcall(function()
+                    root.CFrame = CFrame.new(cagePos)
+                    root.AssemblyLinearVelocity = Vector3.zero
+                    root.AssemblyAngularVelocity = Vector3.zero
+                end)
+            end)
+
             local t = 0
             while t < 3 do
                 pcall(function() firetouchinterest(root, trigger, 0) task.wait(0.03) firetouchinterest(root, trigger, 1) end)
@@ -1120,6 +1190,17 @@ local function beastLoop()
                 if ct and ct.Value ~= nil then break end
                 task.wait(0.15)
                 t = t + 0.18
+            end
+
+            freezeActive = false
+            freezeConn:Disconnect()
+
+            -- Tắt noclip
+            noclipActive = false
+            noclipConn:Disconnect()
+            if hum then
+                hum.PlatformStand = false
+                hum:ChangeState(Enum.HumanoidStateType.GettingUp)
             end
             continue
         end
@@ -1192,7 +1273,6 @@ local function autoSaveLoop()
         if not scriptEnabled or isSelfBeast() then continue end
         if savesThisRound >= maxSaves then continue end
         if isMoving then continue end
-        -- Chỉ save khi script đã detect trận trong session này
         if roundsPlayed == 0 or not isGameActive() then continue end
 
         -- Tìm survivor bị nhốt trong cage
@@ -1219,6 +1299,7 @@ local function autoSaveLoop()
                         end
                     end
                     if capturedPlayer then
+                        isSaving = true
                         isMoving = true
                         local savedCanJump = canAutoJump
                         canAutoJump = false
@@ -1229,9 +1310,39 @@ local function autoSaveLoop()
                         local savePos = Vector3.new(trigger.Position.X + dirIn.X, trigger.Position.Y, trigger.Position.Z + dirIn.Z)
                         local returnTrigger = currentTrigger
 
-                        -- TP thẳng tới cage
+                        -- Noclip trước khi TP vào cage
+                        local char = player.Character
+                        local hum = char and char:FindFirstChild("Humanoid")
+                        if hum then
+                            hum.PlatformStand = true
+                            hum:ChangeState(Enum.HumanoidStateType.Physics)
+                        end
+                        local noclipActive = true
+                        local noclipConn = RunService.Stepped:Connect(function()
+                            if not noclipActive then return end
+                            local c = player.Character
+                            if not c then return end
+                            for _, part in pairs(c:GetDescendants()) do
+                                if part:IsA("BasePart") then part.CanCollide = false end
+                            end
+                        end)
+
+                        -- TP thẳng tới cage + freeze để không bị đẩy ra
                         root.CFrame = CFrame.new(savePos)
+                        root.AssemblyLinearVelocity = Vector3.zero
+                        root.AssemblyAngularVelocity = Vector3.zero
                         task.wait(0.15)
+
+                        -- Heartbeat pin position để chống gravity
+                        local freezeActive = true
+                        local freezeConn = RunService.Heartbeat:Connect(function()
+                            if not freezeActive then return end
+                            pcall(function()
+                                root.CFrame = CFrame.new(savePos)
+                                root.AssemblyLinearVelocity = Vector3.zero
+                                root.AssemblyAngularVelocity = Vector3.zero
+                            end)
+                        end)
 
                         -- Interact save
                         local t = 0
@@ -1248,13 +1359,36 @@ local function autoSaveLoop()
                             t = t + 0.18
                         end
 
+                        freezeActive = false
+                        freezeConn:Disconnect()
+
+                        -- Tắt noclip + unfreeze
+                        noclipActive = false
+                        noclipConn:Disconnect()
+                        if hum then
+                            hum.PlatformStand = false
+                            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+                        end
+
                         -- TP thẳng về lại trigger PC cũ
                         canAutoJump = savedCanJump
+                        isSaving = false
                         isMoving = false
                         if returnTrigger and isHacking then
                             root.CFrame = returnTrigger.CFrame + Vector3.new(0, 0.5, 0)
+                            task.wait(0.15)
+                            -- Re-fire interact để tiếp tục hack
+                            pcall(function()
+                                firetouchinterest(root, returnTrigger, 0)
+                                task.wait(0.1)
+                                firetouchinterest(root, returnTrigger, 1)
+                            end)
+                            task.wait(0.2)
+                            pcall(function()
+                                local r = ReplicatedStorage:FindFirstChild("RemoteEvent")
+                                if r then r:FireServer("Input", "Action", true) end
+                            end)
                         end
-                        isMoving = false
                     end
                 end
             end
@@ -1333,6 +1467,25 @@ local function mainLoop()
                 if isBeastNearby(23) then
                     escapeBeast()
                     skipCurrentPC = true
+                    -- Chờ beast đi xa rồi mới tiếp tục
+                    updateStatus("Waiting for beast to leave...")
+                    local beastLeft = false
+                    while scriptEnabled do
+                        if isSaving then
+                            -- Đang save, thoát chờ beast tạm thời
+                            while isSaving do task.wait(0.2) end
+                        end
+                        if not isBeastNearby(30) then
+                            beastLeft = true
+                            break
+                        end
+                        task.wait(0.5)
+                    end
+                    if beastLeft then
+                        skippedPCs = {} -- chỉ clear khi beast thực sự đã đi
+                    end
+                    allCompleted = false -- không thoát while loop
+                    break -- restart for loop từ đầu
                 else
                     skipCurrentPC = false
                 end
@@ -1474,7 +1627,7 @@ local function createGUI()
     gearBtn.Size = UDim2.new(0, 24, 0, 24)
     gearBtn.Position = UDim2.new(1, -27, 0, 2)
     gearBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    gearBtn.Text = "⚙"
+    gearBtn.Text = ""
     gearBtn.TextColor3 = Color3.new(1,1,1)
     gearBtn.TextSize = 13
     gearBtn.Font = Enum.Font.GothamBold
@@ -1597,7 +1750,7 @@ local function createGUI()
     settingsTitle.Size = UDim2.new(1, -10, 0, 26)
     settingsTitle.Position = UDim2.new(0, 5, 0, 2)
     settingsTitle.BackgroundTransparency = 1
-    settingsTitle.Text = "⚙ SETTINGS & STATS"
+    settingsTitle.Text = "SETTINGS & STATS"
     settingsTitle.TextColor3 = Color3.fromRGB(200, 200, 255)
     settingsTitle.TextSize = 12
     settingsTitle.Font = Enum.Font.GothamBold
@@ -1618,11 +1771,11 @@ local function createGUI()
         return lbl
     end
 
-    local lblPlayer  = makeLabel(28,  "👤 " .. player.Name,         Color3.fromRGB(255, 220, 100))
-    local lblUptime  = makeLabel(46,  "⏱ Uptime: 00:00:00",         Color3.fromRGB(150, 220, 255))
-    local lblSvTime  = makeLabel(64,  "🕐 Server: --:--:--",         Color3.fromRGB(150, 220, 255))
-    local lblCredits = makeLabel(82,  "💰 Credits: ...",             Color3.fromRGB(100, 255, 150))
-    local lblCph     = makeLabel(100, "📈 C/h: ...",                 Color3.fromRGB(100, 255, 150))
+    local lblPlayer  = makeLabel(28,  "" .. player.Name,         Color3.fromRGB(255, 220, 100))
+    local lblUptime  = makeLabel(46,  "Uptime: 00:00:00",         Color3.fromRGB(150, 220, 255))
+    local lblSvTime  = makeLabel(64,  "Server: --:--:--",         Color3.fromRGB(150, 220, 255))
+    local lblCredits = makeLabel(82,  "Credits: ...",             Color3.fromRGB(100, 255, 150))
+    local lblCph     = makeLabel(100, "C/h: ...",                 Color3.fromRGB(100, 255, 150))
 
     local div = Instance.new("Frame")
     div.Size = UDim2.new(1, -10, 0, 1)
@@ -1768,7 +1921,7 @@ local function createGUI()
     testBtn.Size = UDim2.new(0.48, -7, 0, 28)
     testBtn.Position = UDim2.new(0, 5, 0, 216)
     testBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 140)
-    testBtn.Text = "📡 Test"
+    testBtn.Text = "Test"
     testBtn.TextColor3 = Color3.new(1,1,1)
     testBtn.TextSize = 11
     testBtn.Font = Enum.Font.GothamBold
@@ -1780,7 +1933,7 @@ local function createGUI()
     autoBtn.Size = UDim2.new(0.52, -8, 0, 28)
     autoBtn.Position = UDim2.new(0.48, 3, 0, 216)
     autoBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    autoBtn.Text = "🔔 Auto: OFF"
+    autoBtn.Text = "Auto: OFF"
     autoBtn.TextColor3 = Color3.new(1,1,1)
     autoBtn.TextSize = 10
     autoBtn.Font = Enum.Font.GothamBold
@@ -1807,7 +1960,7 @@ local function createGUI()
     local speedLabel = Instance.new("TextLabel")
     speedLabel.Size = UDim2.new(1, -42, 1, 0)
     speedLabel.BackgroundTransparency = 1
-    speedLabel.Text = "🏃 Tween Speed: " .. tweenSpeed .. " st/s"
+    speedLabel.Text = "Tween Speed: " .. tweenSpeed .. " st/s"
     speedLabel.TextColor3 = Color3.fromRGB(180, 255, 180)
     speedLabel.TextSize = 11
     speedLabel.Font = Enum.Font.Gotham
@@ -1856,7 +2009,7 @@ local function createGUI()
     speedWarnLabel.Size = UDim2.new(1, -10, 0, 14)
     speedWarnLabel.Position = UDim2.new(0, 5, 0, 311)
     speedWarnLabel.BackgroundTransparency = 1
-    speedWarnLabel.Text = "⚠️ High speed may cause kick!"
+    speedWarnLabel.Text = "High speed may cause kick!"
     speedWarnLabel.TextColor3 = Color3.fromRGB(255, 160, 40)
     speedWarnLabel.TextSize = 10
     speedWarnLabel.Font = Enum.Font.GothamBold
@@ -1868,7 +2021,7 @@ local function createGUI()
         val = math.clamp(math.floor(val), 10, 100)
         tweenSpeed = val
         local isWarn = val > 60
-        speedLabel.Text = "🏃 Tween Speed: " .. val .. " st/s"
+        speedLabel.Text = "Tween Speed: " .. val .. " st/s"
         speedLabel.TextColor3 = isWarn and Color3.fromRGB(255, 180, 50) or Color3.fromRGB(180, 255, 180)
         speedInput.Text = tostring(val)
         speedInput.TextColor3 = isWarn and Color3.fromRGB(255, 180, 50) or Color3.fromRGB(180, 255, 180)
@@ -1909,7 +2062,7 @@ local function createGUI()
 
     local function sendWebhook(isTest)
         if webhookUrl == "" then
-            lblWebhookStatus.Text = "❌ No webhook URL!"
+            lblWebhookStatus.Text = "No webhook URL!"
             return
         end
         local uptime = formatUptime(tick() - scriptStartTime)
@@ -1919,14 +2072,14 @@ local function createGUI()
         local cph = elapsed > 60 and math.floor(deltaCredits / elapsed * 3600) or 0
 
         local content = isTest
-            and "🧪 **[FTF AUTO HACK] TEST**"
-            or "📊 **[FTF AUTO HACK] Webhook**"
-        content = content .. "\n👤 Player: **" .. player.Name .. "**"
-        content = content .. "\n⏱ Uptime: **" .. uptime .. "**"
-        content = content .. "\n💰 Credits: **" .. tostring(credits or "?") .. "C**"
-        content = content .. "\n📈 Earned: **+" .. tostring(deltaCredits) .. "C** since start"
-        content = content .. "\n⚡ C/h: **" .. tostring(cph) .. "C**"
-        content = content .. "\n🕐 Server: **" .. getServerTime() .. "**"
+            and "**[FTF AUTO HACK] TEST**"
+            or "**[FTF AUTO HACK] Webhook**"
+        content = content .. "\nPlayer: **" .. player.Name .. "**"
+        content = content .. "\nUptime: **" .. uptime .. "**"
+        content = content .. "\nCredits: **" .. tostring(credits or "?") .. "C**"
+        content = content .. "\nEarned: **+" .. tostring(deltaCredits) .. "C** since start"
+        content = content .. "\nC/h: **" .. tostring(cph) .. "C**"
+        content = content .. "\nServer: **" .. getServerTime() .. "**"
 
         pcall(function()
             local body = game:GetService("HttpService"):JSONEncode({content = content})
@@ -1940,12 +2093,12 @@ local function createGUI()
             else
                 game:GetService("HttpService"):PostAsync(webhookUrl, body, Enum.HttpContentType.ApplicationJson)
             end
-            lblWebhookStatus.Text = isTest and "✅ Test sent!" or "✅ Sent!"
+            lblWebhookStatus.Text = isTest and "Test sent!" or "Sent!"
         end)
     end
 
     testBtn.MouseButton1Click:Connect(function()
-        lblWebhookStatus.Text = "📡 Sending..."
+        lblWebhookStatus.Text = "Sending..."
         task.spawn(function() sendWebhook(true) end)
     end)
 
@@ -1953,11 +2106,11 @@ local function createGUI()
         autoSendEnabled = not autoSendEnabled
         if autoSendEnabled then
             autoBtn.BackgroundColor3 = Color3.fromRGB(50, 130, 50)
-            autoBtn.Text = "🔔 Auto Send Webhook: ON"
-            lblWebhookStatus.Text = "✅ Will send every " .. webhookInterval .. "m"
+            autoBtn.Text = "Auto Send Webhook: ON"
+            lblWebhookStatus.Text = "Will send every " .. webhookInterval .. "m"
         else
             autoBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-            autoBtn.Text = "🔔 Auto Send Webhook: OFF"
+            autoBtn.Text = "Auto Send Webhook: OFF"
             lblWebhookStatus.Text = "🔕 Auto send off"
         end
     end)
@@ -1985,10 +2138,10 @@ local function createGUI()
             local elapsed = tick() - scriptStartTime
             local deltaCredits = (credits and creditsAtStart) and (credits - creditsAtStart) or 0
             local cph = elapsed > 60 and math.floor(deltaCredits / elapsed * 3600) or 0
-            lblUptime.Text = "⏱ Uptime: " .. formatUptime(elapsed)
-            lblSvTime.Text = "🕐 Server: " .. getServerTime()
-            lblCredits.Text = "💰 Credits: " .. tostring(credits or "?")
-            lblCph.Text = "📈 +" .. tostring(deltaCredits) .. "C  (" .. tostring(cph) .. "C/h)"
+            lblUptime.Text = "Uptime: " .. formatUptime(elapsed)
+            lblSvTime.Text = "Server: " .. getServerTime()
+            lblCredits.Text = "Credits: " .. tostring(credits or "?")
+            lblCph.Text = "+" .. tostring(deltaCredits) .. "C  (" .. tostring(cph) .. "C/h)"
         end
     end)
 
@@ -2015,10 +2168,9 @@ local function createGUI()
         checkLabel.TextColor3 = hackExtraPC and Color3.fromRGB(255, 120, 120) or Color3.fromRGB(180, 180, 180)
     end)
 
-    gearBtn.MouseButton1Click:Connect(toggleSettings)
-
     -- Drag
     local UIS = game:GetService("UserInputService")
+    gearBtn.MouseButton1Click:Connect(toggleSettings)
     local dragging, dragStart, startPos
     frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
