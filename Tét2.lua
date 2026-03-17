@@ -24,7 +24,7 @@ local jumpTimer = 0
 local statusLabel = nil
 
 local jumpInterval = 4
-local tweenSpeed = 35 -- studs/s cho U-shape movement
+local tweenSpeed = 35 -- studs/s cho tween movement
 
 local roundsPlayed = 0
 local firstMoveOfRound = true
@@ -551,6 +551,52 @@ local function hackPC(pcData)
         end
     end
 
+    -- ===== TWEEN THẲNG tới trigger (dùng khi thử trigger khác trong cùng PC) =====
+    local function moveStraightTo(trigger)
+        if not rootPart then return end
+        local char = player.Character
+        if not char then return end
+        local hum = char:FindFirstChild("Humanoid")
+        while isMoving do task.wait(0.1) end
+        isMoving = true
+        if hum then
+            hum.PlatformStand = true
+            hum:ChangeState(Enum.HumanoidStateType.Physics)
+        end
+        local noclipActive = true
+        local noclipConn = RunService.Stepped:Connect(function()
+            if not noclipActive then return end
+            local c = player.Character
+            if not c then return end
+            for _, part in pairs(c:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+        end)
+        local targetPos = Vector3.new(trigger.Position.X, trigger.Position.Y + 0.5, trigger.Position.Z)
+        local STOP_DIST = math.max(0.5, tweenSpeed * 0.05 * 0.8)
+        while true do
+            task.wait(0.05)
+            if isSaving then break end
+            if not rootPart or not rootPart.Parent then break end
+            local diff = targetPos - rootPart.Position
+            if diff.Magnitude <= STOP_DIST then
+                rootPart.CFrame = CFrame.new(targetPos)
+                rootPart.AssemblyLinearVelocity = Vector3.zero
+                rootPart.AssemblyAngularVelocity = Vector3.zero
+                break
+            end
+            rootPart.AssemblyLinearVelocity = diff.Unit * tweenSpeed
+            rootPart.AssemblyAngularVelocity = Vector3.zero
+        end
+        noclipActive = false
+        noclipConn:Disconnect()
+        if hum then
+            hum.PlatformStand = false
+            hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+        isMoving = false
+    end
+
     -- ===== HELPER: fire interact tại trigger =====
     local function fireInteract(trigger)
         pcall(function()
@@ -571,7 +617,16 @@ local function hackPC(pcData)
         end)
     end
 
-    -- ===== SKIP NGAY NẾU PC ĐÃ DONE =====
+    -- ===== SKIP NGAY NẾU PC ĐÃ DONE (check trước khi move, không tốn thời gian di chuyển) =====
+    local screen = pcData.computer:FindFirstChild("Screen")
+    if screen and screen:IsA("BasePart") then
+        local c = screen.Color
+        if c.G > c.R + 0.2 and c.G > c.B + 0.2 then
+            log("PC" .. pcId .. ": screen green, already done, skip")
+            hackedPCs[pcData.id] = true
+            return true
+        end
+    end
     local pcProgressNow = getPCProgress(pcData)
     if pcProgressNow >= 1 then
         log("PC" .. pcId .. ": already done, skip")
@@ -588,9 +643,15 @@ local function hackPC(pcData)
     -- ===== THỬ TỪNG TRIGGER, SKIP PC NẾU KHÔNG CÓ TRIGGER NÀO WORK =====
     local chosenTrigger = nil
 
+    local isFirstTrigger = true
     for _, trigger in ipairs(pcData.triggers) do
         if isSaving then return false end
-        moveTo(trigger)
+        if isFirstTrigger then
+            isFirstTrigger = false
+            moveTo(trigger)       -- U-shape khi tới PC từ xa
+        else
+            moveStraightTo(trigger) -- Tween thẳng khi thử trigger khác trong cùng PC
+        end
         if isSaving then
             isMoving = false
             return false
@@ -599,8 +660,23 @@ local function hackPC(pcData)
         canAutoJump = true
         -- Snapshot trước khi fire
         local progressBefore = getPlayerActionProgress()
-        fireInteract(trigger)
-        task.wait(1)
+        -- Spam fire mỗi 0.1s trong 1.6s để chắc server nhận
+        pcall(function()
+            if trigger and rootPart then
+                firetouchinterest(rootPart, trigger, 0)
+                task.wait(0.1)
+                firetouchinterest(rootPart, trigger, 1)
+            end
+        end)
+        local spamTime = 0
+        while spamTime < 1 do
+            task.wait(0.1)
+            spamTime = spamTime + 0.1
+            pcall(function()
+                local r = ReplicatedStorage:FindFirstChild("RemoteEvent")
+                if r then r:FireServer("Input", "Action", true) end
+            end)
+        end
         -- Check progress tăng thêm so với trước khi fire
         local progressAfter = getPlayerActionProgress()
         if progressAfter > progressBefore + 0.001 then
@@ -645,7 +721,7 @@ local function hackPC(pcData)
         end
 
         -- Beast check (bỏ qua nếu đang save)
-        if isBeastNearby() and not isSaving then
+        if isBeastNearby(30) and not isSaving then
             isHacking = false
             currentPC = nil
             canAutoJump = false
@@ -1441,7 +1517,7 @@ local function mainLoop()
         local totalAttempts = 0
         local maxAttempts = #allPCs * 3
 
-        while totalAttempts < maxAttempts and scriptEnabled do
+        while totalAttempts < maxAttempts and scriptEnabled and not (isFindExitPhase() and not hackExtraPC) do
             -- Check game còn active không trước mỗi vòng
             local gs2 = ReplicatedStorage:FindFirstChild("GameStatus")
             local gs2txt = gs2 and tostring(gs2.Value):upper() or ""
@@ -1627,7 +1703,7 @@ local function createGUI()
     gearBtn.Size = UDim2.new(0, 24, 0, 24)
     gearBtn.Position = UDim2.new(1, -27, 0, 2)
     gearBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    gearBtn.Text = ""
+    gearBtn.Text = "⚙️"
     gearBtn.TextColor3 = Color3.new(1,1,1)
     gearBtn.TextSize = 13
     gearBtn.Font = Enum.Font.GothamBold
@@ -1784,7 +1860,7 @@ local function createGUI()
     div.BorderSizePixel = 0
     div.Parent = settingsPanel
 
-    makeLabel(128, "🔗 Webhook URL:", Color3.fromRGB(180, 180, 255))
+    makeLabel(128, "Webhook URL:", Color3.fromRGB(180, 180, 255))
 
     local webhookInput = Instance.new("TextBox")
     webhookInput.Size = UDim2.new(1, -10, 0, 26)
@@ -1815,7 +1891,7 @@ local function createGUI()
     local intervalLabel = Instance.new("TextLabel")
     intervalLabel.Size = UDim2.new(1, -42, 1, 0)
     intervalLabel.BackgroundTransparency = 1
-    intervalLabel.Text = "⏰ Every: " .. webhookInterval .. " min"
+    intervalLabel.Text = "Every: " .. webhookInterval .. " min"
     intervalLabel.TextColor3 = Color3.fromRGB(180, 180, 255)
     intervalLabel.TextSize = 11
     intervalLabel.Font = Enum.Font.Gotham
@@ -1868,7 +1944,7 @@ local function createGUI()
         local pct = (val - 1) / 59
         sliderFill.Size = UDim2.new(pct, 0, 1, 0)
         sliderKnob.Position = UDim2.new(pct, 0, 0.5, 0)
-        intervalLabel.Text = "⏰ Every: " .. val .. " min"
+        intervalLabel.Text = "Every: " .. val .. " min"
         intervalInput.Text = tostring(val)
     end
 
@@ -2111,7 +2187,7 @@ local function createGUI()
         else
             autoBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
             autoBtn.Text = "Auto Send Webhook: OFF"
-            lblWebhookStatus.Text = "🔕 Auto send off"
+            lblWebhookStatus.Text = "Auto send off"
         end
     end)
 
