@@ -1,0 +1,109 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+
+local isBypassOn = false
+local isActuallyLocked = false
+local BEAST_SPEED = 17
+local SPOOF_SPEED = 17.001 -- Mồi nhử hệ thống (Lừa Roblox nhận diện thay đổi)
+local lastIntendedSpeed = 17
+local internalChange = false
+
+local TOGGLE_KEY = Enum.KeyCode.F
+local speedConn = nil
+
+local function isLocalPlayerBeast()
+    local stats = player:FindFirstChild("TempPlayerStatsModule")
+    if stats and stats:FindFirstChild("IsBeast") then
+        return stats.IsBeast.Value == true
+    end
+    return false
+end
+
+local function hookHumanoid(char)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if not hum then return end
+
+    if speedConn then speedConn:Disconnect() end
+
+    lastIntendedSpeed = hum.WalkSpeed
+
+    speedConn = hum:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if internalChange then return end
+
+        local currentSpeed = hum.WalkSpeed
+        lastIntendedSpeed = currentSpeed
+
+        if isBypassOn then
+            if not isActuallyLocked then
+                -- Chấp nhận cả 17 và 17.001 là trạng thái bình thường
+                if currentSpeed == BEAST_SPEED or currentSpeed == SPOOF_SPEED then
+                    isActuallyLocked = true
+                end
+            end
+
+            if isActuallyLocked then
+                if currentSpeed < BEAST_SPEED then
+                    internalChange = true
+                    -- Ép lên số mồi nhử để lúc game trả về 17 nó vẫn báo tín hiệu
+                    hum.WalkSpeed = SPOOF_SPEED
+                    internalChange = false
+                end
+            end
+        end
+    end)
+end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode == TOGGLE_KEY then
+        
+        if not isLocalPlayerBeast() then
+            isBypassOn = false
+            return
+        end
+
+        local char = player.Character
+        local hum = char and char:FindFirstChild("Humanoid")
+        if not hum then return end
+
+        isBypassOn = not isBypassOn
+        
+        if isBypassOn then
+            if hum.WalkSpeed == BEAST_SPEED or hum.WalkSpeed == SPOOF_SPEED then
+                isActuallyLocked = true
+            else
+                isActuallyLocked = false
+            end
+        else
+            isActuallyLocked = false
+            
+            internalChange = true
+            -- Làm tròn số để xóa cái 17.001 (nếu có), trả về đúng số đẹp của game
+            hum.WalkSpeed = math.floor(lastIntendedSpeed)
+            internalChange = false
+            
+            if lastIntendedSpeed < BEAST_SPEED then
+                task.spawn(function()
+                    task.wait(1.5) 
+                    
+                    if not isBypassOn and hum.WalkSpeed < BEAST_SPEED then
+                        internalChange = true
+                        hum.WalkSpeed = BEAST_SPEED
+                        internalChange = false
+                    end
+                end)
+            end
+        end
+    end
+end)
+
+if player.Character then
+    hookHumanoid(player.Character)
+end
+
+player.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    isBypassOn = false
+    isActuallyLocked = false
+    hookHumanoid(char)
+end)
