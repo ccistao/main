@@ -133,6 +133,33 @@ CloseButton_2.TextColor3 = Color3.new(1,1,1)
 CloseButton_2.TextScaled = true
 CloseButton_2.Modal = true
 
+-- ==== NÚT NO TEXTURE (MẮT) ====
+local NoTextureButton = Instance.new("TextButton", TopBar_2)
+NoTextureButton.Name = "NoTextureButton"
+NoTextureButton.AnchorPoint = Vector2.new(1, 0)
+NoTextureButton.BackgroundColor3 = Color3.fromRGB(63, 63, 63)
+NoTextureButton.Position = UDim2.new(1, -63, 0, 1) -- Nằm kế bên nút X
+NoTextureButton.Size = UDim2.new(0, 57, 0, 57)
+NoTextureButton.Text = ""
+
+local EyeIcon = Instance.new("ImageLabel", NoTextureButton)
+EyeIcon.BackgroundTransparency = 1
+EyeIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+EyeIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+EyeIcon.Size = UDim2.new(0.6, 0, 0.6, 0)
+EyeIcon.Image = "rbxassetid://15875255096" -- ID Mắt bình thường
+
+-- Tạo cái gạch chéo (Slash) đè lên mắt
+local EyeSlash = Instance.new("Frame", EyeIcon)
+EyeSlash.BackgroundColor3 = Color3.fromRGB(255, 255, 255) -- Màu đỏ tươi
+EyeSlash.BorderSizePixel = 0
+EyeSlash.AnchorPoint = Vector2.new(0.5, 0.5)
+EyeSlash.Position = UDim2.new(0.5, 0, 0.5, 0)
+EyeSlash.Size = UDim2.new(1.3, 0, 0.15, 0)
+EyeSlash.Rotation = 45 -- Xoay chéo 45 độ
+EyeSlash.Visible = false -- Tắt mặc định
+-- ==============================
+
 local PageTitleText_2 = Instance.new("TextLabel", TopBar_2)
 PageTitleText_2.Name = "PageTitleText"
 PageTitleText_2.BackgroundTransparency = 1
@@ -168,6 +195,8 @@ if isMobile() then
     UIGridLayout_2.CellSize = UDim2.new(0, 132, 0, 132)
     Body_2.Position = UDim2.new(0.5, 0, 0, 45)
     Body_2.Size = UDim2.new(1, -10, 1, -50)
+    NoTextureButton.Size = UDim2.new(0, 36, 0, 36)
+    NoTextureButton.Position = UDim2.new(1, -41, 0, 1)
 end
 
 local Button1 = Instance.new("ImageButton")
@@ -1358,6 +1387,94 @@ local function startPCProgress()
     end
 end
 
+-- ===== CHỨC NĂNG NO TEXTURE (LỘT MAP) =====
+local isPlasticOn = false
+local cacheMaterials = {}
+local cacheTextures = {}
+
+local function isProtectedMaterial(mat)
+    return mat == Enum.Material.Neon or       
+           mat == Enum.Material.Glass or      
+           mat == Enum.Material.ForceField    
+end
+
+local function isCharacter(obj)
+    local model = obj:FindFirstAncestorOfClass("Model")
+    if model and model:FindFirstChild("Humanoid") then
+        return true
+    end
+    return false
+end
+
+local function applyToObj(v)
+    if isCharacter(v) then return end
+    
+    if v:IsA("BasePart") then
+        if not isProtectedMaterial(v.Material) then
+            if not cacheMaterials[v] then
+                cacheMaterials[v] = v.Material
+            end
+            v.Material = Enum.Material.SmoothPlastic
+        end
+    elseif v:IsA("Texture") then
+        if not cacheTextures[v] then
+            cacheTextures[v] = v.Transparency
+        end
+        v.Transparency = 1 
+    end
+end
+
+local function scanMap()
+    for _, v in pairs(workspace:GetDescendants()) do
+        applyToObj(v)
+    end
+end
+
+local function restoreMap()
+    for part, mat in pairs(cacheMaterials) do
+        if part and part.Parent then
+            part.Material = mat
+        end
+    end
+    for tex, trans in pairs(cacheTextures) do
+        if tex and tex.Parent then
+            tex.Transparency = trans
+        end
+    end
+    cacheMaterials = {}
+    cacheTextures = {}
+end
+
+local function toggleNoTexture()
+    isPlasticOn = not isPlasticOn
+    
+    if isPlasticOn then
+        NoTextureButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0) -- Nút xanh
+        EyeSlash.Visible = true -- Hiện gạch chéo mắt
+        scanMap()
+    else
+        NoTextureButton.BackgroundColor3 = Color3.fromRGB(63, 63, 63) -- Nút xám
+        EyeSlash.Visible = false -- Tắt gạch chéo mắt
+        restoreMap()
+    end
+end
+
+-- Click vào nút Mắt để bật/tắt
+NoTextureButton.MouseButton1Down:Connect(toggleNoTexture)
+
+-- Bắt sự kiện load map tự động lột texture
+local currentMapVal = Replicated:FindFirstChild("CurrentMap")
+if currentMapVal then
+    currentMapVal.Changed:Connect(function()
+        if isPlasticOn then
+            task.spawn(function()
+                task.wait(2) 
+                scanMap()
+            end)
+        end
+    end)
+end
+
 -- ===== SỰ KIỆN MỞ/ĐÓNG MENU =====
 -- ===== DRAG + CLICK NÚT SETTING =====
 local dragging = false
@@ -1460,7 +1577,7 @@ makeButton(Button2,"Flashlight","rbxassetid://106585954087372",2,function(state)
     end
 end)
 
-makeButton(Button3,"Self muting","rbxassetid://90332761263250",3,function(state)
+makeButton(Button3,"Self muting","rbxassetid://18384467766",3,function(state)
     if state then
         SelfMuting.start()
     else
