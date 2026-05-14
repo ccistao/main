@@ -1,0 +1,40 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+print("========================================")
+print("🚀 BẮT ĐẦU TEST LỆNH MUA (1 LẦN DUY NHẤT)")
+
+-- Lần theo đường dẫn RemoteFunction mày vừa bắt được
+local buyRemote = ReplicatedStorage:WaitForChild("Packages")
+    :WaitForChild("_Index")
+    :WaitForChild("sleitnick_knit@1.7.0")
+    :WaitForChild("knit")
+    :WaitForChild("Services")
+    :WaitForChild("Stocks")
+    :WaitForChild("RF")
+    :WaitForChild("MarketBuyPoints")
+
+-- Tham số bê y nguyên từ log của mày
+local targetID = 4395734339 -- Khả năng cao là UserID của thằng bán
+local quantity = 1          -- Mua 1 vé
+
+-- Hàm test gửi lệnh
+local function testSingleBuy()
+    print("🛒 Đang gửi lệnh: Mua Stonk của ID [" .. tostring(targetID) .. "], SL: " .. tostring(quantity))
+
+    -- Dùng pcall để lỡ server nó chặn lệnh thì đéo bị văng game hay sập Executor
+    local success, response = pcall(function()
+        return buyRemote:InvokeServer(targetID, quantity)
+    end)
+
+    if success then
+        print("✅ GỬI LỆNH TRÓT LỌT! Server trả lời:")
+        print(response) -- Xem nó trả về chữ "OK", "Success" hay true/false
+    else
+        print("❌ LỆNH BỊ CHẶN HOẶC LỖI! Nguyên nhân:")
+        print(response)
+    end
+end
+
+-- Bóp cò ngay lập tức khi load script
+testSingleBuy()
+print("========================================")
