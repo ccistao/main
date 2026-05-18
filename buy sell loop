@@ -1,0 +1,188 @@
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Xóa GUI cũ nếu đã chạy script trước đó (chống đè lộn xộn)
+local guiName = "StonkAutoTradeUI"
+if CoreGui:FindFirstChild(guiName) then
+    CoreGui[guiName]:Destroy()
+elseif LocalPlayer.PlayerGui:FindFirstChild(guiName) then
+    LocalPlayer.PlayerGui[guiName]:Destroy()
+end
+
+-- ================= CÀI ĐẶT REMOTES =================
+local Packages = ReplicatedStorage:WaitForChild("Packages", 5)
+local RF = Packages and Packages:WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services"):WaitForChild("Stocks"):WaitForChild("RF")
+
+local buyRemote = RF and RF:WaitForChild("MarketBuyPoints")
+local sellRemote = RF and RF:WaitForChild("MarketSellPoints")
+
+-- ================= TẠO GUI =================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = guiName
+ScreenGui.ResetOnSpawn = false
+-- Thử nhét vào CoreGui (chống bị game xóa), nếu không được thì nhét vào PlayerGui
+pcall(function() ScreenGui.Parent = CoreGui end)
+if ScreenGui.Parent == nil then ScreenGui.Parent = LocalPlayer.PlayerGui end
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 2
+MainFrame.BorderColor3 = Color3.new(1, 1, 1)
+MainFrame.Active = true
+MainFrame.Draggable = true -- Có thể kéo thả
+MainFrame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+Title.Text = "📈 STONK AUTO CONTROL"
+Title.Parent = MainFrame
+
+-- Ô nhập ID (Chung)
+local IDInput = Instance.new("TextBox")
+IDInput.Size = UDim2.new(0.9, 0, 0, 30)
+IDInput.Position = UDim2.new(0.05, 0, 0, 40)
+IDInput.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+IDInput.TextColor3 = Color3.new(1, 1, 1)
+IDInput.Font = Enum.Font.Gotham
+IDInput.TextSize = 14
+IDInput.PlaceholderText = "Nhập Target ID vào đây..."
+IDInput.Text = ""
+IDInput.Parent = MainFrame
+
+-- ================= PHẦN BUY =================
+local BuyQty = Instance.new("TextBox")
+BuyQty.Size = UDim2.new(0, 60, 0, 30)
+BuyQty.Position = UDim2.new(0.05, 0, 0, 80)
+BuyQty.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+BuyQty.TextColor3 = Color3.new(1, 1, 1)
+BuyQty.Font = Enum.Font.Gotham
+BuyQty.PlaceholderText = "SL Buy"
+BuyQty.Text = "1"
+BuyQty.Parent = MainFrame
+
+local BtnBuyOnce = Instance.new("TextButton")
+BtnBuyOnce.Size = UDim2.new(0, 60, 0, 30)
+BtnBuyOnce.Position = UDim2.new(0.3, 0, 0, 80)
+BtnBuyOnce.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+BtnBuyOnce.TextColor3 = Color3.new(1, 1, 1)
+BtnBuyOnce.Font = Enum.Font.GothamBold
+BtnBuyOnce.Text = "BUY"
+BtnBuyOnce.Parent = MainFrame
+
+local BtnLoopBuy = Instance.new("TextButton")
+BtnLoopBuy.Size = UDim2.new(0, 100, 0, 30)
+BtnLoopBuy.Position = UDim2.new(0.55, 0, 0, 80)
+BtnLoopBuy.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- Đỏ (Tắt)
+BtnLoopBuy.TextColor3 = Color3.new(1, 1, 1)
+BtnLoopBuy.Font = Enum.Font.GothamBold
+BtnLoopBuy.Text = "LOOP BUY (Q)"
+BtnLoopBuy.Parent = MainFrame
+
+-- ================= PHẦN SELL =================
+local SellQty = Instance.new("TextBox")
+SellQty.Size = UDim2.new(0, 60, 0, 30)
+SellQty.Position = UDim2.new(0.05, 0, 0, 120)
+SellQty.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+SellQty.TextColor3 = Color3.new(1, 1, 1)
+SellQty.Font = Enum.Font.Gotham
+SellQty.PlaceholderText = "SL Sell"
+SellQty.Text = "1"
+SellQty.Parent = MainFrame
+
+local BtnSellOnce = Instance.new("TextButton")
+BtnSellOnce.Size = UDim2.new(0, 60, 0, 30)
+BtnSellOnce.Position = UDim2.new(0.3, 0, 0, 120)
+BtnSellOnce.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+BtnSellOnce.TextColor3 = Color3.new(1, 1, 1)
+BtnSellOnce.Font = Enum.Font.GothamBold
+BtnSellOnce.Text = "SELL"
+BtnSellOnce.Parent = MainFrame
+
+local BtnLoopSell = Instance.new("TextButton")
+BtnLoopSell.Size = UDim2.new(0, 100, 0, 30)
+BtnLoopSell.Position = UDim2.new(0.55, 0, 0, 120)
+BtnLoopSell.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- Đỏ (Tắt)
+BtnLoopSell.TextColor3 = Color3.new(1, 1, 1)
+BtnLoopSell.Font = Enum.Font.GothamBold
+BtnLoopSell.Text = "LOOP SELL (E)"
+BtnLoopSell.Parent = MainFrame
+
+-- ================= LOGIC HOẠT ĐỘNG =================
+local isLoopingBuy = false
+local isLoopingSell = false
+local LOOP_SPEED = 0.1 -- Độ trễ giữa mỗi lần spam (tránh crash server/văng game)
+
+local function executeBuy()
+    local id = tonumber(IDInput.Text)
+    local qty = tonumber(BuyQty.Text)
+    if id and qty and buyRemote then
+        pcall(function() buyRemote:InvokeServer(id, qty) end)
+    end
+end
+
+local function executeSell()
+    local id = tonumber(IDInput.Text)
+    local qty = tonumber(SellQty.Text)
+    if id and qty and sellRemote then
+        pcall(function() sellRemote:InvokeServer(id, qty) end)
+    end
+end
+
+-- Bấm 1 lần
+BtnBuyOnce.Activated:Connect(executeBuy)
+BtnSellOnce.Activated:Connect(executeSell)
+
+-- Hàm Bật/Tắt Loop Buy
+local function toggleLoopBuy()
+    isLoopingBuy = not isLoopingBuy
+    if isLoopingBuy then
+        BtnLoopBuy.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- Xanh
+        task.spawn(function()
+            while isLoopingBuy do
+                executeBuy()
+                task.wait(LOOP_SPEED)
+            end
+        end)
+    else
+        BtnLoopBuy.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- Đỏ
+    end
+end
+BtnLoopBuy.Activated:Connect(toggleLoopBuy)
+
+-- Hàm Bật/Tắt Loop Sell
+local function toggleLoopSell()
+    isLoopingSell = not isLoopingSell
+    if isLoopingSell then
+        BtnLoopSell.BackgroundColor3 = Color3.fromRGB(50, 200, 50) -- Xanh
+        task.spawn(function()
+            while isLoopingSell do
+                executeSell()
+                task.wait(LOOP_SPEED)
+            end
+        end)
+    else
+        BtnLoopSell.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- Đỏ
+    end
+end
+BtnLoopSell.Activated:Connect(toggleLoopSell)
+
+-- ================= BẮT KEYBIND (Q và E) =================
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    -- Nếu đang chat hoặc gõ chữ trong TextBox thì bỏ qua
+    if gameProcessed then return end 
+    
+    if input.KeyCode == Enum.KeyCode.Q then
+        toggleLoopBuy()
+    elseif input.KeyCode == Enum.KeyCode.E then
+        toggleLoopSell()
+    end
+end)
