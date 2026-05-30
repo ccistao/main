@@ -1,0 +1,212 @@
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+local guiName = "StonkAudioControllerUI"
+if CoreGui:FindFirstChild(guiName) then CoreGui[guiName]:Destroy() end
+if LocalPlayer.PlayerGui:FindFirstChild(guiName) then LocalPlayer.PlayerGui[guiName]:Destroy() end
+
+local currentVolume = 5.0    -- Mặc định khởi điểm 
+local currentRange = 150   
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = guiName
+ScreenGui.ResetOnSpawn = false
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer.PlayerGui end
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 320, 0, 160)
+MainFrame.Position = UDim2.new(0.1, 0, 0.4, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 1
+MainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 13
+Title.Text = "🛰️ AUDIO CONTROLLER PRO"
+Title.Parent = MainFrame
+
+-- Cập nhật tức thời cho toàn Server
+local function forceUpdateAllSounds()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, obj in ipairs(hrp:GetChildren()) do
+                    if obj:IsA("Sound") and (obj.Name == "Running" or obj.Name == "Jumping") then
+                        obj.Volume = currentVolume
+                        obj.RollOffMaxDistance = currentRange
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Hàm tạo Slider có tích hợp Ô nhập số
+local function createSlider(yPos, minVal, maxVal, defaultVal, titleText, isInt, callback)
+    -- Tiêu đề (Bên trái)
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.5, 0, 0, 20)
+    Label.Position = UDim2.new(0.05, 0, 0, yPos)
+    Label.BackgroundTransparency = 1
+    Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Label.Font = Enum.Font.GothamSemibold
+    Label.TextSize = 12
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Text = titleText
+    Label.Parent = MainFrame
+
+    -- Ô nhập số (Bên phải)
+    local InputBox = Instance.new("TextBox")
+    InputBox.Size = UDim2.new(0.25, 0, 0, 22)
+    InputBox.Position = UDim2.new(0.7, 0, 0, yPos)
+    InputBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    InputBox.BorderColor3 = Color3.fromRGB(100, 100, 100)
+    InputBox.TextColor3 = Color3.fromRGB(100, 255, 100)
+    InputBox.Font = Enum.Font.GothamBold
+    InputBox.TextSize = 12
+    InputBox.ClearTextOnFocus = false
+    InputBox.Parent = MainFrame
+
+    -- Thanh nền Slider
+    local SliderBg = Instance.new("Frame")
+    SliderBg.Size = UDim2.new(0.9, 0, 0, 8)
+    SliderBg.Position = UDim2.new(0.05, 0, 0, yPos + 25)
+    SliderBg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    SliderBg.BorderSizePixel = 0
+    SliderBg.Parent = MainFrame
+
+    -- Nút kéo Slider
+    local SliderBtn = Instance.new("TextButton")
+    SliderBtn.Size = UDim2.new(0, 16, 0, 16)
+    SliderBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+    SliderBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+    SliderBtn.BorderSizePixel = 0
+    SliderBtn.Text = ""
+    SliderBtn.Parent = SliderBg
+
+    local dragging = false
+
+    -- Hàm xử lý hiển thị và tính toán chung
+    local function setVisuals(val)
+        local percentage = math.clamp((val - minVal) / (maxVal - minVal), 0, 1)
+        SliderBtn.Position = UDim2.new(percentage, 0, 0.5, 0)
+        
+        -- Nếu là Range thì số chẵn, Volume thì số thập phân
+        if isInt then
+            InputBox.Text = tostring(math.floor(val))
+        else
+            InputBox.Text = string.format("%.1f", val)
+        end
+        callback(val)
+    end
+
+    -- Khi kéo chuột
+    local function updateFromDrag(input)
+        local mousePos = input.Position.X
+        local bgPos = SliderBg.AbsolutePosition.X
+        local bgSize = SliderBg.AbsoluteSize.X
+        local percentage = math.clamp((mousePos - bgPos) / bgSize, 0, 1)
+        local val = minVal + (percentage * (maxVal - minVal))
+        if isInt then val = math.floor(val) end
+        setVisuals(val)
+    end
+
+    -- Khi nhập số tay và ấn Enter
+    InputBox.FocusLost:Connect(function()
+        local parsed = tonumber(InputBox.Text)
+        if parsed then
+            -- Ép số vào trong khoảng Min-Max
+            parsed = math.clamp(parsed, minVal, maxVal)
+            setVisuals(parsed)
+        else
+            -- Nhập chữ tào lao thì reset về vị trí cũ
+            local currentPercent = SliderBtn.Position.X.Scale
+            local currentVal = minVal + (currentPercent * (maxVal - minVal))
+            if isInt then currentVal = math.floor(currentVal) end
+            InputBox.Text = tostring(currentVal)
+        end
+    end)
+
+    -- Đăng ký sự kiện kéo
+    SliderBtn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateFromDrag(input)
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    -- Khởi tạo ban đầu
+    setVisuals(defaultVal)
+end
+
+-- (1) Thanh Volume (0 - 100), Dùng số thực
+createSlider(40, 0, 100, currentVolume, "🔊 Volume (0-100):", false, function(val)
+    currentVolume = val
+    forceUpdateAllSounds()
+end)
+
+-- (2) Thanh Range (0 - 1000), Dùng số nguyên
+createSlider(95, 0, 1000, currentRange, "📏 Range (Studs):", true, function(val)
+    currentRange = val
+    forceUpdateAllSounds()
+end)
+
+-- Engine ép thông số
+local function applyAudioModifications(sound)
+    if sound:IsA("Sound") and (sound.Name == "Running" or sound.Name == "Jumping") then
+        sound.Volume = currentVolume
+        sound.RollOffMaxDistance = currentRange
+        
+        local c1, c2
+        c1 = sound:GetPropertyChangedSignal("Volume"):Connect(function()
+            if sound.Volume ~= currentVolume then sound.Volume = currentVolume end
+        end)
+        c2 = sound:GetPropertyChangedSignal("RollOffMaxDistance"):Connect(function()
+            if sound.RollOffMaxDistance ~= currentRange then sound.RollOffMaxDistance = currentRange end
+        end)
+        
+        sound.Destroying:Connect(function()
+            if c1 then c1:Disconnect() end
+            if c2 then c2:Disconnect() end
+        end)
+    end
+end
+
+local function monitorCharacter(char)
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    if hrp then
+        for _, obj in ipairs(hrp:GetChildren()) do applyAudioModifications(obj) end
+        hrp.ChildAdded:Connect(applyAudioModifications)
+    end
+end
+
+local function monitorPlayer(player)
+    if player == LocalPlayer then return end
+    if player.Character then monitorCharacter(player.Character) end
+    player.CharacterAdded:Connect(monitorCharacter)
+end
+
+for _, p in ipairs(Players:GetPlayers()) do monitorPlayer(p) end
+Players.PlayerAdded:Connect(monitorPlayer)
