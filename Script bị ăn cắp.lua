@@ -951,17 +951,22 @@ function reloadBeastCam()
 end
 
 function getBeast()
-	local player = game.Players:GetChildren()
-	for i=1, #player do
-		local character = player[i].Character
-		if player[i]:findFirstChild("TempPlayerStatsModule"):findFirstChild("IsBeast").Value == true or (character ~= nil and character:findFirstChild("BeastPowers")) then
-			return player[i]
-		end
-	end
+    local player = game.Players:GetChildren()
+    for i=1, #player do
+        local statsModule = player[i]:findFirstChild("TempPlayerStatsModule")
+        if statsModule then
+            local isBeast = statsModule:findFirstChild("IsBeast")
+            local character = player[i].Character
+            if (isBeast and isBeast.Value == true) or (character and character:findFirstChild("BeastPowers")) then
+                return player[i]
+            end
+        end
+    end
 end
 
 function getBestPC()
     local beast = getBeast()
+	if beast == nil or beast.Character == nil then return {} end 
     local pcs = {}
 
     local map = game.ReplicatedStorage.CurrentMap.Value
