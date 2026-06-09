@@ -81,21 +81,43 @@ end
 local GamePhase = {}
 
 function GamePhase.get()
+    -- Method 1: GameStatus
     local gs = ReplicatedStorage:FindFirstChild("GameStatus")
-    if not gs then return "Idle" end
-    local txt = tostring(gs.Value):upper()
-
-    if txt == "" or txt:find("GAME OVER") or txt:find("BEAST LEFT")
-    or txt:find("BEF LAI") or txt:find("KET THUC")
-    or txt:find("TRO CHOI KET THUC") then
-        return "Ended"
+    if gs then
+        local txt = tostring(gs.Value):upper()
+        if txt ~= "" then
+            if txt:find("GAME OVER") or txt:find("BEAST LEFT") or txt:find("KET THUC") then
+                return "Ended"
+            end
+            if txt:find("HEAD START") then return "HeadStart" end
+            if txt:find("FIND") and txt:find("EXIT") then return "Exit" end
+            if txt:find("HACK") then return "Hacking" end
+        end
     end
 
-    if txt:find("HEAD START") then return "HeadStart" end
-    if txt:find("FIND AN EXIT") or txt:find("FIND") and txt:find("EXIT") then
-        return "Exit"
+    -- Method 2: GameStatusBox (fallback)
+    local ok, gsb = pcall(function()
+        local pg = player:FindFirstChild("PlayerGui")
+        local sg = pg and pg:FindFirstChild("ScreenGui")
+        local gif = sg and sg:FindFirstChild("GameInfoFrame")
+        return gif and gif:FindFirstChild("GameStatusBox")
+    end)
+
+    if ok and gsb and gsb.Text then
+        local txt = gsb.Text:upper()
+        if txt:find("FIND") and txt:find("EXIT") then return "Exit" end
+        if txt:find("HACK") then return "Hacking" end
+        if txt:find("15 SEC HEAD START") or txt:find("GIAY") then return "HeadStart" end
     end
-    if txt:find("HACK") then return "Hacking" end
+
+    -- Method 3: Check Computers Left
+    local cl = player:FindFirstChild("PlayerGui")
+    if cl then
+        local clText = cl:FindFirstChild("ComputersLeft")
+        if clText and tonumber(clText.Text) and tonumber(clText.Text) > 0 then
+            return "Hacking"
+        end
+    end
 
     return "Idle"
 end
@@ -128,8 +150,10 @@ function GamePhase.waitForRoundStart(timeout)
         task.wait(0.5)
         elapsed = elapsed + 0.5
         local phase = GamePhase.get()
-        if phase == "HeadStart" or phase == "Hacking" then
-            task.wait(1)
+        if phase == "HeadStart" then
+            task.wait(2)
+            return true
+        elseif phase == "Hacking" then
             return true
         end
     end
@@ -1438,7 +1462,471 @@ function GUI.create()
     checkButton.Text = ""
     checkButton.Parent = checkboxFrame
 
-    -- ===== BUTTON CONNECTIONS =====
+function GUI.create()
+    local TweenService = game:GetService("TweenService")
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AutoHackGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+
+    -- ===== MAIN FRAME =====
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 130)
+    frame.Position = UDim2.new(0.5, -110, 0, 20)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    frame.BorderSizePixel = 0
+    frame.ClipsDescendants = false
+    frame.Parent = screenGui
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
+
+    -- Title bar
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 32)
+    titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = frame
+    Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 10)
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -70, 1, 0)
+    title.Position = UDim2.new(0, 10, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Text = "AUTO FARM FTF"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextSize = 13
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = titleBar
+
+    -- Gear button
+    local gearBtn = Instance.new("TextButton")
+    gearBtn.Size = UDim2.new(0, 28, 0, 28)
+    gearBtn.Position = UDim2.new(1, -32, 0, 2)
+    gearBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    gearBtn.Text = "⚙️"
+    gearBtn.TextColor3 = Color3.new(1,1,1)
+    gearBtn.TextSize = 16
+    gearBtn.Font = Enum.Font.GothamBold
+    gearBtn.BorderSizePixel = 0
+    gearBtn.Parent = titleBar
+    Instance.new("UICorner", gearBtn).CornerRadius = UDim.new(0, 6)
+
+    -- Toggle button
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Size = UDim2.new(1, -16, 0, 34)
+    toggleButton.Position = UDim2.new(0, 8, 0, 38)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    toggleButton.Text = "OFF"
+    toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    toggleButton.TextSize = 14
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.BorderSizePixel = 0
+    toggleButton.Parent = frame
+    Instance.new("UICorner", toggleButton).CornerRadius = UDim.new(0, 7)
+
+    -- Status label
+    local status = Instance.new("TextLabel")
+    status.Size = UDim2.new(1, -16, 0, 14)
+    status.Position = UDim2.new(0, 8, 0, 78)
+    status.BackgroundTransparency = 1
+    status.Text = "Status: Waiting..."
+    status.TextColor3 = Color3.fromRGB(150, 220, 150)
+    status.TextSize = 10
+    status.Font = Enum.Font.Gotham
+    status.TextXAlignment = Enum.TextXAlignment.Left
+    status.TextWrapped = true
+    status.Parent = frame
+    statusLabel = status
+
+    -- Extra PC checkbox
+    local checkboxFrame = Instance.new("Frame")
+    checkboxFrame.Size = UDim2.new(1, -16, 0, 18)
+    checkboxFrame.Position = UDim2.new(0, 8, 0, 96)
+    checkboxFrame.BackgroundTransparency = 1
+    checkboxFrame.Parent = frame
+
+    local checkbox = Instance.new("Frame")
+    checkbox.Size = UDim2.new(0, 14, 0, 14)
+    checkbox.Position = UDim2.new(0, 0, 0.5, -7)
+    checkbox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    checkbox.BorderSizePixel = 1
+    checkbox.BorderColor3 = Color3.fromRGB(120, 120, 120)
+    checkbox.Parent = checkboxFrame
+    Instance.new("UICorner", checkbox).CornerRadius = UDim.new(0, 3)
+
+    local checkmark = Instance.new("TextLabel")
+    checkmark.Size = UDim2.new(1,0,1,0)
+    checkmark.BackgroundTransparency = 1
+    checkmark.Text = "✓"
+    checkmark.TextColor3 = Color3.fromRGB(255, 80, 80)
+    checkmark.TextSize = 12
+    checkmark.Font = Enum.Font.GothamBold
+    checkmark.Visible = false
+    checkmark.Parent = checkbox
+
+    local checkLabel = Instance.new("TextLabel")
+    checkLabel.Size = UDim2.new(1, -18, 1, 0)
+    checkLabel.Position = UDim2.new(0, 18, 0, 0)
+    checkLabel.BackgroundTransparency = 1
+    checkLabel.Text = "Hack Extra PC"
+    checkLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+    checkLabel.TextSize = 10
+    checkLabel.Font = Enum.Font.Gotham
+    checkLabel.TextXAlignment = Enum.TextXAlignment.Left
+    checkLabel.Parent = checkboxFrame
+
+    local checkButton = Instance.new("TextButton")
+    checkButton.Size = UDim2.new(1,0,1,0)
+    checkButton.BackgroundTransparency = 1
+    checkButton.Text = ""
+    checkButton.Parent = checkboxFrame
+
+    -- ===== SETTINGS PANEL (ẩn hiện) =====
+    local PANEL_H = 360
+    local settingsPanel = Instance.new("Frame")
+    settingsPanel.Size = UDim2.new(0, 240, 0, PANEL_H)
+    settingsPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+    settingsPanel.BorderSizePixel = 0
+    settingsPanel.ClipsDescendants = true
+    settingsPanel.Visible = false
+    settingsPanel.Parent = screenGui
+    Instance.new("UICorner", settingsPanel).CornerRadius = UDim.new(0, 10)
+
+    local settingsOpen = false
+
+    -- Settings title
+    local settingsTitle = Instance.new("TextLabel")
+    settingsTitle.Size = UDim2.new(1, -10, 0, 30)
+    settingsTitle.Position = UDim2.new(0, 5, 0, 5)
+    settingsTitle.BackgroundTransparency = 1
+    settingsTitle.Text = "⚙️ SETTINGS & STATS"
+    settingsTitle.TextColor3 = Color3.fromRGB(200, 200, 255)
+    settingsTitle.TextSize = 14
+    settingsTitle.Font = Enum.Font.GothamBold
+    settingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+    settingsTitle.Parent = settingsPanel
+
+    -- Stats labels
+    local function makeLabel(yPos, text, color)
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.new(1, -10, 0, 18)
+        lbl.Position = UDim2.new(0, 5, 0, yPos)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = color or Color3.fromRGB(200, 200, 200)
+        lbl.TextSize = 11
+        lbl.Font = Enum.Font.Gotham
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.Parent = settingsPanel
+        return lbl
+    end
+
+    local lblPlayer = makeLabel(35, "Player: " .. player.Name, Color3.fromRGB(255, 220, 100))
+    local lblUptime = makeLabel(53, "Uptime: 00:00:00", Color3.fromRGB(150, 220, 255))
+    local lblSvTime = makeLabel(71, "Server: --:--:--", Color3.fromRGB(150, 220, 255))
+    local lblCredits = makeLabel(89, "Credits: ...", Color3.fromRGB(100, 255, 150))
+    local lblCph = makeLabel(107, "C/h: ...", Color3.fromRGB(100, 255, 150))
+
+    -- Divider
+    local div = Instance.new("Frame")
+    div.Size = UDim2.new(1, -10, 0, 1)
+    div.Position = UDim2.new(0, 5, 0, 130)
+    div.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    div.BorderSizePixel = 0
+    div.Parent = settingsPanel
+
+    -- Webhook
+    makeLabel(135, "Webhook URL:", Color3.fromRGB(180, 180, 255))
+
+    local webhookInput = Instance.new("TextBox")
+    webhookInput.Size = UDim2.new(1, -10, 0, 28)
+    webhookInput.Position = UDim2.new(0, 5, 0, 153)
+    webhookInput.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+    webhookInput.BorderSizePixel = 0
+    webhookInput.Text = ""
+    webhookInput.PlaceholderText = "Paste Discord webhook URL..."
+    webhookInput.PlaceholderColor3 = Color3.fromRGB(100, 100, 120)
+    webhookInput.TextColor3 = Color3.fromRGB(220, 220, 255)
+    webhookInput.TextSize = 10
+    webhookInput.Font = Enum.Font.Gotham
+    webhookInput.ClearTextOnFocus = false
+    webhookInput.Parent = settingsPanel
+    Instance.new("UICorner", webhookInput).CornerRadius = UDim.new(0, 5)
+
+    -- Interval slider
+    local intervalLabel = makeLabel(186, "Every: 5 min", Color3.fromRGB(180, 180, 255))
+    local intervalTrack = Instance.new("Frame")
+    intervalTrack.Size = UDim2.new(1, -10, 0, 6)
+    intervalTrack.Position = UDim2.new(0, 5, 0, 210)
+    intervalTrack.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    intervalTrack.BorderSizePixel = 0
+    intervalTrack.Parent = settingsPanel
+    Instance.new("UICorner", intervalTrack).CornerRadius = UDim.new(1, 0)
+
+    local intervalFill = Instance.new("Frame")
+    intervalFill.Size = UDim2.new(4/59, 0, 1, 0)
+    intervalFill.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
+    intervalFill.BorderSizePixel = 0
+    intervalFill.Parent = intervalTrack
+    Instance.new("UICorner", intervalFill).CornerRadius = UDim.new(1, 0)
+
+    local intervalKnob = Instance.new("Frame")
+    intervalKnob.Size = UDim2.new(0, 16, 0, 16)
+    intervalKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+    intervalKnob.Position = UDim2.new(4/59, 0, 0.5, 0)
+    intervalKnob.BackgroundColor3 = Color3.fromRGB(140, 140, 255)
+    intervalKnob.BorderSizePixel = 0
+    intervalKnob.Parent = intervalTrack
+    Instance.new("UICorner", intervalKnob).CornerRadius = UDim.new(1, 0)
+
+    -- Speed slider
+    local speedLabel = makeLabel(226, "Speed: 35 st/s", Color3.fromRGB(180, 255, 180))
+    local speedTrack = Instance.new("Frame")
+    speedTrack.Size = UDim2.new(1, -10, 0, 6)
+    speedTrack.Position = UDim2.new(0, 5, 0, 250)
+    speedTrack.BackgroundColor3 = Color3.fromRGB(40, 60, 40)
+    speedTrack.BorderSizePixel = 0
+    speedTrack.Parent = settingsPanel
+    Instance.new("UICorner", speedTrack).CornerRadius = UDim.new(1, 0)
+
+    local speedFill = Instance.new("Frame")
+    speedFill.Size = UDim2.new(25/90, 0, 1, 0)
+    speedFill.BackgroundColor3 = Color3.fromRGB(80, 200, 80)
+    speedFill.BorderSizePixel = 0
+    speedFill.Parent = speedTrack
+    Instance.new("UICorner", speedFill).CornerRadius = UDim.new(1, 0)
+
+    local speedKnob = Instance.new("Frame")
+    speedKnob.Size = UDim2.new(0, 16, 0, 16)
+    speedKnob.AnchorPoint = Vector2.new(0.5, 0.5)
+    speedKnob.Position = UDim2.new(25/90, 0, 0.5, 0)
+    speedKnob.BackgroundColor3 = Color3.fromRGB(120, 255, 120)
+    speedKnob.BorderSizePixel = 0
+    speedKnob.Parent = speedTrack
+    Instance.new("UICorner", speedKnob).CornerRadius = UDim.new(1, 0)
+
+    -- Webhook status
+    local webhookStatus = makeLabel(270, "", Color3.fromRGB(150, 255, 150))
+
+    -- Test & Auto buttons
+    local testBtn = Instance.new("TextButton")
+    testBtn.Size = UDim2.new(0.48, -7, 0, 30)
+    testBtn.Position = UDim2.new(0, 5, 0, 290)
+    testBtn.BackgroundColor3 = Color3.fromRGB(40, 80, 140)
+    testBtn.Text = "Test Webhook"
+    testBtn.TextColor3 = Color3.new(1,1,1)
+    testBtn.TextSize = 11
+    testBtn.Font = Enum.Font.GothamBold
+    testBtn.BorderSizePixel = 0
+    testBtn.Parent = settingsPanel
+    Instance.new("UICorner", testBtn).CornerRadius = UDim.new(0, 6)
+
+    local autoBtn = Instance.new("TextButton")
+    autoBtn.Size = UDim2.new(0.52, -8, 0, 30)
+    autoBtn.Position = UDim2.new(0.48, 3, 0, 290)
+    autoBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    autoBtn.Text = "Auto: OFF"
+    autoBtn.TextColor3 = Color3.new(1,1,1)
+    autoBtn.TextSize = 10
+    autoBtn.Font = Enum.Font.GothamBold
+    autoBtn.BorderSizePixel = 0
+    autoBtn.Parent = settingsPanel
+    Instance.new("UICorner", autoBtn).CornerRadius = UDim.new(0, 6)
+
+    local autoSendEnabled = false
+    local webhookUrl = ""
+    local webhookInterval = 5
+    local creditsAtStart = nil
+
+    -- ===== FUNCTIONS =====
+    local function getCredits()
+        local stats = player:FindFirstChild("SavedPlayerStatsModule")
+        if stats then
+            local c = stats:FindFirstChild("Credits")
+            if c then return c.Value end
+        end
+        return nil
+    end
+
+    local function formatUptime(secs)
+        local h = math.floor(secs / 3600)
+        local m = math.floor((secs % 3600) / 60)
+        local s = math.floor(secs % 60)
+        return string.format("%02d:%02d:%02d", h, m, s)
+    end
+
+    local function sendWebhook(isTest)
+        if webhookUrl == "" then
+            webhookStatus.Text = "No webhook URL!"
+            return
+        end
+        local uptime = formatUptime(tick() - scriptStartTime)
+        local credits = getCredits()
+        local deltaCredits = (credits and creditsAtStart) and (credits - creditsAtStart) or 0
+        local cph = (tick() - scriptStartTime) > 60 and math.floor(deltaCredits / (tick() - scriptStartTime) * 3600) or 0
+
+        local content = isTest and "**[FTF AUTO FARM] TEST**" or "**[FTF AUTO FARM] Webhook**"
+        content = content .. "\nPlayer: **" .. player.Name .. "**"
+        content = content .. "\nUptime: **" .. uptime .. "**"
+        content = content .. "\nCredits: **" .. tostring(credits or "?") .. "C**"
+        content = content .. "\nEarned: **+" .. tostring(deltaCredits) .. "C**"
+        content = content .. "\nC/h: **" .. tostring(cph) .. "C**"
+
+        pcall(function()
+            local body = HttpService:JSONEncode({content = content})
+            if request then
+                request({
+                    Url = webhookUrl,
+                    Method = "POST",
+                    Headers = {["Content-Type"] = "application/json"},
+                    Body = body
+                })
+            else
+                HttpService:PostAsync(webhookUrl, body, Enum.HttpContentType.ApplicationJson)
+            end
+            webhookStatus.Text = isTest and "Test sent!" or "Sent!"
+        end)
+    end
+
+    -- ===== SLIDER LOGIC =====
+    local function setInterval(val)
+        val = math.clamp(math.round(val), 1, 60)
+        webhookInterval = val
+        local pct = (val - 1) / 59
+        intervalFill.Size = UDim2.new(pct, 0, 1, 0)
+        intervalKnob.Position = UDim2.new(pct, 0, 0.5, 0)
+        intervalLabel.Text = "Every: " .. val .. " min"
+    end
+
+    local function setSpeed(val)
+        val = math.clamp(math.floor(val), 10, 100)
+        Config.tweenSpeed = val
+        local pct = (val - 10) / 90
+        speedFill.Size = UDim2.new(pct, 0, 1, 0)
+        speedKnob.Position = UDim2.new(pct, 0, 0.5, 0)
+        speedLabel.Text = "Speed: " .. val .. " st/s"
+        local warn = val > 60
+        speedLabel.TextColor3 = warn and Color3.fromRGB(255, 180, 50) or Color3.fromRGB(180, 255, 180)
+        speedFill.BackgroundColor3 = warn and Color3.fromRGB(255, 140, 30) or Color3.fromRGB(80, 200, 80)
+        speedKnob.BackgroundColor3 = warn and Color3.fromRGB(255, 180, 50) or Color3.fromRGB(120, 255, 120)
+    end
+
+    -- Drag interval
+    local intervalDragging = false
+    intervalTrack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            intervalDragging = true
+            local pct = math.clamp((input.Position.X - intervalTrack.AbsolutePosition.X) / intervalTrack.AbsoluteSize.X, 0, 1)
+            setInterval(1 + pct * 59)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            intervalDragging = false
+            speedDragging = false
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if intervalDragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+            local pct = math.clamp((input.Position.X - intervalTrack.AbsolutePosition.X) / intervalTrack.AbsoluteSize.X, 0, 1)
+            setInterval(1 + pct * 59)
+        end
+    end)
+
+    -- Drag speed
+    local speedDragging = false
+    speedTrack.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            speedDragging = true
+            local pct = math.clamp((input.Position.X - speedTrack.AbsolutePosition.X) / speedTrack.AbsoluteSize.X, 0, 1)
+            setSpeed(10 + pct * 90)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if speedDragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch) then
+            local pct = math.clamp((input.Position.X - speedTrack.AbsolutePosition.X) / speedTrack.AbsoluteSize.X, 0, 1)
+            setSpeed(10 + pct * 90)
+        end
+    end)
+
+    -- ===== BUTTON EVENTS =====
+    webhookInput:GetPropertyChangedSignal("Text"):Connect(function()
+        webhookUrl = webhookInput.Text
+    end)
+
+    testBtn.MouseButton1Click:Connect(function()
+        webhookStatus.Text = "Sending..."
+        task.spawn(function() sendWebhook(true) end)
+    end)
+
+    autoBtn.MouseButton1Click:Connect(function()
+        autoSendEnabled = not autoSendEnabled
+        if autoSendEnabled then
+            autoBtn.BackgroundColor3 = Color3.fromRGB(50, 130, 50)
+            autoBtn.Text = "Auto: ON"
+            webhookStatus.Text = "Auto every " .. webhookInterval .. "m"
+        else
+            autoBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            autoBtn.Text = "Auto: OFF"
+            webhookStatus.Text = "Auto off"
+        end
+    end)
+
+    -- ===== AUTO WEBHOOK LOOP =====
+    task.spawn(function()
+        while true do
+            task.wait(1)
+            if not autoSendEnabled or webhookUrl == "" then continue end
+            local elapsed = tick() - scriptStartTime
+            if elapsed > 0 and elapsed % (webhookInterval * 60) < 1.5 then
+                task.spawn(function() sendWebhook(false) end)
+            end
+        end
+    end)
+
+    -- ===== STATS UPDATE LOOP =====
+    task.spawn(function()
+        task.wait(2)
+        creditsAtStart = getCredits()
+        while true do
+            task.wait(1)
+            if not settingsOpen then continue end
+            local credits = getCredits()
+            local elapsed = tick() - scriptStartTime
+            local deltaCredits = (credits and creditsAtStart) and (credits - creditsAtStart) or 0
+            local cph = elapsed > 60 and math.floor(deltaCredits / elapsed * 3600) or 0
+            lblUptime.Text = "Uptime: " .. formatUptime(elapsed)
+            lblSvTime.Text = "Server: " .. os.date("%H:%M:%S")
+            lblCredits.Text = "Credits: " .. tostring(credits or "?")
+            lblCph.Text = "+" .. tostring(deltaCredits) .. "C  (" .. tostring(cph) .. "C/h)"
+        end
+    end)
+
+    -- ===== TOGGLE SETTINGS =====
+    local function toggleSettings()
+        settingsOpen = not settingsOpen
+        if settingsOpen then
+            settingsPanel.Position = UDim2.new(0, 20, 0, 160)
+            settingsPanel.Visible = true
+            TweenService:Create(settingsPanel, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                Position = UDim2.new(0, 20, 0, 160)
+            }):Play()
+        else
+            TweenService:Create(settingsPanel, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+                Position = UDim2.new(0, 20, 0, 160)
+            }):Play()
+            task.delay(0.25, function() settingsPanel.Visible = false end)
+        end
+    end
+
+    gearBtn.MouseButton1Click:Connect(toggleSettings)
+
+    -- ===== MAIN BUTTONS =====
     toggleButton.MouseButton1Click:Connect(function()
         State.enabled = not State.enabled
         if State.enabled then
@@ -1461,10 +1949,8 @@ function GUI.create()
         checkLabel.TextColor3 = State.hackExtraPC and Color3.fromRGB(255, 120, 120) or Color3.fromRGB(180, 180, 180)
     end)
 
-    -- Drag
+    -- ===== DRAG =====
     local dragging, dragStart, startPos
-    local UIS = UserInputService
-
     frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
         or input.UserInputType == Enum.UserInputType.Touch then
@@ -1479,7 +1965,7 @@ function GUI.create()
             dragging = false
         end
     end)
-    UIS.InputChanged:Connect(function(input)
+    UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
         or input.UserInputType == Enum.UserInputType.Touch) then
             local delta = input.Position - dragStart
@@ -1489,25 +1975,6 @@ function GUI.create()
             )
         end
     end)
-
-    -- Gear button (settings)
-    local settingsOpen = false
-    gearBtn.MouseButton1Click:Connect(function()
-        -- Simple toggle
-        settingsOpen = not settingsOpen
-        -- You can add settings panel here
-    end)
-end
-
-function GUI.updateStatus(text)
-    if statusLabel then
-        statusLabel.Text = "Status: " .. tostring(text)
-    end
-    log("[STATUS] " .. tostring(text))
-end
-
-function GUI.getStatusLabel()
-    return statusLabel
 end
 -- ==========================================================
 -- MAIN LOOP
